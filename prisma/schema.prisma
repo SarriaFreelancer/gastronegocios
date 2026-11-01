@@ -8,7 +8,7 @@ generator client {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id        Int      @id @default(autoincrement())
   nombre    String
   email     String   @unique
   password  String   @default("admin123")
@@ -21,7 +21,7 @@ model User {
 }
 
 model Category {
-  id          String    @id @default(cuid())
+  id          Int       @id @default(autoincrement())
   nombre      String
   slug        String    @unique
   descripcion String?   @db.Text
@@ -37,13 +37,13 @@ model Category {
 }
 
 model Product {
-  id             String      @id @default(cuid())
+  id             Int         @id @default(autoincrement())
   nombre         String
   slug           String      @unique
   descripcion    String      @db.Text
   precio         Float
   imagen         String      @db.Text
-  categoriaId    String
+  categoriaId    Int
   categoria      Category    @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
   etiqueta       String?     // MÁS VENDIDO, NUEVO, RECOMENDADO
   disponibilidad Boolean     @default(true)
@@ -56,7 +56,7 @@ model Product {
 }
 
 model RestaurantTable {
-  id          String   @id @default(cuid())
+  id          Int      @id @default(autoincrement())
   numero      String   @unique // e.g. "Mesa 1", "Mesa 2", "Barra 1"
   capacidad   Int      @default(4)
   estado      String   @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
@@ -70,12 +70,12 @@ model RestaurantTable {
 }
 
 model Order {
-  id           String           @id @default(cuid())
+  id           Int              @id @default(autoincrement())
   codigo       String           @unique // e.g. "PG-1045"
   cliente      String
   telefono     String
   tipo         String           @default("domicilio") // domicilio, recoger, mesa
-  mesaId       String?
+  mesaId       Int?
   mesa         RestaurantTable? @relation(fields: [mesaId], references: [id], onDelete: SetNull)
   numeroMesa   String?          // Direct snapshot if mesaId deleted or manual
   direccion    String?          @db.Text
@@ -99,10 +99,10 @@ model Order {
 }
 
 model OrderItem {
-  id         String   @id @default(cuid())
-  orderId    String
+  id         Int      @id @default(autoincrement())
+  orderId    Int
   order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId  String?
+  productId  Int?
   product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   nombre     String
   precio     Float
@@ -114,8 +114,8 @@ model OrderItem {
 }
 
 model Review {
-  id            String   @id @default(cuid())
-  orderId       String?
+  id            Int      @id @default(autoincrement())
+  orderId       Int?
   order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
   mesaNumero    String?  // e.g. "Mesa 4"
   clienteNombre String
@@ -131,7 +131,7 @@ model Review {
 }
 
 model RestaurantConfig {
-  id                   String   @id @default(cuid())
+  id                   Int      @id @default(autoincrement())
   nombre               String   @default("PUNTO G")
   eslogan              String   @default("ANTOJOS QUE CONECTAN")
   telefonoWhatsapp     String   @default("3229088736")

@@ -40,8 +40,9 @@ export async function GET(req: Request) {
 
     // Table filter
     if (mesaId && mesaId !== 'todas') {
+      const isNum = !isNaN(Number(mesaId));
       where.OR = [
-        { mesaId: mesaId },
+        ...(isNum ? [{ mesaId: Number(mesaId) }] : []),
         { numeroMesa: mesaId },
       ];
     }
@@ -121,10 +122,10 @@ export async function POST(req: Request) {
     const codigo = `PG-${(1000 + count + 1).toString()}`;
 
     // If table order, find table id or update table state to Ocupada
-    let resolvedMesaId = mesaId || null;
+    let resolvedMesaId: number | null = mesaId && !isNaN(Number(mesaId)) ? Number(mesaId) : null;
     let resolvedNumeroMesa = numeroMesa || null;
 
-    if (tipo === 'mesa' && numeroMesa && !mesaId) {
+    if (tipo === 'mesa' && numeroMesa && !resolvedMesaId) {
       const foundTable = await prisma.restaurantTable.findUnique({
         where: { numero: numeroMesa },
       });

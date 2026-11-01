@@ -7,7 +7,6 @@ export async function GET() {
     if (!config) {
       config = await prisma.restaurantConfig.create({
         data: {
-          id: 'config-default',
           nombre: 'PUNTO G',
           eslogan: 'ANTOJOS QUE CONECTAN',
           telefonoWhatsapp: '3229088736',
@@ -32,8 +31,13 @@ export async function PUT(req: Request) {
     if (!config) {
       config = await prisma.restaurantConfig.create({
         data: {
-          id: 'config-default',
-          ...body,
+          nombre: body.nombre || 'PUNTO G',
+          eslogan: body.eslogan || 'ANTOJOS QUE CONECTAN',
+          telefonoWhatsapp: body.telefonoWhatsapp || '3229088736',
+          direccion: body.direccion || 'Calle 9 # 45-12, Barrio Granada, Cali',
+          horario: body.horario || 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
+          costoDomicilioBase: Number(body.costoDomicilioBase) || 5000,
+          propinaSugeridaPct: Number(body.propinaSugeridaPct) || 10,
         },
       });
     } else {

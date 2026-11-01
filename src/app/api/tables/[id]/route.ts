@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
+    const tableId = Number(params.id);
     const { numero, capacidad, ubicacion, estado, notas, action } = await req.json();
 
     const data: any = {};
@@ -17,7 +18,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       // Mark active table orders as Entregado
       await prisma.order.updateMany({
         where: {
-          mesaId: params.id,
+          mesaId: tableId,
           estado: { notIn: ['Entregado', 'Cancelado'] },
         },
         data: { estado: 'Entregado' },
@@ -25,7 +26,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const updated = await prisma.restaurantTable.update({
-      where: { id: params.id },
+      where: { id: tableId },
       data,
     });
 
@@ -37,7 +38,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await prisma.restaurantTable.delete({ where: { id: params.id } });
+    await prisma.restaurantTable.delete({ where: { id: Number(params.id) } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Error al eliminar mesa' }, { status: 500 });

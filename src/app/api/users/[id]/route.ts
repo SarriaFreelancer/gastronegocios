@@ -14,7 +14,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (password) data.password = password;
 
     const updated = await prisma.user.update({
-      where: { id: params.id },
+      where: { id: Number(params.id) },
       data,
       select: {
         id: true,
@@ -34,7 +34,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await prisma.user.delete({ where: { id: params.id } });
+    await prisma.user.delete({ where: { id: Number(params.id) } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Error al eliminar usuario' }, { status: 500 });

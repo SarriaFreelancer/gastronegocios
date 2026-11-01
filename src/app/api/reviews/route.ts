@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         tipoVisita: tipoVisita || 'En Sitio / Mesa',
         mesaNumero: mesaNumero || null,
         comentario,
-        orderId: orderId || null,
+        orderId: orderId && !isNaN(Number(orderId)) ? Number(orderId) : null,
         publicado: true,
       },
     });

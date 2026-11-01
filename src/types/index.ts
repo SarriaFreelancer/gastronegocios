@@ -8,7 +8,7 @@ export type ProductBadge =
   | 'INFANTIL';
 
 export interface Product {
-  id: string;
+  id: string | number;
   nombre: string;
   slug: string;
   descripcion: string;
@@ -23,7 +23,7 @@ export interface Product {
 }
 
 export interface Category {
-  id: string;
+  id: string | number;
   slug: string;
   nombre: string;
   descripcion: string;
@@ -40,7 +40,7 @@ export interface CartItem {
 }
 
 export interface ComboItem {
-  id: string;
+  id: string | number;
   nombre: string;
   descripcion: string;
   incluye: string[];

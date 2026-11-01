@@ -91,4 +91,14 @@ export const categories: Category[] = [
     icono: 'bottle',
     orden: 9,
   },
+  {
+    id: 'cat-combos',
+    slug: 'combos',
+    nombre: 'Combos y Promociones',
+    descripcion: 'Las mejores combinaciones de hamburguesas, papas, salchipapas y bebidas con descuento especial.',
+    subtitulo: 'Ahorra en grande con los combos más pedidos de Punto G.',
+    imagen: 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=900&auto=format&fit=crop',
+    icono: 'burger',
+    orden: 10,
+  },
 ];

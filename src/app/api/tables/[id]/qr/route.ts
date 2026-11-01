@@ -4,8 +4,9 @@ import { generateTableQRCode, generateFeedbackQRCode } from '@/lib/qrcode';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const tableId = Number(params.id);
     const table = await prisma.restaurantTable.findUnique({
-      where: { id: params.id },
+      where: { id: tableId },
     });
 
     if (!table) {

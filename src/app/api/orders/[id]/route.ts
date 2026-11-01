@@ -3,10 +3,11 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
+    const isNum = !isNaN(Number(params.id));
     const order = await prisma.order.findFirst({
       where: {
         OR: [
-          { id: params.id },
+          ...(isNum ? [{ id: Number(params.id) }] : []),
           { codigo: params.id },
         ],
       },
@@ -34,8 +35,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: 'Estado requerido' }, { status: 400 });
     }
 
+    const isNum = !isNaN(Number(params.id));
+    let orderToUpdateId: number;
+
+    if (isNum) {
+      orderToUpdateId = Number(params.id);
+    } else {
+      const found = await prisma.order.findUnique({ where: { codigo: params.id } });
+      if (!found) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
+      orderToUpdateId = found.id;
+    }
+
     const updated = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: orderToUpdateId },
       data: { estado },
       include: {
         items: true,

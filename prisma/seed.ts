@@ -5,29 +5,28 @@ import { products as initialProducts } from '../src/data/products';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting MySQL seeding for Punto G...');
+  console.log('🌱 Starting MySQL seeding for Punto G (Numeric IDs)...');
 
   // 1. Seed Config
-  await prisma.restaurantConfig.upsert({
-    where: { id: 'config-default' },
-    update: {},
-    create: {
-      id: 'config-default',
-      nombre: 'PUNTO G',
-      eslogan: 'ANTOJOS QUE CONECTAN',
-      telefonoWhatsapp: '3229088736',
-      direccion: 'Calle 9 # 45-12, Barrio Granada, Cali',
-      horario: 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
-      costoDomicilioBase: 5000,
-      propinaSugeridaPct: 10,
-      urlBaseSitio: 'http://localhost:3005',
-    },
-  });
+  const existingConfig = await prisma.restaurantConfig.findFirst();
+  if (!existingConfig) {
+    await prisma.restaurantConfig.create({
+      data: {
+        nombre: 'PUNTO G',
+        eslogan: 'ANTOJOS QUE CONECTAN',
+        telefonoWhatsapp: '3229088736',
+        direccion: 'Calle 9 # 45-12, Barrio Granada, Cali',
+        horario: 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
+        costoDomicilioBase: 5000,
+        propinaSugeridaPct: 10,
+        urlBaseSitio: 'http://localhost:3005',
+      },
+    });
+  }
 
   // 2. Seed Users
   const users = [
     {
-      id: 'usr-1',
       nombre: 'David Sarria',
       email: 'admin@puntog.com',
       password: 'admin123',
@@ -35,7 +34,6 @@ async function main() {
       estado: 'Activo',
     },
     {
-      id: 'usr-2',
       nombre: 'Carlos Gómez',
       email: 'carlos.caja@puntog.com',
       password: 'admin123',
@@ -43,7 +41,6 @@ async function main() {
       estado: 'Activo',
     },
     {
-      id: 'usr-3',
       nombre: 'María Rodríguez',
       email: 'maria.cocina@puntog.com',
       password: 'admin123',
@@ -51,7 +48,6 @@ async function main() {
       estado: 'Activo',
     },
     {
-      id: 'usr-4',
       nombre: 'Andrés Mesero',
       email: 'andres.mesas@puntog.com',
       password: 'admin123',
@@ -71,10 +67,10 @@ async function main() {
       create: u,
     });
   }
-  console.log('✅ Users seeded');
+  console.log('✅ Users seeded with numeric IDs');
 
   // 3. Seed Categories
-  const categoryMap = new Map<string, string>(); // slug -> id
+  const categoryMap = new Map<string, number>(); // slug -> integer id
   for (const cat of initialCategories) {
     const created = await prisma.category.upsert({
       where: { slug: cat.slug },
@@ -98,7 +94,7 @@ async function main() {
     });
     categoryMap.set(cat.slug, created.id);
   }
-  console.log(`✅ ${categoryMap.size} Categories seeded`);
+  console.log(`✅ ${categoryMap.size} Categories seeded with numeric IDs`);
 
   // 4. Seed Products
   for (const prod of initialProducts) {
@@ -117,7 +113,6 @@ async function main() {
         disponibilidad: prod.disponibilidad ?? true,
       },
       create: {
-        id: prod.id,
         nombre: prod.nombre,
         slug: prod.slug,
         descripcion: prod.descripcion,
@@ -129,7 +124,7 @@ async function main() {
       },
     });
   }
-  console.log(`✅ Products seeded`);
+  console.log(`✅ Products seeded with numeric IDs (1, 2, 3...)`);
 
   // 5. Seed Restaurant Tables (Mesas)
   const tables = [
@@ -143,7 +138,7 @@ async function main() {
     { numero: 'Barra 2', capacidad: 2, ubicacion: 'Barra', estado: 'Libre' },
   ];
 
-  const tableMap = new Map<string, string>();
+  const tableMap = new Map<string, number>();
   for (const t of tables) {
     const table = await prisma.restaurantTable.upsert({
       where: { numero: t.numero },
@@ -156,9 +151,9 @@ async function main() {
     });
     tableMap.set(t.numero, table.id);
   }
-  console.log('✅ Tables seeded');
+  console.log('✅ Tables seeded with numeric IDs');
 
-  // 6. Seed Orders (with dates for filters, tip, table, pickup, delivery)
+  // 6. Seed Orders
   const ordersData = [
     {
       codigo: 'PG-1045',
@@ -194,7 +189,7 @@ async function main() {
       estado: 'En Preparación',
       metodoPago: 'Datáfono',
       notasCliente: 'Servir con salsas de ajo y piña extra.',
-      createdAt: new Date(Date.now() - 25 * 60 * 1000), // 25 min ago
+      createdAt: new Date(Date.now() - 25 * 60 * 1000),
       items: [
         { nombre: 'Picada Criolla Punto G', precio: 58000, cantidad: 1, notas: 'Bien tostada' },
         { nombre: 'Jugo de Lulo Valluno', precio: 10000, cantidad: 2 },
@@ -313,7 +308,7 @@ async function main() {
       });
     }
   }
-  console.log('✅ Orders seeded');
+  console.log('✅ Orders seeded with numeric IDs');
 
   // 7. Seed Reviews
   const reviews = [
@@ -349,7 +344,7 @@ async function main() {
       data: r,
     });
   }
-  console.log('✅ Reviews seeded');
+  console.log('✅ Reviews seeded with numeric IDs');
   console.log('🎉 Seeding completed successfully!');
 }
 

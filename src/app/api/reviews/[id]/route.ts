@@ -10,7 +10,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (publicado !== undefined) data.publicado = Boolean(publicado);
 
     const updated = await prisma.review.update({
-      where: { id: params.id },
+      where: { id: Number(params.id) },
       data,
     });
 
@@ -22,7 +22,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await prisma.review.delete({ where: { id: params.id } });
+    await prisma.review.delete({ where: { id: Number(params.id) } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Error al eliminar comentario' }, { status: 500 });

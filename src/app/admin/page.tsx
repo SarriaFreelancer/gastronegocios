@@ -46,7 +46,7 @@ import {
 } from 'lucide-react';
 
 interface OrderItem {
-  id?: string;
+  id?: number | string;
   nombre: string;
   precio: number;
   cantidad: number;
@@ -54,12 +54,12 @@ interface OrderItem {
 }
 
 interface Order {
-  id: string;
+  id: number | string;
   codigo: string;
   cliente: string;
   telefono: string;
   tipo: 'domicilio' | 'recoger' | 'mesa';
-  mesaId?: string | null;
+  mesaId?: number | string | null;
   numeroMesa?: string | null;
   direccion?: string | null;
   barrio?: string | null;
@@ -75,7 +75,7 @@ interface Order {
 }
 
 interface RestaurantTable {
-  id: string;
+  id: number | string;
   numero: string;
   capacidad: number;
   estado: 'Libre' | 'Ocupada' | 'Cuenta_Pedida' | 'Reservada';
@@ -85,7 +85,7 @@ interface RestaurantTable {
 }
 
 interface Category {
-  id: string;
+  id: number | string;
   nombre: string;
   slug: string;
   descripcion?: string | null;
@@ -97,7 +97,7 @@ interface Category {
 }
 
 interface Product {
-  id: string;
+  id: number | string;
   nombre: string;
   slug: string;
   descripcion: string;
@@ -109,7 +109,7 @@ interface Product {
 }
 
 interface Review {
-  id: string;
+  id: number | string;
   clienteNombre: string;
   calificacion: number;
   tipoVisita: string;
@@ -121,7 +121,7 @@ interface Review {
 }
 
 interface AdminUser {
-  id: string;
+  id: number | string;
   nombre: string;
   email: string;
   rol: string;
@@ -213,7 +213,7 @@ export default function AdminPage() {
 
   // ==================== 5. RESEÑAS STATE ====================
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [replyReviewId, setReplyReviewId] = useState<string | null>(null);
+  const [replyReviewId, setReplyReviewId] = useState<number | string | null>(null);
   const [replyText, setReplyText] = useState('');
 
   // ==================== 6. USUARIOS STATE ====================
@@ -437,7 +437,7 @@ export default function AdminPage() {
   };
 
   // Update Order Status
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+  const handleUpdateOrderStatus = async (orderId: number | string, newStatus: string) => {
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
@@ -454,7 +454,7 @@ export default function AdminPage() {
   };
 
   // Release Table
-  const handleReleaseTable = async (tableId: string) => {
+  const handleReleaseTable = async (tableId: number | string) => {
     if (!confirm('¿Deseas cobrar y liberar esta mesa?')) return;
     try {
       const res = await fetch(`/api/tables/${tableId}`, {
@@ -472,7 +472,7 @@ export default function AdminPage() {
   };
 
   // Open Table QR Modal
-  const handleOpenTableQr = async (tableId: string) => {
+  const handleOpenTableQr = async (tableId: number | string) => {
     try {
       const res = await fetch(`/api/tables/${tableId}/qr`);
       if (res.ok) {
@@ -555,7 +555,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
+  const handleDeleteCategory = async (id: number | string) => {
     if (!confirm('¿Eliminar esta categoría? Los productos asociados podrían verse afectados.')) return;
     try {
       await fetch(`/api/categories/${id}`, { method: 'DELETE' });
@@ -617,7 +617,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
+  const handleDeleteProduct = async (id: number | string) => {
     if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
     try {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
@@ -628,7 +628,7 @@ export default function AdminPage() {
   };
 
   // Review Actions
-  const handleSaveReply = async (reviewId: string) => {
+  const handleSaveReply = async (reviewId: number | string) => {
     if (!replyText.trim()) return;
     try {
       await fetch(`/api/reviews/${reviewId}`, {
@@ -644,7 +644,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteReview = async (reviewId: string) => {
+  const handleDeleteReview = async (reviewId: number | string) => {
     if (!confirm('¿Eliminar este comentario?')) return;
     try {
       await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
@@ -690,7 +690,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (id: number | string) => {
     if (!confirm('¿Eliminar este usuario?')) return;
     try {
       await fetch(`/api/users/${id}`, { method: 'DELETE' });

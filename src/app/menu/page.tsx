@@ -65,7 +65,7 @@ export default function MenuGeneralPage() {
           </div>
 
           {/* Category Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none justify-start lg:justify-center">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none justify-start px-1 scroll-smooth">
             <button
               onClick={() => setSelectedCategory('todos')}
               className={`px-4 py-2 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${

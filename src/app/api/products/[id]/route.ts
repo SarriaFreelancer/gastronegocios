@@ -21,7 +21,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const updated = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: Number(params.id) },
       data,
       include: {
         categoria: true,
@@ -40,7 +40,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id: Number(params.id) },
     });
     return NextResponse.json({ success: true });
   } catch (error) {
