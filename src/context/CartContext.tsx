@@ -198,6 +198,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const orderData = await res.json();
         setLastCreatedOrder(orderData);
+        if (typeof window !== 'undefined' && orderData.codigo) {
+          localStorage.setItem('punto_g_last_order', orderData.codigo);
+        }
         return orderData;
       }
     } catch (e) {
@@ -283,11 +286,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     message += `⭐ *TOTAL A PAGAR:* ${formatCurrency(totalPrice)} COP\n`;
     message += `----------------------------\n\n`;
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005';
+    message += `📍 *Rastrea tu pedido en tiempo real:* ${siteUrl}/pedido/${orderCode}\n\n`;
     message += `¡Muchas gracias! Ya quedó registrado en el sistema con el código *#${orderCode}*.`;
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${restaurantInfo.whatsappNumber}&text=${encodedMessage}`;
     
+    clearCart();
     window.open(whatsappUrl, '_blank');
   };
 

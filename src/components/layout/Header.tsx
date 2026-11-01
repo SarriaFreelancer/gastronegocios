@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
 import { useCart } from '@/context/CartContext';
-import { ShoppingBag, Menu, X, PhoneCall } from 'lucide-react';
+import { ShoppingBag, Menu, X, PhoneCall, Search } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 
 export const Header: React.FC = () => {
@@ -13,10 +13,15 @@ export const Header: React.FC = () => {
   const { totalItems, setIsCartOpen } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  if (pathname.startsWith('/cocina')) {
+    return null;
+  }
+
   const navLinks = [
     { name: 'Inicio', href: '/' },
     { name: 'Menú', href: '/menu' },
     { name: 'Promociones', href: '/promociones' },
+    { name: 'Rastrear Pedido', href: '/rastreo' },
     { name: 'Nosotros', href: '/nosotros' },
     { name: 'Contacto', href: '/contacto' },
   ];

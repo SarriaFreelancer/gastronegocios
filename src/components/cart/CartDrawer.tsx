@@ -141,6 +141,17 @@ export const CartDrawer: React.FC = () => {
                 </p>
                 
                 <div className="space-y-2 pt-2">
+                  <Link
+                    href={`/pedido/${webOrderSuccess.codigo}`}
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      setWebOrderSuccess(null);
+                    }}
+                    className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-glow"
+                  >
+                    <span>🔴 Rastrear mi Pedido en Vivo 👉</span>
+                  </Link>
+
                   <a
                     href={`https://api.whatsapp.com/send?phone=${restaurantInfo.whatsappNumber}&text=${encodeURIComponent(
                       `¡Hola Punto G! Acabo de hacer el pedido #${webOrderSuccess.codigo} desde la web por ${formatPrice(webOrderSuccess.total)}.`

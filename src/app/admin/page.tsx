@@ -33,6 +33,7 @@ import {
   Heart,
   MessageSquare,
   Calendar,
+  ChefHat,
   Filter,
   DollarSign,
   Printer,
@@ -849,7 +850,16 @@ export default function AdminPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/cocina"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
+            >
+              <ChefHat className="w-4 h-4" />
+              <span>Pantalla Cocina (KDS) 👨‍🍳</span>
+            </Link>
+
             <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl">
               <div className="w-7 h-7 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xs">
                 {currentUser?.nombre ? currentUser.nombre.charAt(0) : 'A'}

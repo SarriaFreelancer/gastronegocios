@@ -1,10 +1,18 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
-import { Clock, MapPin, MessageCircle, Shield } from 'lucide-react';
+import { Clock, MapPin, MessageCircle, Shield, ChefHat } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
+
+  if (pathname.startsWith('/cocina')) {
+    return null;
+  }
   return (
     <footer className="bg-[#050505] text-white border-t border-[#1c1c1c] pt-12 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -103,17 +111,29 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & admin link */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
           <p>© 2025 Punto G. Todos los derechos reservados.</p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <Link 
+              href="/rastreo" 
+              className="inline-flex items-center gap-1.5 text-gray-400 hover:text-brand-yellow transition-colors font-medium"
+            >
+              <span>🔍 Rastrear mi Pedido</span>
+            </Link>
+            <span className="text-gray-700">•</span>
+            <Link 
+              href="/cocina" 
+              className="inline-flex items-center gap-1.5 text-orange-400 hover:text-orange-300 transition-colors font-medium"
+            >
+              <ChefHat className="w-3.5 h-3.5" />
+              <span>Pantalla Cocina (KDS)</span>
+            </Link>
+            <span className="text-gray-700">•</span>
             <Link 
               href="/admin" 
               className="inline-flex items-center gap-1.5 text-gray-500 hover:text-brand-yellow transition-colors"
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>Panel Administrativo</span>
+              <span>Panel Admin</span>
             </Link>
-            <p className="flex items-center gap-1">
-              Diseñado con <span className="text-red-500">❤️</span> para los amantes de la buena comida.
-            </p>
           </div>
         </div>
       </div>

@@ -46,7 +46,10 @@ export async function GET(req: Request) {
     }
 
     // Estado filter
-    if (estado && estado !== 'todos') {
+    const soloCocina = searchParams.get('cocina') === 'true';
+    if (soloCocina) {
+      where.estado = { in: ['Pendiente', 'En Preparación', 'Listo'] };
+    } else if (estado && estado !== 'todos') {
       where.estado = estado;
     }
 
@@ -78,7 +81,7 @@ export async function GET(req: Request) {
           select: { id: true, numero: true, ubicacion: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: soloCocina ? 'asc' : 'desc' },
     });
 
     // Calculate aggregated metrics for the filtered range
