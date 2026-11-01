@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const soloPrincipales = searchParams.get('principales') === 'true';
+
     const categories = await prisma.category.findMany({
+      where: soloPrincipales ? { parentId: null } : {},
       include: {
+        parent: {
+          select: { id: true, nombre: true, slug: true },
+        },
+        children: {
+          orderBy: { orden: 'asc' },
+          include: {
+            _count: {
+              select: { subProducts: true, products: true },
+            },
+          },
+        },
         _count: {
-          select: { products: true },
+          select: { products: true, subProducts: true, children: true },
         },
       },
       orderBy: { orden: 'asc' },
@@ -19,7 +34,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { nombre, slug, descripcion, icono, imagen, orden, activo } = await req.json();
+    const { nombre, slug, descripcion, icono, imagen, orden, activo, parentId } = await req.json();
 
     if (!nombre) {
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 });
@@ -36,6 +51,11 @@ export async function POST(req: Request) {
         imagen: imagen || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=900&auto=format&fit=crop',
         orden: Number(orden) || 0,
         activo: activo ?? true,
+        parentId: parentId ? Number(parentId) : null,
+      },
+      include: {
+        parent: true,
+        children: true,
       },
     });
 

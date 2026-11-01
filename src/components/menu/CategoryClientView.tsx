@@ -3,11 +3,12 @@
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { Category, Product } from '@/types';
+import { categories } from '@/data/categories';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
-import { ChevronDown, Search, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, Search, ArrowUpDown, Filter } from 'lucide-react';
 
 interface CategoryClientViewProps {
   category: Category;
@@ -18,18 +19,38 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
   category,
   products,
 }) => {
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recomendados' | 'precio-menor' | 'precio-mayor' | 'nombre'>('recomendados');
+
+  // Find subcategories belonging to this category (or siblings if this is a subcategory)
+  const subcategories = useMemo(() => {
+    // If it's a main category (parentId == null), get its children
+    if (!category.parentId) {
+      return categories.filter(
+        (c) => c.parentId === category.id || c.parentId === category.slug
+      );
+    }
+    // If it's a subcategory, get all siblings sharing the same parent
+    return categories.filter((c) => c.parentId === category.parentId);
+  }, [category]);
 
   // Filter & Sort products
   const filteredAndSortedProducts = useMemo(() => {
     let result = products.filter((p) => {
+      let matchesSub = true;
+      if (selectedSubcategory) {
+        matchesSub = p.subcategoria === selectedSubcategory || p.categoria === selectedSubcategory;
+      }
+
       const query = searchQuery.toLowerCase();
-      return (
+      const matchesSearch =
+        !query ||
         p.nombre.toLowerCase().includes(query) ||
         p.descripcion.toLowerCase().includes(query) ||
-        (p.ingredientes && p.ingredientes.some((i) => i.toLowerCase().includes(query)))
-      );
+        (p.ingredientes && p.ingredientes.some((i) => i.toLowerCase().includes(query)));
+
+      return matchesSub && matchesSearch;
     });
 
     switch (sortBy) {
@@ -49,7 +70,7 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     }
 
     return result;
-  }, [products, searchQuery, sortBy]);
+  }, [products, selectedSubcategory, searchQuery, sortBy]);
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16">
@@ -103,7 +124,17 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
           {/* Left Column: Category Sidebar */}
-          <CategorySidebar currentSlug={category.slug} />
+          <CategorySidebar
+            currentSlug={category.slug}
+            currentSubSlug={selectedSubcategory || undefined}
+            onSelectCategory={(catSlug, subSlug) => {
+              if (subSlug) {
+                setSelectedSubcategory(subSlug);
+              } else if (catSlug === category.slug) {
+                setSelectedSubcategory(null);
+              }
+            }}
+          />
 
           {/* Right Column: Main Products Area */}
           <div className="flex-1 w-full space-y-6">
@@ -159,6 +190,46 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
 
             </div>
 
+            {/* Subcategories Filter Chips Toolbar */}
+            {subcategories.length > 0 && (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-3.5 flex flex-wrap items-center gap-2 shadow-md">
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mr-1">
+                  <Filter className="w-3.5 h-3.5 text-brand-yellow" />
+                  <span>Subcategorías:</span>
+                </span>
+
+                <button
+                  onClick={() => setSelectedSubcategory(null)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    selectedSubcategory === null
+                      ? 'bg-brand-yellow text-black shadow-glow font-black'
+                      : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
+                  }`}
+                >
+                  Todas ({products.length})
+                </button>
+
+                {subcategories.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setSelectedSubcategory(sub.slug)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      selectedSubcategory === sub.slug
+                        ? 'bg-brand-yellow text-black shadow-glow font-black'
+                        : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
+                    }`}
+                  >
+                    <CategoryIcon
+                      name={sub.icono}
+                      size={12}
+                      className={selectedSubcategory === sub.slug ? 'text-black' : 'text-brand-yellow'}
+                    />
+                    <span>{sub.nombre}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Products Grid: 3 columns on desktop, matching Image 2 */}
             {filteredAndSortedProducts.length === 0 ? (
               <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center">
@@ -166,10 +237,13 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                   No se encontraron productos con el término "{searchQuery}".
                 </p>
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedSubcategory(null);
+                  }}
                   className="mt-4 text-xs font-bold text-brand-yellow hover:underline"
                 >
-                  Limpiar búsqueda
+                  Limpiar filtros
                 </button>
               </div>
             ) : (

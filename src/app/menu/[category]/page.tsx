@@ -37,8 +37,10 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  // Filter products for this specific category
-  const categoryProducts = products.filter((p) => p.categoria === category.slug);
+  // Filter products for this specific category or subcategory
+  const categoryProducts = products.filter(
+    (p) => p.categoria === category.slug || p.subcategoria === category.slug
+  );
 
   return <CategoryClientView category={category} products={categoryProducts} />;
 }

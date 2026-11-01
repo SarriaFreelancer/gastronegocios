@@ -94,7 +94,10 @@ interface Category {
   imagen?: string | null;
   orden: number;
   activo: boolean;
-  _count?: { products: number };
+  parentId?: number | string | null;
+  parent?: { id: number | string; nombre: string; slug: string } | null;
+  children?: Category[];
+  _count?: { products?: number; subProducts?: number; children?: number };
 }
 
 interface Product {
@@ -105,6 +108,11 @@ interface Product {
   precio: number;
   imagen: string;
   categoria: string;
+  categoriaId?: number;
+  categoriaNombre?: string;
+  subcategoria?: string | null;
+  subcategoriaId?: number | null;
+  subcategoriaNombre?: string | null;
   etiqueta?: string | null;
   disponibilidad: boolean;
 }
@@ -204,6 +212,7 @@ export default function AdminPage() {
     imagen: '',
     orden: 0,
     activo: true,
+    parentId: '',
   });
 
   // ==================== 4. PRODUCTOS STATE ====================
@@ -214,7 +223,8 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productFormData, setProductFormData] = useState({
     nombre: '',
-    categoriaSlug: 'hamburguesas',
+    categoriaSlug: 'comidas-rapidas',
+    subcategoriaSlug: '',
     precio: '',
     descripcion: '',
     imagen: '',
@@ -531,6 +541,7 @@ export default function AdminPage() {
       imagen: '',
       orden: categoryList.length + 1,
       activo: true,
+      parentId: '',
     });
     setIsCatModalOpen(true);
   };
@@ -544,7 +555,8 @@ export default function AdminPage() {
       icono: cat.icono,
       imagen: cat.imagen || '',
       orden: cat.orden,
-      activo: cat.activo,
+      activo: cat.activo ?? true,
+      parentId: cat.parentId ? String(cat.parentId) : '',
     });
     setIsCatModalOpen(true);
   };
@@ -552,17 +564,22 @@ export default function AdminPage() {
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...catFormData,
+        parentId: catFormData.parentId ? Number(catFormData.parentId) : null,
+      };
+
       if (editingCat) {
         await fetch(`/api/categories/${editingCat.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(catFormData),
+          body: JSON.stringify(payload),
         });
       } else {
         await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(catFormData),
+          body: JSON.stringify(payload),
         });
       }
       setIsCatModalOpen(false);
@@ -585,9 +602,11 @@ export default function AdminPage() {
   // Product Actions
   const handleOpenNewProduct = () => {
     setEditingProduct(null);
+    const defaultMain = categoryList.find(c => !c.parentId)?.slug || 'comidas-rapidas';
     setProductFormData({
       nombre: '',
-      categoriaSlug: categoryList[0]?.slug || 'hamburguesas',
+      categoriaSlug: defaultMain,
+      subcategoriaSlug: '',
       precio: '',
       descripcion: '',
       imagen: '',
@@ -602,6 +621,7 @@ export default function AdminPage() {
     setProductFormData({
       nombre: p.nombre,
       categoriaSlug: p.categoria,
+      subcategoriaSlug: p.subcategoria || '',
       precio: String(p.precio),
       descripcion: p.descripcion,
       imagen: p.imagen,
@@ -1395,39 +1415,56 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categoryList.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="bg-[#121212] border border-[#222] hover:border-brand-yellow/50 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-gray-500 uppercase">
-                        Orden #{cat.orden}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          cat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
-                        }`}
-                      >
-                        {cat.activo ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </div>
+              {categoryList.map((cat) => {
+                const parentCat = cat.parentId ? categoryList.find(c => c.id === cat.parentId || c.slug === cat.parentId) : null;
+                const subCount = categoryList.filter(c => c.parentId === cat.id || c.parentId === cat.slug).length;
 
-                    <h4 className="text-base font-black text-white uppercase font-display">
-                      {cat.nombre}
-                    </h4>
-                    <p className="text-xs text-gray-400 line-clamp-2">
-                      {cat.descripcion || 'Sin descripción'}
-                    </p>
+                return (
+                  <div
+                    key={cat.id}
+                    className={`bg-[#121212] border rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between ${
+                      !cat.parentId ? 'border-[#2d2d2d] hover:border-brand-yellow/60' : 'border-[#1f1f1f] hover:border-blue-500/50 bg-[#0e0e0e]'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-gray-500 uppercase">
+                          Orden #{cat.orden}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {!cat.parentId ? (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                              ⭐ Principal ({subCount} sub)
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 truncate max-w-[150px]">
+                              ↳ {parentCat?.nombre || 'Subcategoría'}
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              cat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                            }`}
+                          >
+                            {cat.activo ? 'Activa' : 'Inactiva'}
+                          </span>
+                        </div>
+                      </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-brand-yellow">
-                      <span>Slug: <code>/menu/{cat.slug}</code></span>
-                      {cat._count?.products !== undefined && (
-                        <span className="text-gray-400">• {cat._count.products} platos</span>
-                      )}
+                      <h4 className="text-base font-black text-white uppercase font-display">
+                        {cat.nombre}
+                      </h4>
+                      <p className="text-xs text-gray-400 line-clamp-2">
+                        {cat.descripcion || 'Sin descripción'}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-brand-yellow">
+                        <span>Slug: <code>/menu/{cat.slug}</code></span>
+                        {cat._count?.products !== undefined && (
+                          <span className="text-gray-400">• {cat._count.products} platos</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
                   <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
                     <button
@@ -1446,7 +1483,8 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
         )}
@@ -1494,11 +1532,20 @@ export default function AdminPage() {
                 className="bg-[#141414] border border-[#252525] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
               >
                 <option value="todas">Todas las categorías</option>
-                {categoryList.map((c) => (
-                  <option key={c.id} value={c.slug}>
-                    {c.nombre}
-                  </option>
-                ))}
+                {categoryList
+                  .filter((c) => !c.parentId)
+                  .map((main) => (
+                    <optgroup key={main.id} label={`⭐ ${main.nombre}`}>
+                      <option value={main.slug}>Toda: {main.nombre}</option>
+                      {categoryList
+                        .filter((sub) => sub.parentId === main.id || sub.parentId === main.slug)
+                        .map((sub) => (
+                          <option key={sub.id} value={sub.slug}>
+                            &nbsp;&nbsp;↳ {sub.nombre}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
               </select>
             </div>
 
@@ -1506,7 +1553,10 @@ export default function AdminPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {productList
                 .filter((p) => {
-                  const matchesCat = selectedProductCat === 'todas' || p.categoria === selectedProductCat;
+                  const matchesCat =
+                    selectedProductCat === 'todas' ||
+                    p.categoria === selectedProductCat ||
+                    p.subcategoria === selectedProductCat;
                   const matchesSearch =
                     p.nombre.toLowerCase().includes(searchProduct.toLowerCase()) ||
                     p.descripcion.toLowerCase().includes(searchProduct.toLowerCase());
@@ -1541,7 +1591,15 @@ export default function AdminPage() {
                             {formatPrice(p.precio)}
                           </span>
                         </div>
-                        <span className="text-[10px] text-gray-500 uppercase">{p.categoria}</span>
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase mt-0.5">
+                          <span className="text-brand-yellow">{p.categoriaNombre || p.categoria}</span>
+                          {p.subcategoria && (
+                            <>
+                              <span className="text-gray-600">➔</span>
+                              <span className="text-blue-400">{p.subcategoriaNombre || p.subcategoria}</span>
+                            </>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400 line-clamp-2 mt-1">{p.descripcion}</p>
                       </div>
                     </div>
@@ -2065,6 +2123,29 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">
+                  Categoría Padre (Si es una subcategoría)
+                </label>
+                <select
+                  value={catFormData.parentId}
+                  onChange={(e) => setCatFormData({ ...catFormData, parentId: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                >
+                  <option value="">⭐ Ninguna (Es Categoría Principal)</option>
+                  {categoryList
+                    .filter((c) => !c.parentId && c.id !== editingCat?.id)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        ↳ Subcategoría de: {c.nombre}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Ejemplo: Selecciona "Bebidas" si estás creando "Gaseosas" o "Cócteles".
+                </p>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -2109,30 +2190,63 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-300 font-bold uppercase mb-1">Categoría</label>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Categoría Principal *</label>
                   <select
                     value={productFormData.categoriaSlug}
-                    onChange={(e) => setProductFormData({ ...productFormData, categoriaSlug: e.target.value })}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      setProductFormData({
+                        ...productFormData,
+                        categoriaSlug: newCat,
+                        subcategoriaSlug: '',
+                      });
+                    }}
                     className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
                   >
-                    {categoryList.map((c) => (
-                      <option key={c.id} value={c.slug}>
-                        {c.nombre}
-                      </option>
-                    ))}
+                    {categoryList
+                      .filter((c) => !c.parentId)
+                      .map((c) => (
+                        <option key={c.id} value={c.slug}>
+                          {c.nombre}
+                        </option>
+                      ))}
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-gray-300 font-bold uppercase mb-1">Precio (COP) *</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="25000"
-                    value={productFormData.precio}
-                    onChange={(e) => setProductFormData({ ...productFormData, precio: e.target.value })}
-                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
-                  />
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Subcategoría (Opcional)</label>
+                  <select
+                    value={productFormData.subcategoriaSlug}
+                    onChange={(e) =>
+                      setProductFormData({ ...productFormData, subcategoriaSlug: e.target.value })
+                    }
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                  >
+                    <option value="">-- Sin subcategoría --</option>
+                    {categoryList
+                      .filter((c) => {
+                        const parent = categoryList.find((p) => p.slug === productFormData.categoriaSlug);
+                        return parent && (c.parentId === parent.id || c.parentId === parent.slug);
+                      })
+                      .map((sub) => (
+                        <option key={sub.id} value={sub.slug}>
+                          {sub.nombre}
+                        </option>
+                      ))}
+                  </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Precio (COP) *</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="25000"
+                  value={productFormData.precio}
+                  onChange={(e) => setProductFormData({ ...productFormData, precio: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
+                />
               </div>
 
               <div>

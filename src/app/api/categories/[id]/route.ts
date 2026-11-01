@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { nombre, slug, descripcion, icono, imagen, orden, activo } = await req.json();
+    const { nombre, slug, descripcion, icono, imagen, orden, activo, parentId } = await req.json();
 
     const data: any = {};
     if (nombre !== undefined) data.nombre = nombre;
@@ -13,10 +13,15 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (imagen !== undefined) data.imagen = imagen;
     if (orden !== undefined) data.orden = Number(orden);
     if (activo !== undefined) data.activo = Boolean(activo);
+    if (parentId !== undefined) data.parentId = parentId ? Number(parentId) : null;
 
     const updated = await prisma.category.update({
       where: { id: Number(params.id) },
       data,
+      include: {
+        parent: true,
+        children: true,
+      },
     });
 
     return NextResponse.json(updated);

@@ -14,7 +14,12 @@ export interface Product {
   descripcion: string;
   precio: number;
   imagen: string;
-  categoria: string; // e.g. 'hamburguesas', 'picadas', etc.
+  categoria: string; // e.g. 'hamburguesas', 'comidas-rapidas', etc.
+  categoriaId?: number;
+  categoriaNombre?: string;
+  subcategoria?: string | null; // e.g. 'hamburguesas', 'gaseosas', 'cocteles'
+  subcategoriaId?: number | null;
+  subcategoriaNombre?: string | null;
   etiqueta?: ProductBadge;
   disponibilidad: boolean;
   destacado?: boolean;
@@ -31,6 +36,15 @@ export interface Category {
   imagen: string;
   icono: string; // identifier for icon
   orden: number;
+  activo?: boolean;
+  parentId?: number | string | null;
+  parent?: Category | null;
+  children?: Category[];
+  _count?: {
+    products?: number;
+    subProducts?: number;
+    children?: number;
+  };
 }
 
 export interface CartItem {

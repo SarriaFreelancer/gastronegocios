@@ -21,17 +21,21 @@ model User {
 }
 
 model Category {
-  id          Int       @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   nombre      String
-  slug        String    @unique
-  descripcion String?   @db.Text
-  icono       String    @default("Utensils")
-  imagen      String?   @db.Text
-  orden       Int       @default(0)
-  activo      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  slug        String     @unique
+  descripcion String?    @db.Text
+  icono       String     @default("Utensils")
+  imagen      String?    @db.Text
+  orden       Int        @default(0)
+  activo      Boolean    @default(true)
+  parentId    Int?       // null = Categoría Principal; not null = Subcategoría
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryHierarchy")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  products    Product[]  @relation("ProductCategory")
+  subProducts Product[]  @relation("ProductSubcategory")
 
   @@map("categories")
 }
@@ -44,7 +48,9 @@ model Product {
   precio         Float
   imagen         String      @db.Text
   categoriaId    Int
-  categoria      Category    @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  categoria      Category    @relation("ProductCategory", fields: [categoriaId], references: [id], onDelete: Cascade)
+  subcategoriaId Int?
+  subcategoria   Category?   @relation("ProductSubcategory", fields: [subcategoriaId], references: [id], onDelete: SetNull)
   etiqueta       String?     // MÁS VENDIDO, NUEVO, RECOMENDADO
   disponibilidad Boolean     @default(true)
   orden          Int         @default(0)

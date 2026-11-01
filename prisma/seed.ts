@@ -69,9 +69,12 @@ async function main() {
   }
   console.log('✅ Users seeded with numeric IDs');
 
-  // 3. Seed Categories
+  // 3. Seed Categories (Principales y Subcategorías)
   const categoryMap = new Map<string, number>(); // slug -> integer id
-  for (const cat of initialCategories) {
+  const idToDbId = new Map<string, number>();    // cat.id string -> integer db id
+
+  // Phase 1: Principales (parentId == null)
+  for (const cat of initialCategories.filter(c => !c.parentId)) {
     const created = await prisma.category.upsert({
       where: { slug: cat.slug },
       update: {
@@ -81,6 +84,7 @@ async function main() {
         imagen: cat.imagen,
         orden: cat.orden,
         activo: true,
+        parentId: null,
       },
       create: {
         nombre: cat.nombre,
@@ -90,16 +94,50 @@ async function main() {
         imagen: cat.imagen,
         orden: cat.orden,
         activo: true,
+        parentId: null,
       },
     });
     categoryMap.set(cat.slug, created.id);
+    idToDbId.set(String(cat.id), created.id);
   }
-  console.log(`✅ ${categoryMap.size} Categories seeded with numeric IDs`);
+
+  // Phase 2: Subcategorías (con parentId)
+  for (const cat of initialCategories.filter(c => !!c.parentId)) {
+    const parentDbId = cat.parentId ? (idToDbId.get(String(cat.parentId)) || categoryMap.get(String(cat.parentId))) : null;
+
+    const created = await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: {
+        nombre: cat.nombre,
+        descripcion: cat.descripcion,
+        icono: cat.icono,
+        imagen: cat.imagen,
+        orden: cat.orden,
+        activo: true,
+        parentId: parentDbId || null,
+      },
+      create: {
+        nombre: cat.nombre,
+        slug: cat.slug,
+        descripcion: cat.descripcion,
+        icono: cat.icono,
+        imagen: cat.imagen,
+        orden: cat.orden,
+        activo: true,
+        parentId: parentDbId || null,
+      },
+    });
+    categoryMap.set(cat.slug, created.id);
+    idToDbId.set(String(cat.id), created.id);
+  }
+  console.log(`✅ ${categoryMap.size} Categories & Subcategories seeded with numeric IDs`);
 
   // 4. Seed Products
   for (const prod of initialProducts) {
     const categoriaId = categoryMap.get(prod.categoria);
     if (!categoriaId) continue;
+
+    const subcategoriaId = prod.subcategoria ? (categoryMap.get(prod.subcategoria) || null) : null;
 
     await prisma.product.upsert({
       where: { slug: prod.slug },
@@ -109,6 +147,7 @@ async function main() {
         precio: prod.precio,
         imagen: prod.imagen,
         categoriaId: categoriaId,
+        subcategoriaId: subcategoriaId,
         etiqueta: prod.etiqueta || null,
         disponibilidad: prod.disponibilidad ?? true,
       },
@@ -119,12 +158,13 @@ async function main() {
         precio: prod.precio,
         imagen: prod.imagen,
         categoriaId: categoriaId,
+        subcategoriaId: subcategoriaId,
         etiqueta: prod.etiqueta || null,
         disponibilidad: prod.disponibilidad ?? true,
       },
     });
   }
-  console.log(`✅ Products seeded with numeric IDs (1, 2, 3...)`);
+  console.log(`✅ Products seeded with numeric IDs and Subcategories!`);
 
   // 5. Seed Restaurant Tables (Mesas)
   const tables = [

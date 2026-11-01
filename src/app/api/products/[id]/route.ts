@@ -18,6 +18,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         where: { slug: body.categoriaSlug },
       });
       if (cat) data.categoriaId = cat.id;
+    } else if (body.categoriaId !== undefined) {
+      data.categoriaId = Number(body.categoriaId);
+    }
+
+    if (body.subcategoriaSlug) {
+      const sub = await prisma.category.findUnique({
+        where: { slug: body.subcategoriaSlug },
+      });
+      if (sub) data.subcategoriaId = sub.id;
+    } else if (body.subcategoriaId !== undefined) {
+      data.subcategoriaId = body.subcategoriaId ? Number(body.subcategoriaId) : null;
     }
 
     const updated = await prisma.product.update({
@@ -25,12 +36,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       data,
       include: {
         categoria: true,
+        subcategoria: true,
       },
     });
 
     return NextResponse.json({
       ...updated,
       categoria: updated.categoria.slug,
+      categoriaNombre: updated.categoria.nombre,
+      subcategoria: updated.subcategoria?.slug || null,
+      subcategoriaNombre: updated.subcategoria?.nombre || null,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Error al actualizar producto' }, { status: 500 });
