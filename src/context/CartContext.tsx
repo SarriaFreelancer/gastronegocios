@@ -38,6 +38,8 @@ interface CartContextType {
   clearToast: () => void;
   isSubmittingOrder: boolean;
   lastCreatedOrder: any | null;
+  setLastCreatedOrder: (order: any | null) => void;
+  submitWebOrderOnly: () => Promise<any | null>;
   submitAndSendWhatsAppOrder: () => Promise<void>;
 }
 
@@ -101,7 +103,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (quantity <= 0) return;
 
     setItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+      const existingIndex = prev.findIndex((item) => String(item.product.id) === String(product.id));
       if (existingIndex > -1) {
         const next = [...prev];
         next[existingIndex] = {
@@ -116,12 +118,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setLastAddedProduct(product);
     setTimeout(() => {
-      setLastAddedProduct((curr) => (curr?.id === product.id ? null : curr));
+      setLastAddedProduct((curr) => (String(curr?.id) === String(product.id) ? null : curr));
     }, 3500);
   };
 
   const removeFromCart = (productId: string | number) => {
-    setItems((prev) => prev.filter((item) => item.product.id !== productId));
+    setItems((prev) => prev.filter((item) => String(item.product.id) !== String(productId)));
   };
 
   const updateQuantity = (productId: string | number, quantity: number) => {
@@ -131,7 +133,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setItems((prev) =>
       prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
+        String(item.product.id) === String(productId) ? { ...item, quantity } : item
       )
     );
   };
@@ -166,13 +168,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return '$' + val.toLocaleString('es-CO');
   };
 
-  // Submit to MySQL API + generate WhatsApp order message
-  const submitAndSendWhatsAppOrder = async () => {
-    if (items.length === 0) return;
-    setIsSubmittingOrder(true);
-
-    let orderCode = `PG-${Math.floor(1000 + Math.random() * 9000)}`;
-
+  // Helper to persist order to MySQL
+  const persistOrderToDatabase = async (): Promise<any | null> => {
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -199,17 +196,48 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
-        const savedOrder = await res.json();
-        orderCode = savedOrder.codigo || orderCode;
-        setLastCreatedOrder(savedOrder);
+        const orderData = await res.json();
+        setLastCreatedOrder(orderData);
+        return orderData;
       }
     } catch (e) {
       console.error('Error saving order to MySQL:', e);
+    }
+    return null;
+  };
+
+  // Botón 1: HACER PEDIDO DESDE LA WEB (Se guarda en BD y queda registrado)
+  const submitWebOrderOnly = async () => {
+    if (items.length === 0) return null;
+    setIsSubmittingOrder(true);
+    try {
+      const savedOrder = await persistOrderToDatabase();
+      if (savedOrder) {
+        clearCart();
+      }
+      return savedOrder;
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
+
+  // Botón 2: HACER PEDIDO Y CONFIRMAR POR WHATSAPP (Se guarda en BD y abre WhatsApp con el mismo código)
+  const submitAndSendWhatsAppOrder = async () => {
+    if (items.length === 0) return;
+    setIsSubmittingOrder(true);
+
+    let orderCode = `PG-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    try {
+      const savedOrder = await persistOrderToDatabase();
+      if (savedOrder && savedOrder.codigo) {
+        orderCode = savedOrder.codigo;
+      }
     } finally {
       setIsSubmittingOrder(false);
     }
 
-    // Build WhatsApp message
+    // Build WhatsApp message with the exact same order code
     let message = `🍔 *¡NUEVO PEDIDO #${orderCode} - ${restaurantInfo.name}!* 🍔\n`;
     message += `_${restaurantInfo.slogan}_\n\n`;
 
@@ -299,6 +327,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearToast,
         isSubmittingOrder,
         lastCreatedOrder,
+        setLastCreatedOrder,
+        submitWebOrderOnly,
         submitAndSendWhatsAppOrder,
       }}
     >

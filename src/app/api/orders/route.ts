@@ -17,14 +17,26 @@ export async function GET(req: Request) {
     if (desde || hasta) {
       where.createdAt = {};
       if (desde) {
-        const startDate = new Date(desde);
-        startDate.setHours(0, 0, 0, 0);
-        where.createdAt.gte = startDate;
+        const parts = desde.split('-').map(Number);
+        if (parts.length === 3) {
+          const startDate = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+          where.createdAt.gte = startDate;
+        } else {
+          const d = new Date(desde);
+          d.setHours(0, 0, 0, 0);
+          where.createdAt.gte = d;
+        }
       }
       if (hasta) {
-        const endDate = new Date(hasta);
-        endDate.setHours(23, 59, 59, 999);
-        where.createdAt.lte = endDate;
+        const parts = hasta.split('-').map(Number);
+        if (parts.length === 3) {
+          const endDate = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+          where.createdAt.lte = endDate;
+        } else {
+          const d = new Date(hasta);
+          d.setHours(23, 59, 59, 999);
+          where.createdAt.lte = d;
+        }
       }
     }
 

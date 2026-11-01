@@ -6,6 +6,7 @@ import { categories } from '@/data/categories';
 import { products } from '@/data/products';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { Search, ArrowRight, Sparkles } from 'lucide-react';
 
@@ -99,41 +100,64 @@ export default function MenuGeneralPage() {
 
         </div>
 
-        {/* Quick category links banner */}
-        {selectedCategory === 'todos' && !searchQuery && (
-          <div className="flex items-center justify-between text-xs text-gray-400 border-b border-[#1f1f1f] pb-3">
-            <span>Explorando todas las categorías ({products.length} productos)</span>
-            <span className="text-brand-yellow font-bold">Haz clic en cualquier categoría para ver su página dedicada</span>
-          </div>
-        )}
+        {/* Two-Column Layout: Sidebar on left + Products on right */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          
+          {/* Lateral Category Menu (Sidebar) */}
+          <CategorySidebar
+            currentSlug={selectedCategory}
+            onSelectCategory={(slug) => setSelectedCategory(slug)}
+            showAllOption={true}
+          />
 
-        {/* Products Grid */}
-        {filteredProducts.length === 0 ? (
-          <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center">
-            <p className="text-lg font-bold text-white mb-2">No encontramos platos que coincidan</p>
-            <p className="text-xs text-gray-400 max-w-sm mx-auto mb-4">
-              Intenta con otra palabra clave o selecciona otra categoría de nuestro menú.
-            </p>
-            <button
-              onClick={() => {
-                setSelectedCategory('todos');
-                setSearchQuery('');
-              }}
-              className="bg-brand-yellow text-black font-extrabold text-xs px-5 py-2.5 rounded-full"
-            >
-              Restablecer filtros
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
+          {/* Main Content Area */}
+          <div className="flex-1 w-full space-y-6">
+            
+            {/* Quick status bar */}
+            <div className="flex items-center justify-between text-xs text-gray-400 border-b border-[#1f1f1f] pb-3">
+              <span>
+                Mostrando: <strong className="text-brand-yellow uppercase">{selectedCategory === 'todos' ? 'Todo el Menú' : selectedCategory}</strong> ({filteredProducts.length} platos)
+              </span>
+              {selectedCategory !== 'todos' && (
+                <button
+                  onClick={() => setSelectedCategory('todos')}
+                  className="text-xs text-gray-400 hover:text-brand-yellow font-bold"
+                >
+                  Ver todos los platos
+                </button>
+              )}
+            </div>
 
-        {/* Bottom Combo Promo */}
-        <CategoryComboBanner />
+            {/* Products Grid */}
+            {filteredProducts.length === 0 ? (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center">
+                <p className="text-lg font-bold text-white mb-2">No encontramos platos que coincidan</p>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto mb-4">
+                  Intenta con otra palabra clave o selecciona otra categoría de nuestro menú.
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedCategory('todos');
+                    setSearchQuery('');
+                  }}
+                  className="bg-brand-yellow text-black font-extrabold text-xs px-5 py-2.5 rounded-full"
+                >
+                  Restablecer filtros
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
+
+            {/* Bottom Combo Promo */}
+            <CategoryComboBanner />
+
+          </div>
+        </div>
 
       </div>
     </div>

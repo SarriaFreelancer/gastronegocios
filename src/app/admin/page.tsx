@@ -131,6 +131,15 @@ interface AdminUser {
 
 const LOCAL_STORAGE_AUTH = 'punto_g_admin_logged_in';
 
+// Helper to get local date in YYYY-MM-DD
+const getTodayDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function AdminPage() {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -156,8 +165,9 @@ export default function AdminPage() {
     totalPedidos: 0,
     ticketPromedio: 0,
   });
-  const [filterDesde, setFilterDesde] = useState('');
-  const [filterHasta, setFilterHasta] = useState('');
+  const [activeDatePreset, setActiveDatePreset] = useState<'hoy' | 'ayer' | 'semana' | 'mes' | 'todos'>('hoy');
+  const [filterDesde, setFilterDesde] = useState(getTodayDateString());
+  const [filterHasta, setFilterHasta] = useState(getTodayDateString());
   const [filterTipo, setFilterTipo] = useState('todos');
   const [filterEstado, setFilterEstado] = useState('todos');
   const [filterMesa, setFilterMesa] = useState('todas');
@@ -408,8 +418,14 @@ export default function AdminPage() {
 
   // Quick Date Preset Filters
   const applyDatePreset = (preset: 'hoy' | 'ayer' | 'semana' | 'mes' | 'todos') => {
+    setActiveDatePreset(preset);
     const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     if (preset === 'hoy') {
       const d = formatDate(today);
@@ -966,7 +982,7 @@ export default function AdminPage() {
                     Preajustes:
                   </span>
                   {[
-                    { id: 'hoy', label: 'Hoy' },
+                    { id: 'hoy', label: 'Hoy ⚡' },
                     { id: 'ayer', label: 'Ayer' },
                     { id: 'semana', label: '7 Días' },
                     { id: 'mes', label: 'Este Mes' },
@@ -976,7 +992,11 @@ export default function AdminPage() {
                       key={p.id}
                       type="button"
                       onClick={() => applyDatePreset(p.id as any)}
-                      className="px-2.5 py-1 bg-[#1a1a1a] hover:bg-brand-yellow hover:text-black border border-[#2e2e2e] text-[10px] font-bold uppercase rounded-lg transition-colors"
+                      className={`px-3 py-1 border text-[10px] font-black uppercase rounded-lg transition-all ${
+                        activeDatePreset === p.id
+                          ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow'
+                          : 'bg-[#1a1a1a] text-gray-300 border-[#2e2e2e] hover:bg-brand-yellow hover:text-black'
+                      }`}
                     >
                       {p.label}
                     </button>
@@ -1047,7 +1067,26 @@ export default function AdminPage() {
                   <input
                     type="date"
                     value={filterDesde}
-                    onChange={(e) => setFilterDesde(e.target.value)}
+                    onChange={(e) => {
+                      setFilterDesde(e.target.value);
+                      setActiveDatePreset('todos');
+                    }}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
+
+                {/* Date Hasta */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Fecha Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={filterHasta}
+                    onChange={(e) => {
+                      setFilterHasta(e.target.value);
+                      setActiveDatePreset('todos');
+                    }}
                     className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
                   />
                 </div>

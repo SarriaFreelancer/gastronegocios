@@ -5,14 +5,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { categories } from '@/data/categories';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
-import { ChevronRight, MessageCircle } from 'lucide-react';
+import { ChevronRight, MessageCircle, Utensils } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 
 interface CategorySidebarProps {
   currentSlug?: string;
+  onSelectCategory?: (slug: string) => void;
+  showAllOption?: boolean;
 }
 
-export const CategorySidebar: React.FC<CategorySidebarProps> = ({ currentSlug }) => {
+export const CategorySidebar: React.FC<CategorySidebarProps> = ({
+  currentSlug,
+  onSelectCategory,
+  showAllOption = false,
+}) => {
   const pathname = usePathname();
 
   const isCategoryActive = (slug: string) => {
@@ -24,8 +30,63 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({ currentSlug })
     <aside className="w-full lg:w-72 flex-shrink-0 space-y-6">
       {/* Category Navigation List */}
       <div className="bg-[#101010] border border-[#222] rounded-2xl p-2.5 space-y-1.5 shadow-xl">
+        {showAllOption && (
+          <button
+            type="button"
+            onClick={() => onSelectCategory && onSelectCategory('todos')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 group ${
+              currentSlug === 'todos'
+                ? 'bg-brand-yellow text-black shadow-glow font-black'
+                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Utensils
+                size={18}
+                className={currentSlug === 'todos' ? 'text-black' : 'text-gray-400 group-hover:text-brand-yellow transition-colors'}
+              />
+              <span>Todos los Platos</span>
+            </div>
+            <ChevronRight
+              className={`w-4 h-4 transition-transform ${
+                currentSlug === 'todos' ? 'text-black stroke-[3]' : 'text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5'
+              }`}
+            />
+          </button>
+        )}
+
         {categories.map((cat) => {
           const active = isCategoryActive(cat.slug);
+
+          if (onSelectCategory) {
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => onSelectCategory(cat.slug)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 group text-left ${
+                  active
+                    ? 'bg-brand-yellow text-black shadow-glow font-black'
+                    : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <CategoryIcon
+                    name={cat.icono}
+                    size={18}
+                    className={active ? 'text-black' : 'text-gray-400 group-hover:text-brand-yellow transition-colors'}
+                  />
+                  <span>{cat.nombre}</span>
+                </div>
+                <ChevronRight
+                  className={`w-4 h-4 transition-transform ${
+                    active ? 'text-black stroke-[3]' : 'text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5'
+                  }`}
+                />
+              </button>
+            );
+          }
+
           return (
             <Link
               key={cat.id}
@@ -68,7 +129,6 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({ currentSlug })
           </p>
         </div>
 
-        {/* Small burger icon illustration */}
         <div className="mt-4 flex justify-center">
           <div className="w-12 h-12 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 flex items-center justify-center text-brand-yellow shadow-glow">
             <CategoryIcon name="burger" size={24} className="text-brand-yellow" />
