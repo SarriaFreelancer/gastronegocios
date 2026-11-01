@@ -84,15 +84,11 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
             <div className="md:col-span-5 flex justify-center md:justify-end">
               <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)]">
                 <Image
-                  src={
-                    category.slug === 'hamburguesas'
-                      ? '/images/assets/menu-hero-burger.png'
-                      : category.imagen
-                  }
+                  src={category.imagen}
                   alt={category.nombre}
                   fill
                   priority
-                  className="object-contain"
+                  className="object-cover rounded-2xl"
                   sizes="(max-width: 768px) 280px, 340px"
                 />
               </div>

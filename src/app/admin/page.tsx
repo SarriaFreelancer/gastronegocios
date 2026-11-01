@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Logo } from '@/components/ui/Logo';
 import { products as initialProducts } from '@/data/products';
 import { categories } from '@/data/categories';
 import { restaurantInfo as initialInfo } from '@/data/restaurant-info';
@@ -16,14 +17,20 @@ import {
   Search, 
   Edit, 
   Trash2, 
-  CheckCircle, 
-  Clock, 
-  Store, 
   Phone, 
-  MapPin, 
   Save, 
   ArrowLeft, 
   Check, 
+  Users, 
+  Lock, 
+  LogOut, 
+  ShieldCheck, 
+  UserPlus, 
+  KeyRound, 
+  Mail, 
+  User as UserIcon,
+  Eye,
+  EyeOff,
   AlertCircle
 } from 'lucide-react';
 
@@ -39,17 +46,73 @@ interface MockOrder {
   hora: string;
 }
 
+interface AdminUser {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: 'Administrador' | 'Supervisor' | 'Cajero' | 'Cocinero';
+  estado: 'Activo' | 'Inactivo';
+  fecha: string;
+}
+
+const LOCAL_STORAGE_USERS = 'punto_g_admin_users_v1';
+const LOCAL_STORAGE_AUTH = 'punto_g_admin_logged_in';
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'pedidos' | 'productos' | 'configuracion'>('pedidos');
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [loginEmail, setLoginEmail] = useState('admin@puntog.com');
+  const [loginPassword, setLoginPassword] = useState('admin123');
+  const [loginError, setLoginError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+
+  // Active Tab
+  const [activeTab, setActiveTab] = useState<'pedidos' | 'productos' | 'usuarios' | 'configuracion'>('pedidos');
   
+  // Users Management State
+  const [userList, setUserList] = useState<AdminUser[]>([
+    {
+      id: 'usr-1',
+      nombre: 'David Sarria',
+      email: 'admin@puntog.com',
+      rol: 'Administrador',
+      estado: 'Activo',
+      fecha: '2025-01-10',
+    },
+    {
+      id: 'usr-2',
+      nombre: 'Carlos Gómez',
+      email: 'carlos.caja@puntog.com',
+      rol: 'Cajero',
+      estado: 'Activo',
+      fecha: '2025-02-15',
+    },
+    {
+      id: 'usr-3',
+      nombre: 'María Rodríguez',
+      email: 'maria.cocina@puntog.com',
+      rol: 'Cocinero',
+      estado: 'Activo',
+      fecha: '2025-03-01',
+    },
+  ]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [userFormData, setUserFormData] = useState({
+    nombre: '',
+    email: '',
+    password: '',
+    rol: 'Cajero' as AdminUser['rol'],
+    estado: 'Activo' as AdminUser['estado'],
+  });
+
   // Products State
   const [productList, setProductList] = useState<Product[]>(initialProducts);
   const [searchProduct, setSearchProduct] = useState('');
   const [selectedCat, setSelectedCat] = useState('todas');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-
-  // Form State for new/edit product
   const [formData, setFormData] = useState({
     nombre: '',
     categoria: 'hamburguesas',
@@ -116,59 +179,177 @@ export default function AdminPage() {
       estado: 'Despachado',
       hora: '12:20 p.m.',
     },
-    {
-      id: 'PG-1039',
-      cliente: 'María José Gómez',
-      telefono: '311 234 5678',
-      direccion: 'Calle 9 # 32-15, Tequendama',
-      tipo: 'domicilio',
-      items: [
-        { nombre: 'Combo Punto G', cantidad: 2, precio: 28900 },
-      ],
-      total: 62800,
-      estado: 'Entregado',
-      hora: '11:40 a.m.',
-    },
   ]);
 
-  // Toggle availability
+  // Load auth & users from localStorage on client
+  useEffect(() => {
+    try {
+      const auth = localStorage.getItem(LOCAL_STORAGE_AUTH);
+      if (auth) {
+        setIsAuthenticated(true);
+        setCurrentUser(JSON.parse(auth));
+      }
+      const savedUsers = localStorage.getItem(LOCAL_STORAGE_USERS);
+      if (savedUsers) {
+        setUserList(JSON.parse(savedUsers));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  // Save users to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_USERS, JSON.stringify(userList));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userList]);
+
+  // Handle Login
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+
+    // Check credentials against registered users
+    const matched = userList.find(
+      (u) => u.email.toLowerCase() === loginEmail.trim().toLowerCase()
+    );
+
+    if ((matched && loginPassword === 'admin123') || (loginEmail === 'admin@puntog.com' && loginPassword === 'admin123')) {
+      const user = matched || {
+        id: 'usr-admin',
+        nombre: 'David Sarria (Admin)',
+        email: loginEmail,
+        rol: 'Administrador' as const,
+        estado: 'Activo' as const,
+        fecha: '2025-01-01',
+      };
+      setIsAuthenticated(true);
+      setCurrentUser(user);
+      localStorage.setItem(LOCAL_STORAGE_AUTH, JSON.stringify(user));
+    } else {
+      setLoginError('Credenciales incorrectas. Usa admin@puntog.com y admin123 para ingresar.');
+    }
+  };
+
+  // Handle Logout
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    localStorage.removeItem(LOCAL_STORAGE_AUTH);
+  };
+
+  // User Actions
+  const handleOpenNewUser = () => {
+    setEditingUser(null);
+    setUserFormData({
+      nombre: '',
+      email: '',
+      password: '',
+      rol: 'Cajero',
+      estado: 'Activo',
+    });
+    setIsUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (u: AdminUser) => {
+    setEditingUser(u);
+    setUserFormData({
+      nombre: u.nombre,
+      email: u.email,
+      password: '',
+      rol: u.rol,
+      estado: u.estado,
+    });
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userFormData.nombre || !userFormData.email) return;
+
+    if (editingUser) {
+      setUserList((prev) =>
+        prev.map((u) =>
+          u.id === editingUser.id
+            ? {
+                ...u,
+                nombre: userFormData.nombre,
+                email: userFormData.email,
+                rol: userFormData.rol,
+                estado: userFormData.estado,
+              }
+            : u
+        )
+      );
+    } else {
+      const newUser: AdminUser = {
+        id: `usr-${Date.now()}`,
+        nombre: userFormData.nombre,
+        email: userFormData.email,
+        rol: userFormData.rol,
+        estado: userFormData.estado,
+        fecha: new Date().toISOString().split('T')[0],
+      };
+      setUserList((prev) => [...prev, newUser]);
+    }
+    setIsUserModalOpen(false);
+  };
+
+  const handleDeleteUser = (id: string) => {
+    if (userList.length <= 1) {
+      alert('Debe existir al menos un usuario administrador.');
+      return;
+    }
+    if (confirm('¿Seguro que deseas eliminar este usuario?')) {
+      setUserList((prev) => prev.filter((u) => u.id !== id));
+    }
+  };
+
+  const toggleUserStatus = (id: string) => {
+    setUserList((prev) =>
+      prev.map((u) =>
+        u.id === id ? { ...u, estado: u.estado === 'Activo' ? 'Inactivo' : 'Activo' } : u
+      )
+    );
+  };
+
+  // Product Actions
   const toggleAvailability = (id: string) => {
     setProductList((prev) =>
       prev.map((p) => (p.id === id ? { ...p, disponibilidad: !p.disponibilidad } : p))
     );
   };
 
-  // Delete product
   const deleteProduct = (id: string) => {
     if (confirm('¿Seguro que deseas eliminar este producto del menú?')) {
       setProductList((prev) => prev.filter((p) => p.id !== id));
     }
   };
 
-  // Change order status
   const updateOrderStatus = (orderId: string, newStatus: MockOrder['estado']) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, estado: newStatus } : o))
     );
   };
 
-  // Open modal for new product
-  const handleOpenNew = () => {
+  const handleOpenNewProduct = () => {
     setEditingProduct(null);
     setFormData({
       nombre: '',
       categoria: 'hamburguesas',
       precio: '',
       descripcion: '',
-      imagen: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop',
+      imagen: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=900&auto=format&fit=crop',
       etiqueta: '',
       disponibilidad: true,
     });
     setIsModalOpen(true);
   };
 
-  // Open modal for editing product
-  const handleOpenEdit = (p: Product) => {
+  const handleOpenEditProduct = (p: Product) => {
     setEditingProduct(p);
     setFormData({
       nombre: p.nombre,
@@ -182,7 +363,6 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
-  // Save Product (create or edit)
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.nombre || !formData.precio) return;
@@ -227,7 +407,6 @@ export default function AdminPage() {
     setTimeout(() => setSavedSettings(false), 2500);
   };
 
-  // Filtered Products
   const filteredProducts = productList.filter((p) => {
     const matchesCat = selectedCat === 'todas' || p.categoria === selectedCat;
     const matchesSearch =
@@ -236,12 +415,111 @@ export default function AdminPage() {
     return matchesCat && matchesSearch;
   });
 
+  // ==================== LOGIN VIEW ====================
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#121212] border border-[#252525] rounded-3xl p-8 sm:p-10 shadow-2xl space-y-6 relative overflow-hidden">
+          {/* Subtle yellow ambient background glow */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="text-center space-y-3">
+            <div className="flex justify-center mb-2">
+              <Logo size="lg" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-bold uppercase tracking-wider">
+              <Lock className="w-3.5 h-3.5" />
+              <span>Acceso Administrativo</span>
+            </div>
+            <h1 className="text-2xl font-black uppercase text-white font-display">
+              INICIAR SESIÓN
+            </h1>
+            <p className="text-xs text-gray-400">
+              Ingresa tus credenciales para administrar pedidos, menú y usuarios de Punto G.
+            </p>
+          </div>
+
+          {loginError && (
+            <div className="bg-red-500/20 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4 text-xs">
+            <div>
+              <label className="block text-gray-300 font-bold uppercase mb-1.5">
+                Correo Electrónico
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  placeholder="admin@puntog.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs"
+                />
+                <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-300 font-bold uppercase mb-1.5">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-10 pr-10 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs"
+                />
+                <KeyRound className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3.5 text-gray-500 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Demo access hint */}
+            <div className="bg-[#181818] border border-[#2b2b2b] p-3 rounded-xl text-[11px] text-gray-400">
+              <span className="font-bold text-brand-yellow block mb-0.5">Credenciales demo:</span>
+              <span>Usuario: <strong className="text-white">admin@puntog.com</strong> | Clave: <strong className="text-white">admin123</strong></span>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.02] active:scale-[0.98] mt-2"
+            >
+              INGRESAR AL PANEL
+            </button>
+          </form>
+
+          <div className="text-center pt-2">
+            <Link href="/" className="text-xs text-gray-400 hover:text-brand-yellow transition-colors inline-flex items-center gap-1">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Regresar al restaurante</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== DASHBOARD VIEW ====================
   return (
     <div className="min-h-screen bg-[#080808] text-white pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
-        {/* Top Header Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#111111] border border-[#242424] rounded-3xl p-6 shadow-xl">
+        {/* Top Header Row with User Session info & Logout */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#111111] border border-[#242424] rounded-3xl p-6 shadow-xl">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-brand-whatsapp animate-ping" />
@@ -254,13 +532,41 @@ export default function AdminPage() {
             </h1>
           </div>
 
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 bg-[#1c1c1c] hover:bg-[#252525] text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-[#333] transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Volver a la Tienda</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            {/* User Profile Badge */}
+            <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-2 rounded-xl">
+              <div className="w-7 h-7 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xs">
+                {currentUser?.nombre ? currentUser.nombre.charAt(0) : 'A'}
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-white leading-none">
+                  {currentUser?.nombre || 'Administrador'}
+                </p>
+                <span className="text-[10px] text-brand-yellow font-medium">
+                  {currentUser?.rol || 'Administrador'}
+                </span>
+              </div>
+            </div>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-colors"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Cerrar Sesión</span>
+            </button>
+
+            {/* Back to store */}
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 bg-[#1c1c1c] hover:bg-[#252525] text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-[#333] transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Ver Tienda</span>
+            </Link>
+          </div>
         </div>
 
         {/* Analytics Top Cards */}
@@ -285,7 +591,7 @@ export default function AdminPage() {
 
           <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase">
-              <span>Productos en Carta</span>
+              <span>Productos en Menú</span>
               <Layers className="w-4 h-4 text-blue-400" />
             </div>
             <p className="text-2xl font-black text-white font-display">{productList.length} Platos</p>
@@ -294,50 +600,62 @@ export default function AdminPage() {
 
           <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase">
-              <span>Línea WhatsApp</span>
-              <Phone className="w-4 h-4 text-brand-whatsapp" />
+              <span>Usuarios del Sistema</span>
+              <Users className="w-4 h-4 text-brand-yellow" />
             </div>
-            <p className="text-2xl font-black text-brand-whatsapp font-display">322 908 8736</p>
-            <p className="text-[11px] text-green-400">En línea y recibiendo pedidos</p>
+            <p className="text-2xl font-black text-white font-display">{userList.length} Registrados</p>
+            <p className="text-[11px] text-brand-whatsapp font-semibold">Staff activo</p>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 border-b border-[#222] pb-3">
+        {/* Tab Navigation (with New Users Tab) */}
+        <div className="flex items-center gap-2 border-b border-[#222] pb-3 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('pedidos')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
               activeTab === 'pedidos'
                 ? 'bg-brand-yellow text-black shadow-glow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Pedidos en Tiempo Real ({orders.length})</span>
+            <span>Pedidos ({orders.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('productos')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
               activeTab === 'productos'
                 ? 'bg-brand-yellow text-black shadow-glow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Gestión de Productos ({productList.length})</span>
+            <span>Productos ({productList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('usuarios')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              activeTab === 'usuarios'
+                ? 'bg-brand-yellow text-black shadow-glow'
+                : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Usuarios ({userList.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('configuracion')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
               activeTab === 'configuracion'
                 ? 'bg-brand-yellow text-black shadow-glow'
                 : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>Configuración del Local</span>
+            <span>Configuración</span>
           </button>
         </div>
 
@@ -348,7 +666,7 @@ export default function AdminPage() {
               <h2 className="text-lg font-bold text-white uppercase font-display">
                 Pedidos Recientes de Clientes
               </h2>
-              <span className="text-xs text-gray-400">Actualizado automáticamente</span>
+              <span className="text-xs text-gray-400">Actualizado en vivo</span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -448,7 +766,7 @@ export default function AdminPage() {
               </div>
 
               <button
-                onClick={handleOpenNew}
+                onClick={handleOpenNewProduct}
                 className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-glow transition-all"
               >
                 <Plus className="w-4 h-4" />
@@ -512,7 +830,7 @@ export default function AdminPage() {
                         <td className="py-3 px-4 text-right">
                           <div className="inline-flex items-center gap-1.5">
                             <button
-                              onClick={() => handleOpenEdit(p)}
+                              onClick={() => handleOpenEditProduct(p)}
                               className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-brand-yellow hover:bg-[#282828] transition-colors"
                               title="Editar"
                             >
@@ -536,7 +854,108 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 3: CONFIGURACIÓN */}
+        {/* TAB 3: USUARIOS (NUEVO REQUERIMIENTO) */}
+        {activeTab === 'usuarios' && (
+          <div className="space-y-6">
+            <div className="bg-[#121212] border border-[#242424] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold uppercase text-white font-display">
+                  Usuarios del Sistema Punto G
+                </h2>
+                <p className="text-xs text-gray-400">
+                  Crea y administra el personal con acceso al panel administrativo y toma de pedidos.
+                </p>
+              </div>
+
+              <button
+                onClick={handleOpenNewUser}
+                className="inline-flex items-center gap-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-glow transition-all"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>NUEVO USUARIO</span>
+              </button>
+            </div>
+
+            {/* Users Table */}
+            <div className="bg-[#121212] border border-[#242424] rounded-2xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#181818] border-b border-[#252525] text-gray-400 uppercase tracking-wider font-bold">
+                    <tr>
+                      <th className="py-3.5 px-4">Usuario</th>
+                      <th className="py-3.5 px-4">Correo Electrónico</th>
+                      <th className="py-3.5 px-4">Rol Asignado</th>
+                      <th className="py-3.5 px-4">Estado</th>
+                      <th className="py-3.5 px-4">Fecha Creación</th>
+                      <th className="py-3.5 px-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1e1e1e]">
+                    {userList.map((user) => (
+                      <tr key={user.id} className="hover:bg-[#161616] transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-brand-yellow/20 text-brand-yellow border border-brand-yellow/40 flex items-center justify-center font-bold">
+                              {user.nombre.charAt(0)}
+                            </div>
+                            <span className="font-bold text-white">{user.nombre}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-300 font-mono text-[11px]">{user.email}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${
+                            user.rol === 'Administrador'
+                              ? 'bg-yellow-500/20 text-brand-yellow border border-yellow-500/30'
+                              : user.rol === 'Supervisor'
+                              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                              : user.rol === 'Cajero'
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                          }`}>
+                            {user.rol}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <button
+                            onClick={() => toggleUserStatus(user.id)}
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-all ${
+                              user.estado === 'Activo'
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            }`}
+                          >
+                            {user.estado}
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-400">{user.fecha}</td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditUser(user)}
+                              className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-brand-yellow hover:bg-[#282828] transition-colors"
+                              title="Editar"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-red-400 hover:bg-[#282828] transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: CONFIGURACIÓN */}
         {activeTab === 'configuracion' && (
           <div className="max-w-2xl bg-[#121212] border border-[#242424] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
             <div>
@@ -555,62 +974,62 @@ export default function AdminPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveConfig} className="space-y-4">
+            <form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">Nombre Comercial</label>
+                <label className="block font-bold text-gray-300 uppercase mb-1">Nombre Comercial</label>
                 <input
                   type="text"
                   value={config.nombre}
                   onChange={(e) => setConfig({ ...config, nombre: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
+                <label className="block font-bold text-gray-300 uppercase mb-1">
                   WhatsApp Oficial para Pedidos (3229088736)
                 </label>
                 <input
                   type="text"
                   value={config.whatsapp}
                   onChange={(e) => setConfig({ ...config, whatsapp: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow font-bold text-brand-whatsapp"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-brand-whatsapp font-bold focus:outline-none focus:border-brand-yellow"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">Dirección del Local</label>
+                <label className="block font-bold text-gray-300 uppercase mb-1">Dirección del Local</label>
                 <input
                   type="text"
                   value={config.direccion}
                   onChange={(e) => setConfig({ ...config, direccion: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">Horario de Servicio</label>
+                <label className="block font-bold text-gray-300 uppercase mb-1">Horario de Servicio</label>
                 <input
                   type="text"
                   value={config.horario}
                   onChange={(e) => setConfig({ ...config, horario: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">Costo Domicilio ($ COP)</label>
+                <label className="block font-bold text-gray-300 uppercase mb-1">Costo Domicilio ($ COP)</label>
                 <input
                   type="number"
                   value={config.costoEnvio}
                   onChange={(e) => setConfig({ ...config, costoEnvio: Number(e.target.value) })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black uppercase tracking-wider rounded-xl shadow-glow transition-all flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 <span>GUARDAR CAMBIOS</span>
@@ -716,6 +1135,101 @@ export default function AdminPage() {
                     className="px-5 py-2 rounded-lg bg-brand-yellow text-black font-black shadow-glow"
                   >
                     Guardar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal for User Add / Edit (NUEVO REQUERIMIENTO) */}
+        {isUserModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#141414] border border-[#2c2c2c] rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
+              <h3 className="text-lg font-bold uppercase text-white font-display">
+                {editingUser ? 'Editar Usuario' : 'Nuevo Usuario Staff'}
+              </h3>
+
+              <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-gray-400 font-bold mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Daniel Restrepo"
+                    value={userFormData.nombre}
+                    onChange={(e) => setUserFormData({ ...userFormData, nombre: e.target.value })}
+                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 font-bold mb-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="daniel@puntog.com"
+                    value={userFormData.email}
+                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                  />
+                </div>
+
+                {!editingUser && (
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Contraseña Inicial</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={userFormData.password}
+                      onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Rol</label>
+                    <select
+                      value={userFormData.rol}
+                      onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value as any })}
+                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                    >
+                      <option value="Administrador">Administrador</option>
+                      <option value="Supervisor">Supervisor</option>
+                      <option value="Cajero">Cajero</option>
+                      <option value="Cocinero">Cocinero</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 font-bold mb-1">Estado</label>
+                    <select
+                      value={userFormData.estado}
+                      onChange={(e) => setUserFormData({ ...userFormData, estado: e.target.value as any })}
+                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                    >
+                      <option value="Activo">Activo</option>
+                      <option value="Inactivo">Inactivo</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsUserModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-[#222] text-gray-300 hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-lg bg-brand-yellow text-black font-black shadow-glow"
+                  >
+                    {editingUser ? 'Actualizar' : 'Crear Usuario'}
                   </button>
                 </div>
               </form>

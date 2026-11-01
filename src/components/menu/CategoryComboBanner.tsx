@@ -33,10 +33,10 @@ export const CategoryComboBanner: React.FC = () => {
         <div className="md:col-span-4 flex justify-center">
           <div className="relative w-full max-w-[260px] aspect-[4/3] drop-shadow-[0_12px_25px_rgba(0,0,0,0.95)]">
             <Image
-              src="/images/assets/menu-bottom-combo.png"
+              src="https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=900&auto=format&fit=crop"
               alt="Combo Especial Hamburguesa + Papas + Gaseosa"
               fill
-              className="object-contain transform hover:scale-105 transition-transform duration-300"
+              className="object-cover rounded-2xl transform hover:scale-105 transition-transform duration-300"
               sizes="260px"
             />
           </div>

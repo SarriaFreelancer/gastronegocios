@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { Logo } from '@/components/ui/Logo';
 import { useCart } from '@/context/CartContext';
 import { ShoppingBag, Menu, X, PhoneCall } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
@@ -32,18 +32,9 @@ export const Header: React.FC = () => {
         <div className="flex items-center justify-between h-16 sm:h-20">
           
           {/* Logo matching reference */}
-          <Link href="/" className="flex-shrink-0 flex items-center">
-            <div className="relative h-10 sm:h-12 w-40 sm:w-52">
-              <Image
-                src="/images/punto_g_logo.png"
-                alt="PUNTO G - Antojos que conectan"
-                fill
-                priority
-                className="object-contain object-left"
-                sizes="210px"
-              />
-            </div>
-          </Link>
+          <div className="flex-shrink-0">
+            <Logo size="md" />
+          </div>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-7 sm:space-x-9">
