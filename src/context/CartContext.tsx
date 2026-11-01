@@ -13,11 +13,17 @@ interface CartContextType {
   totalItems: number;
   subtotal: number;
   deliveryFee: number;
+  tip: number;
+  tipPercentage: number;
+  setTipPercentage: (pct: number) => void;
+  setTipAmount: (amount: number) => void;
   totalPrice: number;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
-  deliveryType: 'domicilio' | 'recoger';
-  setDeliveryType: (type: 'domicilio' | 'recoger') => void;
+  deliveryType: 'domicilio' | 'recoger' | 'mesa';
+  setDeliveryType: (type: 'domicilio' | 'recoger' | 'mesa') => void;
+  tableNumber: string;
+  setTableNumber: (table: string) => void;
   customerName: string;
   setCustomerName: (name: string) => void;
   customerPhone: string;
@@ -26,25 +32,47 @@ interface CartContextType {
   setCustomerAddress: (address: string) => void;
   customerNotes: string;
   setCustomerNotes: (notes: string) => void;
+  paymentMethod: string;
+  setPaymentMethod: (method: string) => void;
   lastAddedProduct: Product | null;
   clearToast: () => void;
-  sendWhatsAppOrder: () => void;
+  isSubmittingOrder: boolean;
+  lastCreatedOrder: any | null;
+  submitAndSendWhatsAppOrder: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'punto_g_cart_v1';
+const LOCAL_STORAGE_KEY = 'punto_g_cart_v2';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'recoger'>('domicilio');
+  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'recoger' | 'mesa'>('domicilio');
+  const [tableNumber, setTableNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+  const [tipPercentage, setTipPercentageState] = useState<number>(10); // 10% suggested tip
+  const [customTip, setCustomTip] = useState<number | null>(null);
   const [lastAddedProduct, setLastAddedProduct] = useState<Product | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Auto-detect ?mesa= in query string on client load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mesaParam = urlParams.get('mesa');
+      if (mesaParam) {
+        setTableNumber(mesaParam);
+        setDeliveryType('mesa');
+      }
+    }
+  }, []);
 
   // Load cart from localStorage
   useEffect(() => {
@@ -116,19 +144,73 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLastAddedProduct(null);
   };
 
+  const setTipPercentage = (pct: number) => {
+    setTipPercentageState(pct);
+    setCustomTip(null);
+  };
+
+  const setTipAmount = (amount: number) => {
+    setCustomTip(amount);
+    setTipPercentageState(-1);
+  };
+
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
   const subtotal = items.reduce((acc, item) => acc + item.product.precio * item.quantity, 0);
   const deliveryFee = deliveryType === 'domicilio' && subtotal > 0 ? 5000 : 0;
-  const totalPrice = subtotal + deliveryFee;
+
+  // Calculate tip amount
+  const tip = customTip !== null ? customTip : tipPercentage > 0 ? Math.round((subtotal * tipPercentage) / 100) : 0;
+  const totalPrice = subtotal + deliveryFee + tip;
 
   const formatCurrency = (val: number) => {
     return '$' + val.toLocaleString('es-CO');
   };
 
-  const sendWhatsAppOrder = () => {
+  // Submit to MySQL API + generate WhatsApp order message
+  const submitAndSendWhatsAppOrder = async () => {
     if (items.length === 0) return;
+    setIsSubmittingOrder(true);
 
-    let message = `🍔 *¡NUEVO PEDIDO - ${restaurantInfo.name}!* 🍔\n`;
+    let orderCode = `PG-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliente: customerName.trim() || 'Cliente Punto G',
+          telefono: customerPhone.trim() || '3229088736',
+          tipo: deliveryType,
+          numeroMesa: deliveryType === 'mesa' ? tableNumber : null,
+          direccion: deliveryType === 'domicilio' ? customerAddress : null,
+          subtotal,
+          propina: tip,
+          costoEnvio: deliveryFee,
+          total: totalPrice,
+          metodoPago: paymentMethod,
+          notasCliente: customerNotes.trim(),
+          items: items.map((i) => ({
+            nombre: i.product.nombre,
+            precio: i.product.precio,
+            cantidad: i.quantity,
+            notas: i.notes,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        const savedOrder = await res.json();
+        orderCode = savedOrder.codigo || orderCode;
+        setLastCreatedOrder(savedOrder);
+      }
+    } catch (e) {
+      console.error('Error saving order to MySQL:', e);
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+
+    // Build WhatsApp message
+    let message = `🍔 *¡NUEVO PEDIDO #${orderCode} - ${restaurantInfo.name}!* 🍔\n`;
     message += `_${restaurantInfo.slogan}_\n\n`;
 
     if (customerName.trim()) {
@@ -137,11 +219,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (customerPhone.trim()) {
       message += `📱 *Teléfono:* ${customerPhone.trim()}\n`;
     }
-    message += `📍 *Modalidad:* ${deliveryType === 'domicilio' ? '🛵 Domicilio' : '🏪 Para Recoger en Restaurante'}\n`;
 
-    if (deliveryType === 'domicilio' && customerAddress.trim()) {
-      message += `🏠 *Dirección:* ${customerAddress.trim()}\n`;
+    if (deliveryType === 'mesa') {
+      message += `🍽️ *Modalidad:* PEDIDO EN MESA (${tableNumber || 'Mesa del Restaurante'})\n`;
+    } else if (deliveryType === 'recoger') {
+      message += `🏪 *Modalidad:* Para Recoger en Restaurante\n`;
+    } else {
+      message += `🛵 *Modalidad:* Domicilio\n`;
+      if (customerAddress.trim()) {
+        message += `🏠 *Dirección:* ${customerAddress.trim()}\n`;
+      }
     }
+
+    message += `💳 *Método de pago:* ${paymentMethod}\n`;
 
     message += `\n📋 *PRODUCTOS SELECCIONADOS:*\n`;
     items.forEach((item, index) => {
@@ -152,7 +242,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (customerNotes.trim()) {
-      message += `\n💬 *Observaciones generales:*\n${customerNotes.trim()}\n`;
+      message += `\n💬 *Observaciones del pedido:*\n${customerNotes.trim()}\n`;
     }
 
     message += `\n----------------------------\n`;
@@ -160,9 +250,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (deliveryType === 'domicilio') {
       message += `🛵 *Costo Domicilio:* ${formatCurrency(deliveryFee)} COP\n`;
     }
+    if (tip > 0) {
+      message += `💛 *Propina voluntaria (${tipPercentage > 0 ? `${tipPercentage}%` : 'Personalizada'}):* ${formatCurrency(tip)} COP\n`;
+    }
     message += `⭐ *TOTAL A PAGAR:* ${formatCurrency(totalPrice)} COP\n`;
     message += `----------------------------\n\n`;
-    message += `¡Muchas gracias! Espero la confirmación de mi pedido.`;
+    message += `¡Muchas gracias! Ya quedó registrado en el sistema con el código *#${orderCode}*.`;
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${restaurantInfo.whatsappNumber}&text=${encodedMessage}`;
@@ -181,11 +274,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalItems,
         subtotal,
         deliveryFee,
+        tip,
+        tipPercentage,
+        setTipPercentage,
+        setTipAmount,
         totalPrice,
         isCartOpen,
         setIsCartOpen,
         deliveryType,
         setDeliveryType,
+        tableNumber,
+        setTableNumber,
         customerName,
         setCustomerName,
         customerPhone,
@@ -194,9 +293,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCustomerAddress,
         customerNotes,
         setCustomerNotes,
+        paymentMethod,
+        setPaymentMethod,
         lastAddedProduct,
         clearToast,
-        sendWhatsAppOrder,
+        isSubmittingOrder,
+        lastCreatedOrder,
+        submitAndSendWhatsAppOrder,
       }}
     >
       {children}

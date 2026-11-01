@@ -4,10 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/components/ui/Logo';
-import { products as initialProducts } from '@/data/products';
-import { categories } from '@/data/categories';
-import { restaurantInfo as initialInfo } from '@/data/restaurant-info';
-import { Product } from '@/types';
 import { 
   ShoppingBag, 
   Layers, 
@@ -31,31 +27,108 @@ import {
   User as UserIcon,
   Eye,
   EyeOff,
-  AlertCircle
+  AlertCircle,
+  QrCode,
+  UtensilsCrossed,
+  Heart,
+  MessageSquare,
+  Calendar,
+  Filter,
+  DollarSign,
+  Printer,
+  Download,
+  Clock,
+  MapPin,
+  RefreshCw,
+  ExternalLink,
+  ChevronRight,
+  Star
 } from 'lucide-react';
 
-interface MockOrder {
+interface OrderItem {
+  id?: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  notas?: string | null;
+}
+
+interface Order {
   id: string;
+  codigo: string;
   cliente: string;
   telefono: string;
-  direccion: string;
-  tipo: 'domicilio' | 'recoger';
-  items: { nombre: string; cantidad: number; precio: number }[];
+  tipo: 'domicilio' | 'recoger' | 'mesa';
+  mesaId?: string | null;
+  numeroMesa?: string | null;
+  direccion?: string | null;
+  barrio?: string | null;
+  subtotal: number;
+  propina: number;
+  costoEnvio: number;
   total: number;
-  estado: 'Pendiente' | 'En Preparación' | 'Despachado' | 'Entregado';
-  hora: string;
+  estado: string;
+  metodoPago: string;
+  notasCliente?: string | null;
+  createdAt: string;
+  items: OrderItem[];
+}
+
+interface RestaurantTable {
+  id: string;
+  numero: string;
+  capacidad: number;
+  estado: 'Libre' | 'Ocupada' | 'Cuenta_Pedida' | 'Reservada';
+  ubicacion?: string | null;
+  notas?: string | null;
+  orders?: Order[];
+}
+
+interface Category {
+  id: string;
+  nombre: string;
+  slug: string;
+  descripcion?: string | null;
+  icono: string;
+  imagen?: string | null;
+  orden: number;
+  activo: boolean;
+  _count?: { products: number };
+}
+
+interface Product {
+  id: string;
+  nombre: string;
+  slug: string;
+  descripcion: string;
+  precio: number;
+  imagen: string;
+  categoria: string;
+  etiqueta?: string | null;
+  disponibilidad: boolean;
+}
+
+interface Review {
+  id: string;
+  clienteNombre: string;
+  calificacion: number;
+  tipoVisita: string;
+  mesaNumero?: string | null;
+  comentario: string;
+  respuesta?: string | null;
+  publicado: boolean;
+  createdAt: string;
 }
 
 interface AdminUser {
   id: string;
   nombre: string;
   email: string;
-  rol: 'Administrador' | 'Supervisor' | 'Cajero' | 'Cocinero';
-  estado: 'Activo' | 'Inactivo';
-  fecha: string;
+  rol: string;
+  estado: string;
+  createdAt?: string;
 }
 
-const LOCAL_STORAGE_USERS = 'punto_g_admin_users_v1';
 const LOCAL_STORAGE_AUTH = 'punto_g_admin_logged_in';
 
 export default function AdminPage() {
@@ -68,54 +141,69 @@ export default function AdminPage() {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'pedidos' | 'productos' | 'usuarios' | 'configuracion'>('pedidos');
-  
-  // Users Management State
-  const [userList, setUserList] = useState<AdminUser[]>([
-    {
-      id: 'usr-1',
-      nombre: 'David Sarria',
-      email: 'admin@puntog.com',
-      rol: 'Administrador',
-      estado: 'Activo',
-      fecha: '2025-01-10',
-    },
-    {
-      id: 'usr-2',
-      nombre: 'Carlos Gómez',
-      email: 'carlos.caja@puntog.com',
-      rol: 'Cajero',
-      estado: 'Activo',
-      fecha: '2025-02-15',
-    },
-    {
-      id: 'usr-3',
-      nombre: 'María Rodríguez',
-      email: 'maria.cocina@puntog.com',
-      rol: 'Cocinero',
-      estado: 'Activo',
-      fecha: '2025-03-01',
-    },
-  ]);
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [userFormData, setUserFormData] = useState({
+  const [activeTab, setActiveTab] = useState<
+    'pedidos' | 'mesas' | 'categorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
+  >('pedidos');
+
+  // Loading States
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ==================== 1. PEDIDOS STATE & FILTERS ====================
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [orderMetrics, setOrderMetrics] = useState({
+    totalVentas: 0,
+    totalPropinas: 0,
+    totalPedidos: 0,
+    ticketPromedio: 0,
+  });
+  const [filterDesde, setFilterDesde] = useState('');
+  const [filterHasta, setFilterHasta] = useState('');
+  const [filterTipo, setFilterTipo] = useState('todos');
+  const [filterEstado, setFilterEstado] = useState('todos');
+  const [filterMesa, setFilterMesa] = useState('todas');
+  const [searchOrder, setSearchOrder] = useState('');
+
+  // ==================== 2. MESAS STATE ====================
+  const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [tableFormData, setTableFormData] = useState({
+    id: '',
+    numero: '',
+    capacidad: 4,
+    ubicacion: 'Salón Principal',
+    notas: '',
+  });
+  const [selectedTableQr, setSelectedTableQr] = useState<{
+    mesa: string;
+    orderUrl: string;
+    orderQr: string;
+    feedbackUrl: string;
+    feedbackQr: string;
+  } | null>(null);
+
+  // ==================== 3. CATEGORÍAS STATE ====================
+  const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [catFormData, setCatFormData] = useState({
     nombre: '',
-    email: '',
-    password: '',
-    rol: 'Cajero' as AdminUser['rol'],
-    estado: 'Activo' as AdminUser['estado'],
+    slug: '',
+    descripcion: '',
+    icono: 'Utensils',
+    imagen: '',
+    orden: 0,
+    activo: true,
   });
 
-  // Products State
-  const [productList, setProductList] = useState<Product[]>(initialProducts);
+  // ==================== 4. PRODUCTOS STATE ====================
+  const [productList, setProductList] = useState<Product[]>([]);
   const [searchProduct, setSearchProduct] = useState('');
-  const [selectedCat, setSelectedCat] = useState('todas');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProductCat, setSelectedProductCat] = useState('todas');
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
+  const [productFormData, setProductFormData] = useState({
     nombre: '',
-    categoria: 'hamburguesas',
+    categoriaSlug: 'hamburguesas',
     precio: '',
     descripcion: '',
     imagen: '',
@@ -123,65 +211,36 @@ export default function AdminPage() {
     disponibilidad: true,
   });
 
-  // Settings State
+  // ==================== 5. RESEÑAS STATE ====================
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [replyReviewId, setReplyReviewId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+
+  // ==================== 6. USUARIOS STATE ====================
+  const [userList, setUserList] = useState<AdminUser[]>([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [userFormData, setUserFormData] = useState({
+    nombre: '',
+    email: '',
+    password: '',
+    rol: 'Cajero',
+    estado: 'Activo',
+  });
+
+  // ==================== 7. CONFIGURACIÓN STATE ====================
   const [config, setConfig] = useState({
-    nombre: initialInfo.name,
-    whatsapp: initialInfo.phone,
-    direccion: initialInfo.address,
-    horario: initialInfo.schedule,
-    costoEnvio: 5000,
-    abierto: true,
+    nombre: 'PUNTO G',
+    eslogan: 'ANTOJOS QUE CONECTAN',
+    telefonoWhatsapp: '3229088736',
+    direccion: 'Calle 9 # 45-12, Barrio Granada, Cali',
+    horario: 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
+    costoDomicilioBase: 5000,
+    propinaSugeridaPct: 10,
   });
   const [savedSettings, setSavedSettings] = useState(false);
 
-  // Orders State
-  const [orders, setOrders] = useState<MockOrder[]>([
-    {
-      id: 'PG-1042',
-      cliente: 'Andrés Felipe Morales',
-      telefono: '315 456 7890',
-      direccion: 'Calle 15 # 45-20, San Fernando',
-      tipo: 'domicilio',
-      items: [
-        { nombre: 'Hamburguesa Doble Carne', cantidad: 2, precio: 26000 },
-        { nombre: 'Porción de Papas Francesas', cantidad: 1, precio: 8000 },
-        { nombre: 'Coca-Cola 400ml', cantidad: 2, precio: 5500 },
-      ],
-      total: 76000,
-      estado: 'En Preparación',
-      hora: '12:45 p.m.',
-    },
-    {
-      id: 'PG-1041',
-      cliente: 'Valentina Restrepo',
-      telefono: '320 123 9876',
-      direccion: 'Para recoger en tienda',
-      tipo: 'recoger',
-      items: [
-        { nombre: 'Salchipapa Monstruo Punto G', cantidad: 1, precio: 26000 },
-        { nombre: 'Soda Artesanal Frutos Rojos', cantidad: 1, precio: 12000 },
-      ],
-      total: 38000,
-      estado: 'Pendiente',
-      hora: '12:50 p.m.',
-    },
-    {
-      id: 'PG-1040',
-      cliente: 'Camilo Torres',
-      telefono: '318 765 4321',
-      direccion: 'Cra. 66 # 10-30, Ciudad Jardín',
-      tipo: 'domicilio',
-      items: [
-        { nombre: 'Parrillada Mixta Punto G', cantidad: 1, precio: 45000 },
-        { nombre: 'Jugo de Lulo Valluno', cantidad: 2, precio: 9500 },
-      ],
-      total: 69000,
-      estado: 'Despachado',
-      hora: '12:20 p.m.',
-    },
-  ]);
-
-  // Load auth & users from localStorage on client
+  // Check auth from localStorage
   useEffect(() => {
     try {
       const auth = localStorage.getItem(LOCAL_STORAGE_AUTH);
@@ -189,56 +248,410 @@ export default function AdminPage() {
         setIsAuthenticated(true);
         setCurrentUser(JSON.parse(auth));
       }
-      const savedUsers = localStorage.getItem(LOCAL_STORAGE_USERS);
-      if (savedUsers) {
-        setUserList(JSON.parse(savedUsers));
-      }
     } catch (e) {
       console.error(e);
     }
   }, []);
 
-  // Save users to localStorage
+  // Fetch initial data when authenticated
   useEffect(() => {
+    if (isAuthenticated) {
+      loadAllData();
+    }
+  }, [isAuthenticated]);
+
+  const loadAllData = async () => {
+    setIsLoading(true);
+    await Promise.all([
+      fetchOrders(),
+      fetchTables(),
+      fetchCategories(),
+      fetchProducts(),
+      fetchReviews(),
+      fetchUsers(),
+      fetchConfig(),
+    ]);
+    setIsLoading(false);
+  };
+
+  // ==================== API FETCHERS ====================
+  const fetchOrders = async () => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_USERS, JSON.stringify(userList));
+      const params = new URLSearchParams();
+      if (filterDesde) params.append('desde', filterDesde);
+      if (filterHasta) params.append('hasta', filterHasta);
+      if (filterTipo !== 'todos') params.append('tipo', filterTipo);
+      if (filterEstado !== 'todos') params.append('estado', filterEstado);
+      if (filterMesa !== 'todas') params.append('mesaId', filterMesa);
+      if (searchOrder) params.append('search', searchOrder);
+
+      const res = await fetch(`/api/orders?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders || []);
+        if (data.metrics) setOrderMetrics(data.metrics);
+      }
     } catch (e) {
       console.error(e);
     }
-  }, [userList]);
+  };
 
-  // Handle Login
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-
-    // Check credentials against registered users
-    const matched = userList.find(
-      (u) => u.email.toLowerCase() === loginEmail.trim().toLowerCase()
-    );
-
-    if ((matched && loginPassword === 'admin123') || (loginEmail === 'admin@puntog.com' && loginPassword === 'admin123')) {
-      const user = matched || {
-        id: 'usr-admin',
-        nombre: 'David Sarria (Admin)',
-        email: loginEmail,
-        rol: 'Administrador' as const,
-        estado: 'Activo' as const,
-        fecha: '2025-01-01',
-      };
-      setIsAuthenticated(true);
-      setCurrentUser(user);
-      localStorage.setItem(LOCAL_STORAGE_AUTH, JSON.stringify(user));
-    } else {
-      setLoginError('Credenciales incorrectas. Usa admin@puntog.com y admin123 para ingresar.');
+  const fetchTables = async () => {
+    try {
+      const res = await fetch('/api/tables');
+      if (res.ok) {
+        const data = await res.json();
+        setTables(data || []);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  // Handle Logout
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories');
+      if (res.ok) {
+        const data = await res.json();
+        setCategoryList(data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        setProductList(data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const res = await fetch('/api/reviews');
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(data.reviews || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        setUserList(data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data) setConfig(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Re-fetch orders when filters change
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchOrders();
+    }
+  }, [filterDesde, filterHasta, filterTipo, filterEstado, filterMesa, searchOrder]);
+
+  // Handle Login via /api/auth/login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setIsAuthenticated(true);
+        setCurrentUser(data.user);
+        localStorage.setItem(LOCAL_STORAGE_AUTH, JSON.stringify(data.user));
+      } else {
+        setLoginError(data.error || 'Credenciales inválidas');
+      }
+    } catch (err) {
+      setLoginError('Error de conexión con la base de datos MySQL');
+    }
+  };
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     setCurrentUser(null);
     localStorage.removeItem(LOCAL_STORAGE_AUTH);
+  };
+
+  // Quick Date Preset Filters
+  const applyDatePreset = (preset: 'hoy' | 'ayer' | 'semana' | 'mes' | 'todos') => {
+    const today = new Date();
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+    if (preset === 'hoy') {
+      const d = formatDate(today);
+      setFilterDesde(d);
+      setFilterHasta(d);
+    } else if (preset === 'ayer') {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      const d = formatDate(y);
+      setFilterDesde(d);
+      setFilterHasta(d);
+    } else if (preset === 'semana') {
+      const w = new Date(today);
+      w.setDate(w.getDate() - 7);
+      setFilterDesde(formatDate(w));
+      setFilterHasta(formatDate(today));
+    } else if (preset === 'mes') {
+      const m = new Date(today.getFullYear(), today.getMonth(), 1);
+      setFilterDesde(formatDate(m));
+      setFilterHasta(formatDate(today));
+    } else {
+      setFilterDesde('');
+      setFilterHasta('');
+    }
+  };
+
+  // Update Order Status
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: newStatus }),
+      });
+      if (res.ok) {
+        fetchOrders();
+        fetchTables();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Release Table
+  const handleReleaseTable = async (tableId: string) => {
+    if (!confirm('¿Deseas cobrar y liberar esta mesa?')) return;
+    try {
+      const res = await fetch(`/api/tables/${tableId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'liberar' }),
+      });
+      if (res.ok) {
+        fetchTables();
+        fetchOrders();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Open Table QR Modal
+  const handleOpenTableQr = async (tableId: string) => {
+    try {
+      const res = await fetch(`/api/tables/${tableId}/qr`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedTableQr(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Save / Update Table
+  const handleSaveTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tableFormData),
+      });
+      if (res.ok) {
+        setIsTableModalOpen(false);
+        setTableFormData({ id: '', numero: '', capacidad: 4, ubicacion: 'Salón Principal', notas: '' });
+        fetchTables();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Category Actions
+  const handleOpenNewCategory = () => {
+    setEditingCat(null);
+    setCatFormData({
+      nombre: '',
+      slug: '',
+      descripcion: '',
+      icono: 'Utensils',
+      imagen: '',
+      orden: categoryList.length + 1,
+      activo: true,
+    });
+    setIsCatModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: Category) => {
+    setEditingCat(cat);
+    setCatFormData({
+      nombre: cat.nombre,
+      slug: cat.slug,
+      descripcion: cat.descripcion || '',
+      icono: cat.icono,
+      imagen: cat.imagen || '',
+      orden: cat.orden,
+      activo: cat.activo,
+    });
+    setIsCatModalOpen(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingCat) {
+        await fetch(`/api/categories/${editingCat.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(catFormData),
+        });
+      } else {
+        await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(catFormData),
+        });
+      }
+      setIsCatModalOpen(false);
+      fetchCategories();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('¿Eliminar esta categoría? Los productos asociados podrían verse afectados.')) return;
+    try {
+      await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      fetchCategories();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Product Actions
+  const handleOpenNewProduct = () => {
+    setEditingProduct(null);
+    setProductFormData({
+      nombre: '',
+      categoriaSlug: categoryList[0]?.slug || 'hamburguesas',
+      precio: '',
+      descripcion: '',
+      imagen: '',
+      etiqueta: '',
+      disponibilidad: true,
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleOpenEditProduct = (p: Product) => {
+    setEditingProduct(p);
+    setProductFormData({
+      nombre: p.nombre,
+      categoriaSlug: p.categoria,
+      precio: String(p.precio),
+      descripcion: p.descripcion,
+      imagen: p.imagen,
+      etiqueta: p.etiqueta || '',
+      disponibilidad: p.disponibilidad,
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingProduct) {
+        await fetch(`/api/products/${editingProduct.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productFormData),
+        });
+      } else {
+        await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productFormData),
+        });
+      }
+      setIsProductModalOpen(false);
+      fetchProducts();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+    try {
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      fetchProducts();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Review Actions
+  const handleSaveReply = async (reviewId: string) => {
+    if (!replyText.trim()) return;
+    try {
+      await fetch(`/api/reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ respuesta: replyText.trim() }),
+      });
+      setReplyReviewId(null);
+      setReplyText('');
+      fetchReviews();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm('¿Eliminar este comentario?')) return;
+    try {
+      await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
+      fetchReviews();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // User Actions
@@ -254,173 +667,62 @@ export default function AdminPage() {
     setIsUserModalOpen(true);
   };
 
-  const handleOpenEditUser = (u: AdminUser) => {
-    setEditingUser(u);
-    setUserFormData({
-      nombre: u.nombre,
-      email: u.email,
-      password: '',
-      rol: u.rol,
-      estado: u.estado,
-    });
-    setIsUserModalOpen(true);
-  };
-
-  const handleSaveUser = (e: React.FormEvent) => {
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userFormData.nombre || !userFormData.email) return;
-
-    if (editingUser) {
-      setUserList((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id
-            ? {
-                ...u,
-                nombre: userFormData.nombre,
-                email: userFormData.email,
-                rol: userFormData.rol,
-                estado: userFormData.estado,
-              }
-            : u
-        )
-      );
-    } else {
-      const newUser: AdminUser = {
-        id: `usr-${Date.now()}`,
-        nombre: userFormData.nombre,
-        email: userFormData.email,
-        rol: userFormData.rol,
-        estado: userFormData.estado,
-        fecha: new Date().toISOString().split('T')[0],
-      };
-      setUserList((prev) => [...prev, newUser]);
-    }
-    setIsUserModalOpen(false);
-  };
-
-  const handleDeleteUser = (id: string) => {
-    if (userList.length <= 1) {
-      alert('Debe existir al menos un usuario administrador.');
-      return;
-    }
-    if (confirm('¿Seguro que deseas eliminar este usuario?')) {
-      setUserList((prev) => prev.filter((u) => u.id !== id));
+    try {
+      if (editingUser) {
+        await fetch(`/api/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userFormData),
+        });
+      } else {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userFormData),
+        });
+      }
+      setIsUserModalOpen(false);
+      fetchUsers();
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const toggleUserStatus = (id: string) => {
-    setUserList((prev) =>
-      prev.map((u) =>
-        u.id === id ? { ...u, estado: u.estado === 'Activo' ? 'Inactivo' : 'Activo' } : u
-      )
-    );
-  };
-
-  // Product Actions
-  const toggleAvailability = (id: string) => {
-    setProductList((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, disponibilidad: !p.disponibilidad } : p))
-    );
-  };
-
-  const deleteProduct = (id: string) => {
-    if (confirm('¿Seguro que deseas eliminar este producto del menú?')) {
-      setProductList((prev) => prev.filter((p) => p.id !== id));
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm('¿Eliminar este usuario?')) return;
+    try {
+      await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      fetchUsers();
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: MockOrder['estado']) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, estado: newStatus } : o))
-    );
-  };
-
-  const handleOpenNewProduct = () => {
-    setEditingProduct(null);
-    setFormData({
-      nombre: '',
-      categoria: 'hamburguesas',
-      precio: '',
-      descripcion: '',
-      imagen: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=900&auto=format&fit=crop',
-      etiqueta: '',
-      disponibilidad: true,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEditProduct = (p: Product) => {
-    setEditingProduct(p);
-    setFormData({
-      nombre: p.nombre,
-      categoria: p.categoria,
-      precio: String(p.precio),
-      descripcion: p.descripcion,
-      imagen: p.imagen,
-      etiqueta: p.etiqueta || '',
-      disponibilidad: p.disponibilidad,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleSaveProduct = (e: React.FormEvent) => {
+  // Save Settings
+  const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nombre || !formData.precio) return;
-
-    if (editingProduct) {
-      setProductList((prev) =>
-        prev.map((p) =>
-          p.id === editingProduct.id
-            ? {
-                ...p,
-                nombre: formData.nombre,
-                categoria: formData.categoria,
-                precio: Number(formData.precio),
-                descripcion: formData.descripcion,
-                imagen: formData.imagen,
-                etiqueta: formData.etiqueta ? (formData.etiqueta as any) : undefined,
-                disponibilidad: formData.disponibilidad,
-              }
-            : p
-        )
-      );
-    } else {
-      const newP: Product = {
-        id: `prod-${Date.now()}`,
-        nombre: formData.nombre,
-        slug: formData.nombre.toLowerCase().replace(/\s+/g, '-'),
-        descripcion: formData.descripcion,
-        precio: Number(formData.precio),
-        imagen: formData.imagen,
-        categoria: formData.categoria,
-        etiqueta: formData.etiqueta ? (formData.etiqueta as any) : undefined,
-        disponibilidad: formData.disponibilidad,
-      };
-      setProductList((prev) => [newP, ...prev]);
+    try {
+      await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      setSavedSettings(true);
+      setTimeout(() => setSavedSettings(false), 2500);
+    } catch (e) {
+      console.error(e);
     }
-    setIsModalOpen(false);
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavedSettings(true);
-    setTimeout(() => setSavedSettings(false), 2500);
-  };
-
-  const filteredProducts = productList.filter((p) => {
-    const matchesCat = selectedCat === 'todas' || p.categoria === selectedCat;
-    const matchesSearch =
-      p.nombre.toLowerCase().includes(searchProduct.toLowerCase()) ||
-      p.descripcion.toLowerCase().includes(searchProduct.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  const formatPrice = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
 
   // ==================== LOGIN VIEW ====================
   if (!isAuthenticated) {
     return (
       <div className="min-h-[calc(100vh-5rem)] bg-[#080808] flex items-center justify-center pt-24 sm:pt-28 pb-12 px-4">
         <div className="w-full max-w-[380px] bg-[#121212] border border-[#252525] rounded-2xl p-6 sm:p-7 shadow-2xl space-y-4 relative overflow-hidden">
-          {/* Subtle yellow ambient background glow */}
           <div className="absolute -top-10 -right-10 w-36 h-36 bg-brand-yellow/10 rounded-full blur-2xl pointer-events-none" />
 
           <div className="text-center space-y-2">
@@ -429,7 +731,7 @@ export default function AdminPage() {
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[10px] font-bold uppercase tracking-wider">
               <Lock className="w-3 h-3" />
-              <span>Acceso Administrativo</span>
+              <span>Acceso Administrativo MySQL</span>
             </div>
             <h1 className="text-xl font-black uppercase text-white font-display tracking-wide">
               INICIAR SESIÓN
@@ -488,7 +790,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Demo access hint */}
             <div className="bg-[#181818] border border-[#282828] p-2.5 rounded-xl text-[10px] text-gray-400">
               <span className="font-bold text-brand-yellow block">Credenciales demo:</span>
               <span>Usuario: <strong className="text-white">admin@puntog.com</strong> | Clave: <strong className="text-white">admin123</strong></span>
@@ -516,15 +817,15 @@ export default function AdminPage() {
   // ==================== DASHBOARD VIEW ====================
   return (
     <div className="min-h-screen bg-[#080808] text-white pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
-        {/* Top Header Row with User Session info & Logout */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#111111] border border-[#242424] rounded-3xl p-6 shadow-xl">
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#111111] border border-[#242424] rounded-2xl p-4 sm:p-6 shadow-xl">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-brand-whatsapp animate-ping" />
-              <span className="text-xs font-bold text-brand-yellow uppercase tracking-wider">
-                Panel de Control Punto G
+              <span className="text-[11px] font-bold text-brand-yellow uppercase tracking-wider">
+                Sistema Operativo Punto G (MySQL Conectado)
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black uppercase text-white font-display">
@@ -533,8 +834,7 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* User Profile Badge */}
-            <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-2 rounded-xl">
+            <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl">
               <div className="w-7 h-7 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xs">
                 {currentUser?.nombre ? currentUser.nombre.charAt(0) : 'A'}
               </div>
@@ -548,185 +848,553 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-colors"
+              className="p-2 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-[#2e2e2e] rounded-xl transition-colors"
               title="Cerrar Sesión"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Cerrar Sesión</span>
             </button>
-
-            {/* Back to store */}
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 bg-[#1c1c1c] hover:bg-[#252525] text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-[#333] transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Ver Tienda</span>
-            </Link>
           </div>
         </div>
 
-        {/* Analytics Top Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase">
-              <span>Ventas de Hoy</span>
-              <TrendingUp className="w-4 h-4 text-brand-yellow" />
-            </div>
-            <p className="text-2xl font-black text-brand-yellow font-display">$845.800 COP</p>
-            <p className="text-[11px] text-green-400 font-semibold">+18% vs. ayer</p>
-          </div>
-
-          <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase">
-              <span>Pedidos Activos</span>
-              <ShoppingBag className="w-4 h-4 text-brand-whatsapp" />
-            </div>
-            <p className="text-2xl font-black text-white font-display">24 Pedidos</p>
-            <p className="text-[11px] text-gray-400">3 pendientes por despachar</p>
-          </div>
-
-          <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase">
-              <span>Productos en Menú</span>
-              <Layers className="w-4 h-4 text-blue-400" />
-            </div>
-            <p className="text-2xl font-black text-white font-display">{productList.length} Platos</p>
-            <p className="text-[11px] text-gray-400">En 9 categorías activas</p>
-          </div>
-
-          <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase">
-              <span>Usuarios del Sistema</span>
-              <Users className="w-4 h-4 text-brand-yellow" />
-            </div>
-            <p className="text-2xl font-black text-white font-display">{userList.length} Registrados</p>
-            <p className="text-[11px] text-brand-whatsapp font-semibold">Staff activo</p>
-          </div>
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
+          {[
+            { id: 'pedidos', label: 'Pedidos & Filtros', icon: ShoppingBag, count: orders.length },
+            { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length },
+            { id: 'categorias', label: 'Categorías', icon: Layers, count: categoryList.length },
+            { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length },
+            { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length },
+            { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
+            { id: 'configuracion', label: 'Configuración', icon: Settings },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
+                  active
+                    ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow font-black'
+                    : 'bg-[#121212] text-gray-400 border-[#222222] hover:text-white hover:bg-[#181818]'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                      active ? 'bg-black text-brand-yellow' : 'bg-[#222] text-gray-300'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Tab Navigation (with New Users Tab) */}
-        <div className="flex items-center gap-2 border-b border-[#222] pb-3 overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setActiveTab('pedidos')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-              activeTab === 'pedidos'
-                ? 'bg-brand-yellow text-black shadow-glow'
-                : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Pedidos ({orders.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('productos')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-              activeTab === 'productos'
-                ? 'bg-brand-yellow text-black shadow-glow'
-                : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Productos ({productList.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('usuarios')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-              activeTab === 'usuarios'
-                ? 'bg-brand-yellow text-black shadow-glow'
-                : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Usuarios ({userList.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('configuracion')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-              activeTab === 'configuracion'
-                ? 'bg-brand-yellow text-black shadow-glow'
-                : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Configuración</span>
-          </button>
-        </div>
-
-        {/* TAB 1: PEDIDOS */}
+        {/* ======================================================== */}
+        {/* TAB 1: PEDIDOS CON FILTROS DE FECHAS, PROPINAS Y MESAS */}
+        {/* ======================================================== */}
         {activeTab === 'pedidos' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white uppercase font-display">
-                Pedidos Recientes de Clientes
-              </h2>
-              <span className="text-xs text-gray-400">Actualizado en vivo</span>
+          <div className="space-y-6">
+            
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-brand-yellow" />
+                  <span>Ventas Período</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-brand-yellow font-display">
+                  {formatPrice(orderMetrics.totalVentas)}
+                </p>
+                <span className="text-[10px] text-gray-500">Monto total facturado</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5 text-brand-orange fill-brand-orange" />
+                  <span>Propinas Recaudadas</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-white font-display">
+                  {formatPrice(orderMetrics.totalPropinas)}
+                </p>
+                <span className="text-[10px] text-brand-orange">100% para el equipo</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Total Pedidos</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-white font-display">
+                  {orderMetrics.totalPedidos}
+                </p>
+                <span className="text-[10px] text-gray-500">Órdenes registradas</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+                  <span>Ticket Promedio</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-brand-yellow font-display">
+                  {formatPrice(orderMetrics.ticketPromedio)}
+                </p>
+                <span className="text-[10px] text-gray-500">Promedio por orden</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-4 hover:border-brand-yellow/40 transition-colors shadow-lg"
-                >
-                  <div className="flex items-center justify-between border-b border-[#1e1e1e] pb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-display font-black text-brand-yellow text-base">
-                          {order.id}
-                        </span>
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                          order.tipo === 'domicilio' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                        }`}>
-                          {order.tipo}
-                        </span>
-                      </div>
-                      <p className="text-xs font-bold text-white mt-0.5">{order.cliente}</p>
-                      <p className="text-[11px] text-gray-400">{order.telefono} • {order.direccion}</p>
-                    </div>
+            {/* Filter Bar with Presets & Date Inputs */}
+            <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 sm:p-5 space-y-4">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-brand-yellow" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                    Filtros de Pedidos y Fechas
+                  </h3>
+                </div>
 
-                    <div className="text-right">
-                      <span className="text-xs text-gray-400">{order.hora}</span>
-                      <p className="text-lg font-black text-brand-yellow font-display">
-                        ${order.total.toLocaleString('es-CO')}
-                      </p>
-                    </div>
+                {/* Quick Date Presets */}
+                <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold mr-1 hidden sm:inline">
+                    Preajustes:
+                  </span>
+                  {[
+                    { id: 'hoy', label: 'Hoy' },
+                    { id: 'ayer', label: 'Ayer' },
+                    { id: 'semana', label: '7 Días' },
+                    { id: 'mes', label: 'Este Mes' },
+                    { id: 'todos', label: 'Histórico' },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => applyDatePreset(p.id as any)}
+                      className="px-2.5 py-1 bg-[#1a1a1a] hover:bg-brand-yellow hover:text-black border border-[#2e2e2e] text-[10px] font-bold uppercase rounded-lg transition-colors"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Advanced Filter Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+                {/* Search */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Buscar cliente / código / cel
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Ej: PG-1045, Juan..."
+                      value={searchOrder}
+                      onChange={(e) => setSearchOrder(e.target.value)}
+                      className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl pl-8 pr-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs"
+                    />
+                    <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
                   </div>
+                </div>
 
-                  {/* Items List */}
-                  <div className="space-y-1.5 text-xs text-gray-300 bg-[#161616] p-3 rounded-xl border border-[#222]">
-                    {order.items.map((it, idx) => (
-                      <div key={idx} className="flex justify-between">
-                        <span>{it.cantidad}x {it.nombre}</span>
-                        <span className="font-semibold text-gray-400">${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
-                      </div>
+                {/* Tipo de Pedido */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Modalidad
+                  </label>
+                  <select
+                    value={filterTipo}
+                    onChange={(e) => setFilterTipo(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todos">Todas las modalidades</option>
+                    <option value="domicilio">🛵 Domicilio</option>
+                    <option value="recoger">🏪 Para Recoger</option>
+                    <option value="mesa">🍽️ En Mesa (Comanda)</option>
+                  </select>
+                </div>
+
+                {/* Mesa Filter */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Filtrar por Mesa
+                  </label>
+                  <select
+                    value={filterMesa}
+                    onChange={(e) => setFilterMesa(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todas">Todas las mesas</option>
+                    {tables.map((t) => (
+                      <option key={t.id} value={t.numero}>
+                        {t.numero} ({t.ubicacion})
+                      </option>
                     ))}
-                  </div>
+                  </select>
+                </div>
 
-                  {/* Status buttons */}
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs font-bold text-gray-400 uppercase">Cambiar estado:</span>
-                    <div className="flex items-center gap-1.5">
-                      {(['Pendiente', 'En Preparación', 'Despachado', 'Entregado'] as const).map((st) => (
-                        <button
-                          key={st}
-                          onClick={() => updateOrderStatus(order.id, st)}
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${
-                            order.estado === st
-                              ? 'bg-brand-yellow text-black font-black shadow-glow'
-                              : 'bg-[#1e1e1e] text-gray-400 hover:text-white'
+                {/* Date Desde */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Fecha Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={filterDesde}
+                    onChange={(e) => setFilterDesde(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
+
+                {/* Date Hasta */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Fecha Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={filterHasta}
+                    onChange={(e) => setFilterHasta(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Orders List */}
+            {orders.length === 0 ? (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center text-gray-500">
+                <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-40 text-brand-yellow" />
+                <p className="text-sm font-bold text-gray-300">No se encontraron pedidos con estos filtros</p>
+                <p className="text-xs text-gray-500 mt-1">Prueba seleccionando otro rango de fechas o modalidad.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {orders.map((o) => (
+                  <div
+                    key={o.id}
+                    className="bg-[#121212] border border-[#242424] hover:border-brand-yellow/40 rounded-2xl p-4 sm:p-5 space-y-3 transition-colors"
+                  >
+                    {/* Top Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#202020]">
+                      <div className="flex items-center gap-3">
+                        <span className="text-base sm:text-lg font-black text-brand-yellow font-display">
+                          #{o.codigo}
+                        </span>
+                        
+                        {/* Tipo Badge */}
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            o.tipo === 'mesa'
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                              : o.tipo === 'domicilio'
+                              ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                           }`}
                         >
-                          {st}
-                        </button>
-                      ))}
+                          {o.tipo === 'mesa' ? `🍽️ ${o.numeroMesa || 'En Mesa'}` : o.tipo === 'domicilio' ? '🛵 Domicilio' : '🏪 Recoger'}
+                        </span>
+
+                        <span className="text-[11px] text-gray-400">
+                          {new Date(o.createdAt).toLocaleString('es-CO', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Status Selector */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold">Estado:</span>
+                        <select
+                          value={o.estado}
+                          onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                          className={`text-xs font-black uppercase px-3 py-1.5 rounded-xl border focus:outline-none transition-colors ${
+                            o.estado === 'Pendiente'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : o.estado === 'En Preparación'
+                              ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                              : o.estado === 'Listo'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : o.estado === 'Despachado'
+                              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                              : o.estado === 'Entregado'
+                              ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                              : 'bg-red-500/20 text-red-300 border-red-500/40'
+                          }`}
+                        >
+                          <option value="Pendiente">🟡 Pendiente</option>
+                          <option value="En Preparación">🔵 En Preparación</option>
+                          <option value="Listo">🟢 Listo para Entrega</option>
+                          <option value="Despachado">🟣 En Camino / Despachado</option>
+                          <option value="Entregado">✅ Entregado</option>
+                          <option value="Cancelado">❌ Cancelado</option>
+                        </select>
+                      </div>
                     </div>
+
+                    {/* Customer & Address Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Cliente:</span>
+                        <span className="font-bold text-white">{o.cliente}</span>
+                        <span className="text-gray-400 block text-[11px]">{o.telefono}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">
+                          {o.tipo === 'mesa' ? 'Ubicación Mesa:' : 'Dirección:'}
+                        </span>
+                        <span className="text-gray-300">
+                          {o.tipo === 'mesa'
+                            ? `${o.numeroMesa || 'Mesa en restaurante'}`
+                            : o.direccion || 'Recoge en restaurante'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">Método de Pago:</span>
+                        <span className="font-bold text-brand-yellow">{o.metodoPago}</span>
+                      </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="bg-[#181818] rounded-xl p-3 space-y-1.5 text-xs">
+                      <span className="text-[10px] text-gray-500 uppercase font-bold block">Productos:</span>
+                      {o.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-gray-300">
+                          <span>
+                            <strong className="text-brand-yellow">{item.cantidad}x</strong> {item.nombre}
+                            {item.notas && <span className="text-[10px] text-gray-400 italic ml-1.5">({item.notas})</span>}
+                          </span>
+                          <span className="font-medium text-white">{formatPrice(item.precio * item.cantidad)}</span>
+                        </div>
+                      ))}
+
+                      {o.notasCliente && (
+                        <div className="mt-2 pt-2 border-t border-[#252525] text-[11px] text-amber-300/90 italic">
+                          💬 Observación cliente: "{o.notasCliente}"
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Breakdown & Totals */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+                      <div className="flex items-center gap-4 text-gray-400 text-[11px]">
+                        <span>Subtotal: {formatPrice(o.subtotal)}</span>
+                        {o.costoEnvio > 0 && <span>Envío: {formatPrice(o.costoEnvio)}</span>}
+                        {o.propina > 0 && (
+                          <span className="text-brand-orange font-bold flex items-center gap-1">
+                            <Heart className="w-3 h-3 fill-brand-orange" />
+                            Propina: {formatPrice(o.propina)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs text-gray-400 mr-2">Total Orden:</span>
+                        <span className="text-base sm:text-lg font-black text-brand-yellow font-display">
+                          {formatPrice(o.total)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB 2: MESAS / COMANDAS Y GENERACIÓN DE QR               */}
+        {/* ======================================================== */}
+        {activeTab === 'mesas' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  MÓDULO DE MESAS Y COMANDAS EN SITIO
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Monitorea mesas en tiempo real, genera códigos QR para pedidos automáticos y califica el servicio.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsTableModalOpen(true)}
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear Nueva Mesa</span>
+              </button>
+            </div>
+
+            {/* Tables Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {tables.map((t) => {
+                const activeOrder = t.orders && t.orders[0];
+                const isOccupied = t.estado === 'Ocupada' || !!activeOrder;
+
+                return (
+                  <div
+                    key={t.id}
+                    className={`bg-[#121212] border rounded-2xl p-5 space-y-4 transition-all relative overflow-hidden ${
+                      isOccupied ? 'border-brand-yellow/60 shadow-[0_0_15px_rgba(255,201,40,0.15)]' : 'border-[#222]'
+                    }`}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${
+                            isOccupied ? 'bg-brand-yellow text-black' : 'bg-[#1e1e1e] text-gray-300'
+                          }`}
+                        >
+                          <UtensilsCrossed className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-white uppercase">{t.numero}</h4>
+                          <span className="text-[10px] text-gray-500">{t.ubicacion || 'Salón'} • {t.capacidad} puestos</span>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          isOccupied
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        }`}
+                      >
+                        {isOccupied ? '🔴 Ocupada' : '🟢 Libre'}
+                      </span>
+                    </div>
+
+                    {/* Active Order Details */}
+                    {activeOrder ? (
+                      <div className="bg-[#181818] rounded-xl p-3 space-y-2 text-xs">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="font-bold text-white">Comanda: #{activeOrder.codigo}</span>
+                          <span className="text-brand-yellow font-black">{formatPrice(activeOrder.total)}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400">Cliente: {activeOrder.cliente}</p>
+                        <p className="text-[10px] text-gray-400">
+                          {activeOrder.items?.length || 0} platos • Estado: <strong className="text-white">{activeOrder.estado}</strong>
+                        </p>
+                        {activeOrder.propina > 0 && (
+                          <p className="text-[10px] text-brand-orange font-bold">
+                            Propina: {formatPrice(activeOrder.propina)}
+                          </p>
+                        )}
+                        <button
+                          onClick={() => handleReleaseTable(t.id)}
+                          className="w-full mt-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                        >
+                          Cobrar y Liberar Mesa
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="py-4 text-center text-xs text-gray-500">
+                        <span>Sin comanda activa</span>
+                      </div>
+                    )}
+
+                    {/* Table Actions */}
+                    <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => handleOpenTableQr(t.id)}
+                        className="flex-1 py-1.5 bg-[#1c1c1c] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold rounded-lg border border-[#2c2c2c] transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Ver Códigos QR</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB 3: CATEGORÍAS (CRUD COMPLETO)                        */}
+        {/* ======================================================== */}
+        {activeTab === 'categorias' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  GESTIÓN DE CATEGORÍAS DEL MENÚ
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Crea, modifica o reordena las categorías principales de la tienda en MySQL.
+                </p>
+              </div>
+
+              <button
+                onClick={handleOpenNewCategory}
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nueva Categoría</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categoryList.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="bg-[#121212] border border-[#222] hover:border-brand-yellow/50 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-gray-500 uppercase">
+                        Orden #{cat.orden}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          cat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                        }`}
+                      >
+                        {cat.activo ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </div>
+
+                    <h4 className="text-base font-black text-white uppercase font-display">
+                      {cat.nombre}
+                    </h4>
+                    <p className="text-xs text-gray-400 line-clamp-2">
+                      {cat.descripcion || 'Sin descripción'}
+                    </p>
+
+                    <div className="flex items-center gap-2 text-[11px] text-brand-yellow">
+                      <span>Slug: <code>/menu/{cat.slug}</code></span>
+                      {cat._count?.products !== undefined && (
+                        <span className="text-gray-400">• {cat._count.products} platos</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => handleOpenEditCategory(cat)}
+                      className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                      title="Editar"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -734,217 +1402,301 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 2: PRODUCTOS */}
+        {/* ======================================================== */}
+        {/* TAB 4: PRODUCTOS (MENÚ Y PLATOS)                         */}
+        {/* ======================================================== */}
         {activeTab === 'productos' && (
           <div className="space-y-6">
-            {/* Toolbar */}
-            <div className="bg-[#121212] border border-[#242424] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                {/* Search */}
-                <div className="relative flex-1 md:w-64">
-                  <input
-                    type="text"
-                    placeholder="Buscar producto..."
-                    value={searchProduct}
-                    onChange={(e) => setSearchProduct(e.target.value)}
-                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow"
-                  />
-                  <Search className="w-4 h-4 text-gray-500 absolute left-3 top-2.5" />
-                </div>
-
-                {/* Category select */}
-                <select
-                  value={selectedCat}
-                  onChange={(e) => setSelectedCat(e.target.value)}
-                  className="bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-yellow cursor-pointer"
-                >
-                  <option value="todas">Todas las categorías</option>
-                  {categories.map((c) => (
-                    <option key={c.slug} value={c.slug}>{c.nombre}</option>
-                  ))}
-                </select>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  PLATOS Y PRODUCTOS ({productList.length})
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Administra precios, descripciones, fotos y disponibilidad en tiempo real.
+                </p>
               </div>
 
               <button
                 onClick={handleOpenNewProduct}
-                className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-glow transition-all"
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
               >
                 <Plus className="w-4 h-4" />
-                <span>NUEVO PRODUCTO</span>
+                <span>Agregar Producto</span>
               </button>
             </div>
 
-            {/* Product Table */}
-            <div className="bg-[#121212] border border-[#242424] rounded-2xl overflow-hidden shadow-xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#181818] border-b border-[#252525] text-gray-400 uppercase tracking-wider font-bold">
-                    <tr>
-                      <th className="py-3 px-4">Plato</th>
-                      <th className="py-3 px-4">Categoría</th>
-                      <th className="py-3 px-4">Precio</th>
-                      <th className="py-3 px-4">Etiqueta</th>
-                      <th className="py-3 px-4">Estado</th>
-                      <th className="py-3 px-4 text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1e1e1e]">
-                    {filteredProducts.map((p) => (
-                      <tr key={p.id} className="hover:bg-[#161616] transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg overflow-hidden relative flex-shrink-0 bg-black">
-                              <Image src={p.imagen} alt={p.nombre} fill className="object-cover" sizes="40px" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-white">{p.nombre}</p>
-                              <p className="text-[11px] text-gray-400 line-clamp-1">{p.descripcion}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 capitalize text-gray-300 font-semibold">{p.categoria}</td>
-                        <td className="py-3 px-4 font-bold text-brand-yellow font-display text-sm">
-                          ${p.precio.toLocaleString('es-CO')}
-                        </td>
-                        <td className="py-3 px-4">
-                          {p.etiqueta ? (
-                            <span className="bg-brand-yellow/20 text-brand-yellow border border-brand-yellow/40 text-[9px] font-black uppercase px-2 py-0.5 rounded">
-                              {p.etiqueta}
-                            </span>
-                          ) : (
-                            <span className="text-gray-600">-</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => toggleAvailability(p.id)}
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                              p.disponibilidad
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                            }`}
-                          >
-                            {p.disponibilidad ? 'Disponible' : 'Agotado'}
-                          </button>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleOpenEditProduct(p)}
-                              className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-brand-yellow hover:bg-[#282828] transition-colors"
-                              title="Editar"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => deleteProduct(p.id)}
-                              className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-red-400 hover:bg-[#282828] transition-colors"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o ingrediente..."
+                  value={searchProduct}
+                  onChange={(e) => setSearchProduct(e.target.value)}
+                  className="w-full bg-[#141414] border border-[#252525] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow"
+                />
+                <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
               </div>
+
+              <select
+                value={selectedProductCat}
+                onChange={(e) => setSelectedProductCat(e.target.value)}
+                className="bg-[#141414] border border-[#252525] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
+              >
+                <option value="todas">Todas las categorías</option>
+                {categoryList.map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Products Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {productList
+                .filter((p) => {
+                  const matchesCat = selectedProductCat === 'todas' || p.categoria === selectedProductCat;
+                  const matchesSearch =
+                    p.nombre.toLowerCase().includes(searchProduct.toLowerCase()) ||
+                    p.descripcion.toLowerCase().includes(searchProduct.toLowerCase());
+                  return matchesCat && matchesSearch;
+                })
+                .map((p) => (
+                  <div
+                    key={p.id}
+                    className="bg-[#121212] border border-[#222] hover:border-brand-yellow/40 rounded-2xl p-4 space-y-3 transition-colors flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="relative w-full h-40 rounded-xl overflow-hidden bg-[#1e1e1e]">
+                        <Image src={p.imagen} alt={p.nombre} fill className="object-cover" />
+                        {p.etiqueta && (
+                          <span className="absolute top-2 left-2 bg-brand-yellow text-black text-[10px] font-black uppercase px-2 py-0.5 rounded shadow">
+                            {p.etiqueta}
+                          </span>
+                        )}
+                        <span
+                          className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded ${
+                            p.disponibilidad ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'
+                          }`}
+                        >
+                          {p.disponibilidad ? 'Disponible' : 'Agotado'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-baseline">
+                          <h4 className="text-sm font-bold text-white truncate">{p.nombre}</h4>
+                          <span className="text-sm font-black text-brand-yellow ml-2">
+                            {formatPrice(p.precio)}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 uppercase">{p.categoria}</span>
+                        <p className="text-xs text-gray-400 line-clamp-2 mt-1">{p.descripcion}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleOpenEditProduct(p)}
+                        className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(p.id)}
+                        className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
         )}
 
-        {/* TAB 3: USUARIOS (NUEVO REQUERIMIENTO) */}
+        {/* ======================================================== */}
+        {/* TAB 5: RESEÑAS Y CALIFICACIONES CON QR                   */}
+        {/* ======================================================== */}
+        {activeTab === 'resenas' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  COMENTARIOS Y CALIFICACIONES DE CLIENTES ({reviews.length})
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Opiniones dejadas por clientes escaneando el código QR en mesa o desde la web.
+                </p>
+              </div>
+
+              <Link
+                href="/calificar"
+                target="_blank"
+                className="px-4 py-2.5 bg-[#1c1c1c] hover:bg-[#252525] text-white border border-[#2e2e2e] rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4 text-brand-yellow" />
+                <span>Abrir Página Pública de Reseñas</span>
+              </Link>
+            </div>
+
+            <div className="grid gap-4">
+              {reviews.map((rev) => (
+                <div
+                  key={rev.id}
+                  className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-3"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">{rev.clienteNombre}</h4>
+                      <span className="text-[11px] text-gray-500">
+                        {rev.tipoVisita} {rev.mesaNumero ? `• ${rev.mesaNumero}` : ''} •{' '}
+                        {new Date(rev.createdAt).toLocaleDateString('es-CO')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-brand-yellow">
+                      {[...Array(rev.calificacion)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-brand-yellow" />
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-300 italic bg-[#181818] p-3 rounded-xl border border-[#222]">
+                    "{rev.comentario}"
+                  </p>
+
+                  {rev.respuesta && (
+                    <div className="bg-[#1a1a1a] border-l-2 border-brand-yellow p-3 rounded-r-xl text-xs text-gray-300">
+                      <strong className="text-brand-yellow block text-[11px]">Respuesta de Punto G:</strong>
+                      {rev.respuesta}
+                    </div>
+                  )}
+
+                  {replyReviewId === rev.id ? (
+                    <div className="space-y-2 pt-2">
+                      <textarea
+                        rows={2}
+                        placeholder="Escribe la respuesta oficial del restaurante..."
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-yellow resize-none"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setReplyReviewId(null)}
+                          className="px-3 py-1.5 bg-[#252525] text-gray-300 rounded-lg text-xs"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleSaveReply(rev.id)}
+                          className="px-3 py-1.5 bg-brand-yellow text-black font-bold rounded-lg text-xs"
+                        >
+                          Guardar Respuesta
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          setReplyReviewId(rev.id);
+                          setReplyText(rev.respuesta || '');
+                        }}
+                        className="px-3 py-1.5 bg-[#1e1e1e] hover:bg-[#282828] text-gray-300 text-xs font-bold rounded-lg transition-colors"
+                      >
+                        {rev.respuesta ? 'Editar Respuesta' : 'Responder'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReview(rev.id)}
+                        className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                        title="Eliminar comentario"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB 6: USUARIOS / STAFF                                  */}
+        {/* ======================================================== */}
         {activeTab === 'usuarios' && (
           <div className="space-y-6">
-            <div className="bg-[#121212] border border-[#242424] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold uppercase text-white font-display">
-                  Usuarios del Sistema Punto G
-                </h2>
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  GESTIÓN DE USUARIOS Y ROLES ({userList.length})
+                </h3>
                 <p className="text-xs text-gray-400">
-                  Crea y administra el personal con acceso al panel administrativo y toma de pedidos.
+                  Controla accesos para administradores, cajeros, cocina y meseros en MySQL.
                 </p>
               </div>
 
               <button
                 onClick={handleOpenNewUser}
-                className="inline-flex items-center gap-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-glow transition-all"
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>NUEVO USUARIO</span>
+                <span>Crear Nuevo Usuario</span>
               </button>
             </div>
 
-            {/* Users Table */}
-            <div className="bg-[#121212] border border-[#242424] rounded-2xl overflow-hidden shadow-xl">
+            <div className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#181818] border-b border-[#252525] text-gray-400 uppercase tracking-wider font-bold">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#181818] text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-[#222]">
                     <tr>
-                      <th className="py-3.5 px-4">Usuario</th>
-                      <th className="py-3.5 px-4">Correo Electrónico</th>
-                      <th className="py-3.5 px-4">Rol Asignado</th>
-                      <th className="py-3.5 px-4">Estado</th>
-                      <th className="py-3.5 px-4">Fecha Creación</th>
-                      <th className="py-3.5 px-4 text-right">Acciones</th>
+                      <th className="p-4">Nombre</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Rol</th>
+                      <th className="p-4">Estado</th>
+                      <th className="p-4 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e1e1e]">
-                    {userList.map((user) => (
-                      <tr key={user.id} className="hover:bg-[#161616] transition-colors">
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-brand-yellow/20 text-brand-yellow border border-brand-yellow/40 flex items-center justify-center font-bold">
-                              {user.nombre.charAt(0)}
-                            </div>
-                            <span className="font-bold text-white">{user.nombre}</span>
+                    {userList.map((u) => (
+                      <tr key={u.id} className="hover:bg-[#161616] transition-colors">
+                        <td className="p-4 font-bold text-white flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-bold text-xs">
+                            {u.nombre.charAt(0)}
                           </div>
+                          <span>{u.nombre}</span>
                         </td>
-                        <td className="py-3.5 px-4 text-gray-300 font-mono text-[11px]">{user.email}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${
-                            user.rol === 'Administrador'
-                              ? 'bg-yellow-500/20 text-brand-yellow border border-yellow-500/30'
-                              : user.rol === 'Supervisor'
-                              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                              : user.rol === 'Cajero'
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                              : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                          }`}>
-                            {user.rol}
+                        <td className="p-4 text-gray-400">{u.email}</td>
+                        <td className="p-4">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#1e1e1e] text-brand-yellow border border-[#2d2d2d]">
+                            {u.rol}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <button
-                            onClick={() => toggleUserStatus(user.id)}
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-all ${
-                              user.estado === 'Activo'
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        <td className="p-4">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              u.estado === 'Activo'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-red-500/20 text-red-300'
                             }`}
                           >
-                            {user.estado}
-                          </button>
+                            {u.estado}
+                          </span>
                         </td>
-                        <td className="py-3.5 px-4 text-gray-400">{user.fecha}</td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleOpenEditUser(user)}
-                              className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-brand-yellow hover:bg-[#282828] transition-colors"
-                              title="Editar"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="p-1.5 rounded-lg bg-[#202020] text-gray-300 hover:text-red-400 hover:bg-[#282828] transition-colors"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                        <td className="p-4 text-right space-x-2">
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -955,289 +1707,546 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 4: CONFIGURACIÓN */}
+        {/* ======================================================== */}
+        {/* TAB 7: CONFIGURACIÓN                                     */}
+        {/* ======================================================== */}
         {activeTab === 'configuracion' && (
-          <div className="max-w-2xl bg-[#121212] border border-[#242424] rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
+          <div className="max-w-2xl bg-[#121212] border border-[#222] rounded-2xl p-6 sm:p-8 space-y-6">
             <div>
-              <h2 className="text-xl font-bold uppercase text-white font-display">
-                Datos del Establecimiento
-              </h2>
-              <p className="text-xs text-gray-400 mt-1">
-                Ajusta el número de WhatsApp para pedidos, horarios y tarifa de entrega.
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                CONFIGURACIÓN DEL RESTAURANTE
+              </h3>
+              <p className="text-xs text-gray-400">
+                Ajusta teléfonos, propinas sugeridas y costo de domicilio en MySQL.
               </p>
             </div>
 
             {savedSettings && (
-              <div className="bg-green-500/20 border border-green-500/40 rounded-xl p-3 flex items-center gap-2 text-green-400 text-xs font-bold">
+              <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs p-3 rounded-xl flex items-center gap-2">
                 <Check className="w-4 h-4" />
-                <span>Configuración guardada exitosamente.</span>
+                <span>Configuración guardada exitosamente en la base de datos MySQL.</span>
               </div>
             )}
 
             <form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-gray-300 uppercase mb-1">Nombre Comercial</label>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre Comercial</label>
                 <input
                   type="text"
                   value={config.nombre}
                   onChange={(e) => setConfig({ ...config, nombre: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-gray-300 uppercase mb-1">
-                  WhatsApp Oficial para Pedidos (3229088736)
-                </label>
+                <label className="block text-gray-300 font-bold uppercase mb-1">WhatsApp de Pedidos</label>
                 <input
                   type="text"
-                  value={config.whatsapp}
-                  onChange={(e) => setConfig({ ...config, whatsapp: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-brand-whatsapp font-bold focus:outline-none focus:border-brand-yellow"
+                  value={config.telefonoWhatsapp}
+                  onChange={(e) => setConfig({ ...config, telefonoWhatsapp: e.target.value })}
+                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-gray-300 uppercase mb-1">Dirección del Local</label>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Dirección del Restaurante</label>
                 <input
                   type="text"
                   value={config.direccion}
                   onChange={(e) => setConfig({ ...config, direccion: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-gray-300 uppercase mb-1">Horario de Servicio</label>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Horario de Atención</label>
                 <input
                   type="text"
                   value={config.horario}
                   onChange={(e) => setConfig({ ...config, horario: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
+                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-300 uppercase mb-1">Costo Domicilio ($ COP)</label>
-                <input
-                  type="number"
-                  value={config.costoEnvio}
-                  onChange={(e) => setConfig({ ...config, costoEnvio: Number(e.target.value) })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Costo Domicilio Base (COP)</label>
+                  <input
+                    type="number"
+                    value={config.costoDomicilioBase}
+                    onChange={(e) => setConfig({ ...config, costoDomicilioBase: Number(e.target.value) })}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Propina Sugerida (%)</label>
+                  <input
+                    type="number"
+                    value={config.propinaSugeridaPct}
+                    onChange={(e) => setConfig({ ...config, propinaSugeridaPct: Number(e.target.value) })}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black uppercase tracking-wider rounded-xl shadow-glow transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all"
               >
-                <Save className="w-4 h-4" />
-                <span>GUARDAR CAMBIOS</span>
+                GUARDAR CAMBIOS EN BD
               </button>
             </form>
           </div>
         )}
 
-        {/* Modal for Product Add / Edit */}
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#141414] border border-[#2c2c2c] rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
-              <h3 className="text-lg font-bold uppercase text-white font-display">
-                {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-              </h3>
+      </div>
 
-              <form onSubmit={handleSaveProduct} className="space-y-3 text-xs">
+      {/* ======================================================== */}
+      {/* MODAL: QR CODES DE MESA (PEDIDO + RESEÑA)                */}
+      {/* ======================================================== */}
+      {selectedTableQr && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 relative">
+            <div className="flex justify-between items-center pb-3 border-b border-[#252525]">
+              <div>
+                <span className="text-[10px] font-black uppercase text-brand-yellow tracking-wider">
+                  Códigos QR Oficiales
+                </span>
+                <h3 className="text-xl font-black text-white uppercase font-display">
+                  {selectedTableQr.mesa}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedTableQr(null)}
+                className="text-gray-400 hover:text-white p-2"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* QR 1: Pedir en Mesa */}
+              <div className="bg-[#1b1b1b] border border-[#282828] rounded-2xl p-4 text-center space-y-2">
+                <span className="text-[10px] font-black uppercase text-brand-yellow block">
+                  🍔 Para Pedir en Mesa
+                </span>
+                <div className="bg-white p-2 rounded-xl inline-block">
+                  <img src={selectedTableQr.orderQr} alt="QR Pedido" className="w-36 h-36" />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  El cliente escanea y abre el menú con la {selectedTableQr.mesa} preseleccionada.
+                </p>
+                <a
+                  href={selectedTableQr.orderQr}
+                  download={`QR_Pedido_${selectedTableQr.mesa}.png`}
+                  className="w-full py-1.5 bg-[#252525] hover:bg-[#333] text-white text-[10px] font-bold rounded-lg inline-flex items-center justify-center gap-1 transition-colors"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Descargar PNG</span>
+                </a>
+              </div>
+
+              {/* QR 2: Calificar en Sitio */}
+              <div className="bg-[#1b1b1b] border border-[#282828] rounded-2xl p-4 text-center space-y-2">
+                <span className="text-[10px] font-black uppercase text-brand-orange block">
+                  ⭐ Para Calificar el Servicio
+                </span>
+                <div className="bg-white p-2 rounded-xl inline-block">
+                  <img src={selectedTableQr.feedbackQr} alt="QR Reseña" className="w-36 h-36" />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  El cliente califica la comida y atención directo desde la mesa.
+                </p>
+                <a
+                  href={selectedTableQr.feedbackQr}
+                  download={`QR_Resena_${selectedTableQr.mesa}.png`}
+                  className="w-full py-1.5 bg-[#252525] hover:bg-[#333] text-white text-[10px] font-bold rounded-lg inline-flex items-center justify-center gap-1 transition-colors"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Descargar PNG</span>
+                </a>
+              </div>
+            </div>
+
+            <button
+              onClick={() => window.print()}
+              className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all flex items-center justify-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              <span>IMPRIMIR FICHA DE MESA CON CÓDIGOS QR</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: CREAR MESA                                        */}
+      {/* ======================================================== */}
+      {isTableModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              CREAR NUEVA MESA
+            </h3>
+            <form onSubmit={handleSaveTable} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre / Número de Mesa *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Mesa 9, Terraza 3, Barra 4"
+                  value={tableFormData.numero}
+                  onChange={(e) => setTableFormData({ ...tableFormData, numero: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Capacidad de Personas</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={tableFormData.capacidad}
+                  onChange={(e) => setTableFormData({ ...tableFormData, capacidad: Number(e.target.value) })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Ubicación</label>
+                <select
+                  value={tableFormData.ubicacion}
+                  onChange={(e) => setTableFormData({ ...tableFormData, ubicacion: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                >
+                  <option value="Salón Principal">Salón Principal</option>
+                  <option value="Terraza">Terraza</option>
+                  <option value="Barra">Barra</option>
+                  <option value="Salón VIP">Salón VIP</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTableModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                >
+                  Guardar Mesa
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: CATEGORÍA                                         */}
+      {/* ======================================================== */}
+      {isCatModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              {editingCat ? 'EDITAR CATEGORÍA' : 'NUEVA CATEGORÍA'}
+            </h3>
+            <form onSubmit={handleSaveCategory} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Hamburguesas Artesanales"
+                  value={catFormData.nombre}
+                  onChange={(e) => setCatFormData({ ...catFormData, nombre: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Descripción</label>
+                <textarea
+                  rows={2}
+                  placeholder="Descripción breve..."
+                  value={catFormData.descripcion}
+                  onChange={(e) => setCatFormData({ ...catFormData, descripcion: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">URL Fotografía</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={catFormData.imagen}
+                  onChange={(e) => setCatFormData({ ...catFormData, imagen: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-400 font-bold mb-1">Nombre</label>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Orden</label>
                   <input
-                    type="text"
-                    required
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                    type="number"
+                    value={catFormData.orden}
+                    onChange={(e) => setCatFormData({ ...catFormData, orden: Number(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-gray-400 font-bold mb-1">Categoría</label>
-                    <select
-                      value={formData.categoria}
-                      onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                    >
-                      {categories.map((c) => (
-                        <option key={c.slug} value={c.slug}>{c.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 font-bold mb-1">Precio ($ COP)</label>
-                    <input
-                      type="number"
-                      required
-                      value={formData.precio}
-                      onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-gray-400 font-bold mb-1">Descripción</label>
-                  <textarea
-                    rows={2}
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 font-bold mb-1">URL de Imagen</label>
-                  <input
-                    type="text"
-                    value={formData.imagen}
-                    onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
-                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 font-bold mb-1">Etiqueta (opcional)</label>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Estado</label>
                   <select
-                    value={formData.etiqueta}
-                    onChange={(e) => setFormData({ ...formData, etiqueta: e.target.value })}
-                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
+                    value={catFormData.activo ? 'true' : 'false'}
+                    onChange={(e) => setCatFormData({ ...catFormData, activo: e.target.value === 'true' })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
                   >
-                    <option value="">Ninguna</option>
-                    <option value="MÁS VENDIDO">MÁS VENDIDO</option>
-                    <option value="RECOMENDADO">RECOMENDADO</option>
-                    <option value="NUEVO">NUEVO</option>
-                    <option value="PICANTE">PICANTE</option>
-                    <option value="VEGETARIANA">VEGETARIANA</option>
-                    <option value="BBQ">BBQ</option>
-                    <option value="INFANTIL">INFANTIL</option>
+                    <option value="true">Activa</option>
+                    <option value="false">Inactiva</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCatModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: PRODUCTO                                          */}
+      {/* ======================================================== */}
+      {isProductModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              {editingProduct ? 'EDITAR PRODUCTO' : 'AGREGAR PRODUCTO'}
+            </h3>
+            <form onSubmit={handleSaveProduct} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Hamburguesa Suprema"
+                  value={productFormData.nombre}
+                  onChange={(e) => setProductFormData({ ...productFormData, nombre: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Categoría</label>
+                  <select
+                    value={productFormData.categoriaSlug}
+                    onChange={(e) => setProductFormData({ ...productFormData, categoriaSlug: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                  >
+                    {categoryList.map((c) => (
+                      <option key={c.id} value={c.slug}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Precio (COP) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="25000"
+                    value={productFormData.precio}
+                    onChange={(e) => setProductFormData({ ...productFormData, precio: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Descripción</label>
+                <textarea
+                  rows={2}
+                  placeholder="Ingredientes, términos..."
+                  value={productFormData.descripcion}
+                  onChange={(e) => setProductFormData({ ...productFormData, descripcion: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">URL Imagen</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={productFormData.imagen}
+                  onChange={(e) => setProductFormData({ ...productFormData, imagen: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Etiqueta</label>
+                  <input
+                    type="text"
+                    placeholder="MÁS VENDIDO, NUEVO..."
+                    value={productFormData.etiqueta}
+                    onChange={(e) => setProductFormData({ ...productFormData, etiqueta: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Disponibilidad</label>
+                  <select
+                    value={productFormData.disponibilidad ? 'true' : 'false'}
+                    onChange={(e) => setProductFormData({ ...productFormData, disponibilidad: e.target.value === 'true' })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                  >
+                    <option value="true">Disponible</option>
+                    <option value="false">Agotado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: USUARIO                                           */}
+      {/* ======================================================== */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              CREAR USUARIO / STAFF
+            </h3>
+            <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre Completo *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Laura Castro"
+                  value={userFormData.nombre}
+                  onChange={(e) => setUserFormData({ ...userFormData, nombre: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Correo Electrónico *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="laura@puntog.com"
+                  value={userFormData.email}
+                  onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Contraseña *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={userFormData.password}
+                  onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Rol</label>
+                  <select
+                    value={userFormData.rol}
+                    onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                  >
+                    <option value="Administrador">Administrador</option>
+                    <option value="Cajero">Cajero</option>
+                    <option value="Cocinero">Cocinero</option>
+                    <option value="Mesero">Mesero</option>
+                    <option value="Supervisor">Supervisor</option>
                   </select>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 rounded-lg bg-[#222] text-gray-300 hover:text-white"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-lg bg-brand-yellow text-black font-black shadow-glow"
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal for User Add / Edit (NUEVO REQUERIMIENTO) */}
-        {isUserModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#141414] border border-[#2c2c2c] rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
-              <h3 className="text-lg font-bold uppercase text-white font-display">
-                {editingUser ? 'Editar Usuario' : 'Nuevo Usuario Staff'}
-              </h3>
-
-              <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-gray-400 font-bold mb-1">Nombre Completo</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Daniel Restrepo"
-                    value={userFormData.nombre}
-                    onChange={(e) => setUserFormData({ ...userFormData, nombre: e.target.value })}
-                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 font-bold mb-1">Correo Electrónico</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="daniel@puntog.com"
-                    value={userFormData.email}
-                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                    className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                  />
-                </div>
-
-                {!editingUser && (
-                  <div>
-                    <label className="block text-gray-400 font-bold mb-1">Contraseña Inicial</label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={userFormData.password}
-                      onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                    />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-gray-400 font-bold mb-1">Rol</label>
-                    <select
-                      value={userFormData.rol}
-                      onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value as any })}
-                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                    >
-                      <option value="Administrador">Administrador</option>
-                      <option value="Supervisor">Supervisor</option>
-                      <option value="Cajero">Cajero</option>
-                      <option value="Cocinero">Cocinero</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 font-bold mb-1">Estado</label>
-                    <select
-                      value={userFormData.estado}
-                      onChange={(e) => setUserFormData({ ...userFormData, estado: e.target.value as any })}
-                      className="w-full bg-[#1e1e1e] border border-[#2f2f2f] rounded-lg p-2 text-white focus:outline-none focus:border-brand-yellow"
-                    >
-                      <option value="Activo">Activo</option>
-                      <option value="Inactivo">Inactivo</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsUserModalOpen(false)}
-                    className="px-4 py-2 rounded-lg bg-[#222] text-gray-300 hover:text-white"
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Estado</label>
+                  <select
+                    value={userFormData.estado}
+                    onChange={(e) => setUserFormData({ ...userFormData, estado: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
                   >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-lg bg-brand-yellow text-black font-black shadow-glow"
-                  >
-                    {editingUser ? 'Actualizar' : 'Crear Usuario'}
-                  </button>
+                    <option value="Activo">Activo</option>
+                    <option value="Inactivo">Inactivo</option>
+                  </select>
                 </div>
-              </form>
-            </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsUserModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                >
+                  Guardar Usuario
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
+      )}
 
-      </div>
     </div>
   );
 }

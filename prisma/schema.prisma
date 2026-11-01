@@ -1,0 +1,146 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  password  String   @default("admin123")
+  rol       String   @default("Cajero") // Administrador, Supervisor, Cajero, Cocinero, Mesero
+  estado    String   @default("Activo") // Activo, Inactivo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  nombre      String
+  slug        String    @unique
+  descripcion String?   @db.Text
+  icono       String    @default("Utensils")
+  imagen      String?   @db.Text
+  orden       Int       @default(0)
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  nombre         String
+  slug           String      @unique
+  descripcion    String      @db.Text
+  precio         Float
+  imagen         String      @db.Text
+  categoriaId    String
+  categoria      Category    @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  etiqueta       String?     // MÁS VENDIDO, NUEVO, RECOMENDADO
+  disponibilidad Boolean     @default(true)
+  orden          Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  orderItems     OrderItem[]
+
+  @@map("products")
+}
+
+model RestaurantTable {
+  id          String   @id @default(cuid())
+  numero      String   @unique // e.g. "Mesa 1", "Mesa 2", "Barra 1"
+  capacidad   Int      @default(4)
+  estado      String   @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
+  ubicacion   String?  // Salon Principal, Terraza, Barra, VIP
+  notas       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+
+  @@map("restaurant_tables")
+}
+
+model Order {
+  id           String           @id @default(cuid())
+  codigo       String           @unique // e.g. "PG-1045"
+  cliente      String
+  telefono     String
+  tipo         String           @default("domicilio") // domicilio, recoger, mesa
+  mesaId       String?
+  mesa         RestaurantTable? @relation(fields: [mesaId], references: [id], onDelete: SetNull)
+  numeroMesa   String?          // Direct snapshot if mesaId deleted or manual
+  direccion    String?          @db.Text
+  barrio       String?
+  subtotal     Float            @default(0)
+  propina      Float            @default(0) // Propinas voluntarias
+  costoEnvio   Float            @default(0)
+  total        Float            @default(0)
+  estado       String           @default("Pendiente") // Pendiente, En Preparación, Listo, Despachado, Entregado, Cancelado
+  metodoPago   String           @default("Efectivo") // Efectivo, Nequi, Daviplata, Datáfono, Transferencia
+  notasCliente String?          @db.Text // Comentarios del pedido ("sin cebolla, salsas aparte", etc.)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  items        OrderItem[]
+  reviews      Review[]
+
+  @@index([createdAt])
+  @@index([tipo])
+  @@index([estado])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  nombre     String
+  precio     Float
+  cantidad   Int      @default(1)
+  notas      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  @@map("order_items")
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  mesaNumero    String?  // e.g. "Mesa 4"
+  clienteNombre String
+  calificacion  Int      @default(5) // 1 a 5 estrellas
+  tipoVisita    String   @default("En Sitio / Mesa") // En Sitio / Mesa, Domicilio, Para Llevar
+  comentario    String   @db.Text
+  respuesta     String?  @db.Text
+  publicado     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("reviews")
+}
+
+model RestaurantConfig {
+  id                   String   @id @default(cuid())
+  nombre               String   @default("PUNTO G")
+  eslogan              String   @default("ANTOJOS QUE CONECTAN")
+  telefonoWhatsapp     String   @default("3229088736")
+  direccion            String   @default("Calle 9 # 45-12, Barrio Granada, Cali")
+  horario              String   @default("Lunes a Domingo: 12:00 m. a 11:30 p.m.")
+  costoDomicilioBase   Float    @default(5000)
+  propinaSugeridaPct   Float    @default(10)
+  urlBaseSitio         String   @default("http://localhost:3005")
+  updatedAt            DateTime @updatedAt
+
+  @@map("restaurant_config")
+}
