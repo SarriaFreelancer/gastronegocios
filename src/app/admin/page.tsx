@@ -418,37 +418,37 @@ export default function AdminPage() {
   // ==================== LOGIN VIEW ====================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-[#121212] border border-[#252525] rounded-3xl p-8 sm:p-10 shadow-2xl space-y-6 relative overflow-hidden">
+      <div className="min-h-[calc(100vh-5rem)] bg-[#080808] flex items-center justify-center pt-24 sm:pt-28 pb-12 px-4">
+        <div className="w-full max-w-[380px] bg-[#121212] border border-[#252525] rounded-2xl p-6 sm:p-7 shadow-2xl space-y-4 relative overflow-hidden">
           {/* Subtle yellow ambient background glow */}
-          <div className="absolute -top-12 -right-12 w-48 h-48 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-10 -right-10 w-36 h-36 bg-brand-yellow/10 rounded-full blur-2xl pointer-events-none" />
 
-          <div className="text-center space-y-3">
-            <div className="flex justify-center mb-2">
-              <Logo size="lg" />
+          <div className="text-center space-y-2">
+            <div className="flex justify-center mb-1">
+              <Logo size="sm" />
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-bold uppercase tracking-wider">
-              <Lock className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[10px] font-bold uppercase tracking-wider">
+              <Lock className="w-3 h-3" />
               <span>Acceso Administrativo</span>
             </div>
-            <h1 className="text-2xl font-black uppercase text-white font-display">
+            <h1 className="text-xl font-black uppercase text-white font-display tracking-wide">
               INICIAR SESIÓN
             </h1>
-            <p className="text-xs text-gray-400">
-              Ingresa tus credenciales para administrar pedidos, menú y usuarios de Punto G.
+            <p className="text-[11px] text-gray-400">
+              Ingresa tus credenciales para administrar Punto G.
             </p>
           </div>
 
           {loginError && (
-            <div className="bg-red-500/20 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2">
+            <div className="bg-red-500/20 border border-red-500/40 text-red-400 text-xs p-2.5 rounded-xl flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{loginError}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4 text-xs">
+          <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
             <div>
-              <label className="block text-gray-300 font-bold uppercase mb-1.5">
+              <label className="block text-gray-300 font-bold uppercase text-[11px] mb-1">
                 Correo Electrónico
               </label>
               <div className="relative">
@@ -458,14 +458,14 @@ export default function AdminPage() {
                   placeholder="admin@puntog.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-9 pr-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs transition-colors"
                 />
-                <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
+                <Mail className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
               </div>
             </div>
 
             <div>
-              <label className="block text-gray-300 font-bold uppercase mb-1.5">
+              <label className="block text-gray-300 font-bold uppercase text-[11px] mb-1">
                 Contraseña
               </label>
               <div className="relative">
@@ -475,13 +475,13 @@ export default function AdminPage() {
                   placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-10 pr-10 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs"
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-9 pr-9 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs transition-colors"
                 />
-                <KeyRound className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
+                <KeyRound className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3.5 text-gray-500 hover:text-white"
+                  className="absolute right-3 top-3 text-gray-500 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -489,21 +489,21 @@ export default function AdminPage() {
             </div>
 
             {/* Demo access hint */}
-            <div className="bg-[#181818] border border-[#2b2b2b] p-3 rounded-xl text-[11px] text-gray-400">
-              <span className="font-bold text-brand-yellow block mb-0.5">Credenciales demo:</span>
+            <div className="bg-[#181818] border border-[#282828] p-2.5 rounded-xl text-[10px] text-gray-400">
+              <span className="font-bold text-brand-yellow block">Credenciales demo:</span>
               <span>Usuario: <strong className="text-white">admin@puntog.com</strong> | Clave: <strong className="text-white">admin123</strong></span>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.02] active:scale-[0.98] mt-2"
+              className="w-full py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.01] active:scale-[0.99] mt-1"
             >
               INGRESAR AL PANEL
             </button>
           </form>
 
-          <div className="text-center pt-2">
-            <Link href="/" className="text-xs text-gray-400 hover:text-brand-yellow transition-colors inline-flex items-center gap-1">
+          <div className="text-center pt-1">
+            <Link href="/" className="text-[11px] text-gray-400 hover:text-brand-yellow transition-colors inline-flex items-center gap-1">
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Regresar al restaurante</span>
             </Link>
