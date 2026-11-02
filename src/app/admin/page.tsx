@@ -49,6 +49,9 @@ import {
   Wallet,
   Coins,
   FileText,
+  FileSpreadsheet,
+  BarChart3,
+  PieChart,
   MessageCircle,
   Bike,
   Send,
@@ -57,6 +60,7 @@ import {
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
+import { exportSalesReportToExcel, exportSalesReportToPDF } from '@/lib/reports';
 
 interface OrderItem {
   id?: number | string;
@@ -176,7 +180,7 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
+    'pedidos' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
   >('pedidos');
 
   // Loading States
@@ -190,11 +194,12 @@ export default function AdminPage() {
     totalPedidos: 0,
     ticketPromedio: 0,
   });
-  const [activeDatePreset, setActiveDatePreset] = useState<'hoy' | 'ayer' | 'semana' | 'mes' | 'todos'>('hoy');
+  const [activeDatePreset, setActiveDatePreset] = useState<'hoy' | 'ayer' | 'semana' | 'mes' | 'mes_ant' | 'ano' | 'todos'>('hoy');
   const [filterDesde, setFilterDesde] = useState(getTodayDateString());
   const [filterHasta, setFilterHasta] = useState(getTodayDateString());
   const [filterTipo, setFilterTipo] = useState('todos');
   const [filterEstado, setFilterEstado] = useState('todos');
+  const [filterMetodoPago, setFilterMetodoPago] = useState('todos');
   const [filterMesa, setFilterMesa] = useState('todas');
   const [searchOrder, setSearchOrder] = useState('');
 
@@ -223,6 +228,44 @@ export default function AdminPage() {
   const totalItemsSold = useMemo(() => {
     return productSalesSummary.reduce((sum, p) => sum + p.cantidad, 0);
   }, [productSalesSummary]);
+
+  // Derived Payment breakdown for report analytics
+  const reportPaymentBreakdown = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    orders.forEach((o) => {
+      const m = o.metodoPago || 'Efectivo';
+      if (!map[m]) map[m] = { count: 0, total: 0 };
+      map[m].count += 1;
+      map[m].total += Number(o.total || 0);
+    });
+    return Object.entries(map)
+      .map(([metodo, data]) => ({
+        metodo,
+        count: data.count,
+        total: data.total,
+        pct: orderMetrics.totalVentas > 0 ? (data.total / orderMetrics.totalVentas) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [orders, orderMetrics.totalVentas]);
+
+  // Derived Delivery type breakdown for report analytics
+  const reportTypeBreakdown = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    orders.forEach((o) => {
+      const t = o.tipo === 'mesa' ? 'En Mesa (Comanda)' : o.tipo === 'domicilio' ? 'Domicilio' : 'Para Llevar / Retiro';
+      if (!map[t]) map[t] = { count: 0, total: 0 };
+      map[t].count += 1;
+      map[t].total += Number(o.total || 0);
+    });
+    return Object.entries(map)
+      .map(([tipo, data]) => ({
+        tipo,
+        count: data.count,
+        total: data.total,
+        pct: orderMetrics.totalVentas > 0 ? (data.total / orderMetrics.totalVentas) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [orders, orderMetrics.totalVentas]);
 
   const totalOrderPages = Math.ceil(orders.length / ordersPerPage) || 1;
   const paginatedOrders = useMemo(() => {
@@ -462,6 +505,7 @@ export default function AdminPage() {
       if (filterHasta) params.append('hasta', filterHasta);
       if (filterTipo !== 'todos') params.append('tipo', filterTipo);
       if (filterEstado !== 'todos') params.append('estado', filterEstado);
+      if (filterMetodoPago !== 'todos') params.append('metodoPago', filterMetodoPago);
       if (filterMesa !== 'todas') params.append('mesaId', filterMesa);
       if (searchOrder) params.append('search', searchOrder);
 
@@ -553,7 +597,7 @@ export default function AdminPage() {
     if (isAuthenticated) {
       fetchOrders();
     }
-  }, [filterDesde, filterHasta, filterTipo, filterEstado, filterMesa, searchOrder]);
+  }, [filterDesde, filterHasta, filterTipo, filterEstado, filterMetodoPago, filterMesa, searchOrder]);
 
   // Handle Login via /api/auth/login
   const handleLogin = async (e: React.FormEvent) => {
@@ -587,7 +631,7 @@ export default function AdminPage() {
   };
 
   // Quick Date Preset Filters
-  const applyDatePreset = (preset: 'hoy' | 'ayer' | 'semana' | 'mes' | 'todos') => {
+  const applyDatePreset = (preset: 'hoy' | 'ayer' | 'semana' | 'mes' | 'mes_ant' | 'ano' | 'todos') => {
     setActiveDatePreset(preset);
     const today = new Date();
     const formatDate = (d: Date) => {
@@ -616,10 +660,56 @@ export default function AdminPage() {
       const m = new Date(today.getFullYear(), today.getMonth(), 1);
       setFilterDesde(formatDate(m));
       setFilterHasta(formatDate(today));
+    } else if (preset === 'mes_ant') {
+      const startLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const endLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      setFilterDesde(formatDate(startLastMonth));
+      setFilterHasta(formatDate(endLastMonth));
+    } else if (preset === 'ano') {
+      const startYear = new Date(today.getFullYear(), 0, 1);
+      setFilterDesde(formatDate(startYear));
+      setFilterHasta(formatDate(today));
     } else {
       setFilterDesde('');
       setFilterHasta('');
     }
+  };
+
+  // Export Sales Report Handlers
+  const handleExportExcel = () => {
+    exportSalesReportToExcel({
+      orders,
+      filters: {
+        desde: filterDesde,
+        hasta: filterHasta,
+        tipo: filterTipo !== 'todos' ? filterTipo : 'Todas',
+        estado: filterEstado !== 'todos' ? filterEstado : 'Todos',
+        metodoPago: filterMetodoPago !== 'todos' ? filterMetodoPago : 'Todos',
+        mesa: filterMesa !== 'todas' ? filterMesa : 'Todas',
+        search: searchOrder || undefined,
+      },
+      metrics: orderMetrics,
+      productSalesSummary,
+      userName: currentUser?.nombre || 'Superadmin',
+    });
+  };
+
+  const handleExportPDF = () => {
+    exportSalesReportToPDF({
+      orders,
+      filters: {
+        desde: filterDesde,
+        hasta: filterHasta,
+        tipo: filterTipo !== 'todos' ? filterTipo : 'Todas',
+        estado: filterEstado !== 'todos' ? filterEstado : 'Todos',
+        metodoPago: filterMetodoPago !== 'todos' ? filterMetodoPago : 'Todos',
+        mesa: filterMesa !== 'todas' ? filterMesa : 'Todas',
+        search: searchOrder || undefined,
+      },
+      metrics: orderMetrics,
+      productSalesSummary,
+      userName: currentUser?.nombre || 'Superadmin',
+    });
   };
 
   // Update Order Status
@@ -1346,6 +1436,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
           {[
             { id: 'pedidos', label: 'Pedidos & Filtros', icon: ShoppingBag, count: orders.length },
+            { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF' },
             { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
             { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length },
             { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length },
@@ -1451,7 +1542,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Quick Date Presets */}
-                <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto">
+                <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 sm:pb-0">
                   <span className="text-[10px] text-gray-500 uppercase font-bold mr-1 hidden sm:inline">
                     Preajustes:
                   </span>
@@ -1460,6 +1551,8 @@ export default function AdminPage() {
                     { id: 'ayer', label: 'Ayer' },
                     { id: 'semana', label: '7 Días' },
                     { id: 'mes', label: 'Este Mes' },
+                    { id: 'mes_ant', label: 'Mes Pasado' },
+                    { id: 'ano', label: 'Este Año' },
                     { id: 'todos', label: 'Histórico' },
                   ].map((p) => (
                     <button
@@ -1479,11 +1572,11 @@ export default function AdminPage() {
               </div>
 
               {/* Advanced Filter Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-xs">
                 {/* Search */}
                 <div>
                   <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
-                    Buscar cliente / código / cel
+                    Buscar cliente / cel
                   </label>
                   <div className="relative">
                     <input
@@ -1514,10 +1607,49 @@ export default function AdminPage() {
                   </select>
                 </div>
 
+                {/* Estado */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Estado
+                  </label>
+                  <select
+                    value={filterEstado}
+                    onChange={(e) => setFilterEstado(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todos">Todos los Estados</option>
+                    <option value="Pendiente">⏳ Pendiente</option>
+                    <option value="En Preparación">🍳 En Preparación</option>
+                    <option value="Listo">🔔 Listo</option>
+                    <option value="Despachado">🛵 En Camino</option>
+                    <option value="Entregado">✅ Entregado</option>
+                    <option value="Cancelado">❌ Cancelado</option>
+                  </select>
+                </div>
+
+                {/* Método de Pago */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Método Pago
+                  </label>
+                  <select
+                    value={filterMetodoPago}
+                    onChange={(e) => setFilterMetodoPago(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todos">Todos los Pagos</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Nequi">📱 Nequi</option>
+                    <option value="Daviplata">📱 Daviplata</option>
+                    <option value="Datáfono">💳 Datáfono / Tarjeta</option>
+                    <option value="Transferencia">🏦 Transferencia</option>
+                  </select>
+                </div>
+
                 {/* Mesa Filter */}
                 <div>
                   <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
-                    Filtrar por Mesa
+                    Mesa
                   </label>
                   <select
                     value={filterMesa}
@@ -1566,7 +1698,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* View Mode Toolbar & Total Inventory Button */}
+              {/* View Mode Toolbar, Total Inventory Button & Export Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#1e1e1e]">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center bg-[#181818] border border-[#262626] rounded-xl p-1">
@@ -1609,6 +1741,39 @@ export default function AdminPage() {
                     <ShoppingBag className="w-3.5 h-3.5 text-brand-yellow" />
                     <span>Inventario Vendido ({totalItemsSold} platos)</span>
                   </button>
+
+                  {/* Export Buttons */}
+                  <div className="flex items-center gap-1.5 pl-2 sm:border-l border-[#262626]">
+                    <button
+                      type="button"
+                      onClick={handleExportExcel}
+                      disabled={orders.length === 0}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition bg-emerald-950/40 text-emerald-300 border border-emerald-600/40 hover:bg-emerald-800/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Exportar pedidos filtrados a Excel (.xlsx)"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Excel (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportPDF}
+                      disabled={orders.length === 0}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition bg-rose-950/40 text-rose-300 border border-rose-600/40 hover:bg-rose-800/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Exportar informe de pedidos a PDF (.pdf)"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-rose-400" />
+                      <span>PDF (.pdf)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('reportes')}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 hover:bg-brand-yellow/20"
+                      title="Ir al módulo completo de Reportes & Analítica"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      <span className="hidden xl:inline">Módulo Reportes</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Pagination Size Selector */}
@@ -2177,7 +2342,520 @@ export default function AdminPage() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 2: MESAS / COMANDAS Y GENERACIÓN DE QR               */}
+        {/* TAB REPORTES: REPORTES DE VENTAS EN EXCEL Y PDF          */}
+        {/* ======================================================== */}
+        {activeTab === 'reportes' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header & Quick Export Actions */}
+            <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-brand-yellow" />
+                  <h2 className="text-lg font-black uppercase text-white tracking-wide">
+                    MÓDULO DE REPORTES DE VENTAS E INVENTARIO
+                  </h2>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Genera balances ejecutivos, analiza ingresos por método de pago y exporta informes oficiales a Excel y PDF con filtros dinámicos.
+                </p>
+              </div>
+
+              {/* Download Buttons */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  disabled={orders.length === 0}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-emerald-600 hover:bg-emerald-500 text-black shadow-lg shadow-emerald-900/30 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Descargar Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPDF}
+                  disabled={orders.length === 0}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/30 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Descargar PDF (.pdf)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Card for Reports */}
+            <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-4 shadow-xl">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-brand-yellow" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                    Filtros de Período y Criterios del Reporte
+                  </h3>
+                </div>
+
+                {/* Preajustes */}
+                <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto pb-1 sm:pb-0">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold mr-1 hidden sm:inline">
+                    Período Rápido:
+                  </span>
+                  {[
+                    { id: 'hoy', label: 'Hoy ⚡' },
+                    { id: 'ayer', label: 'Ayer' },
+                    { id: 'semana', label: 'Últimos 7 Días' },
+                    { id: 'mes', label: 'Este Mes' },
+                    { id: 'mes_ant', label: 'Mes Pasado' },
+                    { id: 'ano', label: 'Este Año' },
+                    { id: 'todos', label: 'Histórico' },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => applyDatePreset(p.id as any)}
+                      className={`px-3 py-1 border text-[10px] font-black uppercase rounded-lg transition-all ${
+                        activeDatePreset === p.id
+                          ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow'
+                          : 'bg-[#1a1a1a] text-gray-300 border-[#2e2e2e] hover:bg-brand-yellow hover:text-black'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Form Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+                {/* Fecha Desde */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Fecha Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={filterDesde}
+                    onChange={(e) => {
+                      setFilterDesde(e.target.value);
+                      setActiveDatePreset('todos');
+                    }}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
+
+                {/* Fecha Hasta */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Fecha Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={filterHasta}
+                    onChange={(e) => {
+                      setFilterHasta(e.target.value);
+                      setActiveDatePreset('todos');
+                    }}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  />
+                </div>
+
+                {/* Estado */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Estado del Pedido
+                  </label>
+                  <select
+                    value={filterEstado}
+                    onChange={(e) => setFilterEstado(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todos">Todos los Estados</option>
+                    <option value="Entregado">✅ Solo Entregados / Facturados</option>
+                    <option value="Pendiente">⏳ Pendientes</option>
+                    <option value="En Preparación">🍳 En Preparación</option>
+                    <option value="Listo">🔔 Listos para Despacho</option>
+                    <option value="Despachado">🛵 En Camino</option>
+                    <option value="Cancelado">❌ Cancelados</option>
+                  </select>
+                </div>
+
+                {/* Modalidad */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Modalidad / Servicio
+                  </label>
+                  <select
+                    value={filterTipo}
+                    onChange={(e) => setFilterTipo(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todos">Todas las modalidades</option>
+                    <option value="mesa">🍽️ En Mesa (Comanda)</option>
+                    <option value="domicilio">🛵 Domicilio</option>
+                    <option value="recoger">🏪 Para Llevar / Retiro</option>
+                  </select>
+                </div>
+
+                {/* Método de Pago */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Método de Pago
+                  </label>
+                  <select
+                    value={filterMetodoPago}
+                    onChange={(e) => setFilterMetodoPago(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todos">Todos los Métodos</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Nequi">📱 Nequi</option>
+                    <option value="Daviplata">📱 Daviplata</option>
+                    <option value="Datáfono">💳 Datáfono / Tarjeta</option>
+                    <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                  </select>
+                </div>
+
+                {/* Mesa */}
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                    Mesa
+                  </label>
+                  <select
+                    value={filterMesa}
+                    onChange={(e) => setFilterMesa(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                  >
+                    <option value="todas">Todas las mesas</option>
+                    {tables.map((t) => (
+                      <option key={t.id} value={t.numero}>
+                        {t.numero} ({t.ubicacion})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1 shadow-lg">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-brand-yellow" />
+                  <span>Ventas Período</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-brand-yellow font-display">
+                  {formatPrice(orderMetrics.totalVentas)}
+                </p>
+                <span className="text-[10px] text-gray-500">Total facturado</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1 shadow-lg">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5 text-brand-orange fill-brand-orange" />
+                  <span>Propinas</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-white font-display">
+                  {formatPrice(orderMetrics.totalPropinas)}
+                </p>
+                <span className="text-[10px] text-brand-orange">Propinas voluntarias</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1 shadow-lg">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
+                  <span>N° Pedidos</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-white font-display">
+                  {orderMetrics.totalPedidos}
+                </p>
+                <span className="text-[10px] text-gray-500">Órdenes registradas</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1 shadow-lg">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+                  <span>Ticket Promedio</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-brand-yellow font-display">
+                  {formatPrice(orderMetrics.ticketPromedio)}
+                </p>
+                <span className="text-[10px] text-gray-500">Promedio por orden</span>
+              </div>
+
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1 col-span-2 lg:col-span-1 shadow-lg">
+                <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Platos Vendidos</span>
+                </span>
+                <p className="text-xl sm:text-2xl font-black text-purple-300 font-display">
+                  {totalItemsSold}
+                </p>
+                <span className="text-[10px] text-gray-500">Unidades despachadas</span>
+              </div>
+            </div>
+
+            {/* Breakdowns Grid: Métodos de Pago & Tipos de Entrega */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Payment Methods Breakdown */}
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-[#222] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-emerald-400" />
+                    <h4 className="text-xs font-black uppercase text-white tracking-wider">
+                      Ventas por Método de Pago
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-bold text-gray-400">
+                    {reportPaymentBreakdown.length} métodos utilizados
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {reportPaymentBreakdown.length === 0 ? (
+                    <p className="text-xs text-gray-500 py-4 text-center">No hay ventas registradas en este período</p>
+                  ) : (
+                    reportPaymentBreakdown.map((item) => (
+                      <div key={item.metodo} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white flex items-center gap-1.5">
+                            <span>{item.metodo}</span>
+                            <span className="text-[10px] text-gray-500">({item.count} pedidos)</span>
+                          </span>
+                          <span className="font-mono font-bold text-emerald-400">
+                            {formatPrice(item.total)}{' '}
+                            <span className="text-[10px] text-gray-500">({item.pct.toFixed(1)}%)</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-[#1f1f1f] rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(3, item.pct))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Delivery Types Breakdown */}
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-[#222] pb-3">
+                  <div className="flex items-center gap-2">
+                    <PieChart className="w-4 h-4 text-brand-orange" />
+                    <h4 className="text-xs font-black uppercase text-white tracking-wider">
+                      Ventas por Modalidad de Servicio
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-bold text-gray-400">
+                    {orders.length} pedidos totales
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {reportTypeBreakdown.length === 0 ? (
+                    <p className="text-xs text-gray-500 py-4 text-center">No hay ventas registradas en este período</p>
+                  ) : (
+                    reportTypeBreakdown.map((item) => (
+                      <div key={item.tipo} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white flex items-center gap-1.5">
+                            <span>{item.tipo}</span>
+                            <span className="text-[10px] text-gray-500">({item.count} pedidos)</span>
+                          </span>
+                          <span className="font-mono font-bold text-brand-orange">
+                            {formatPrice(item.total)}{' '}
+                            <span className="text-[10px] text-gray-500">({item.pct.toFixed(1)}%)</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-[#1f1f1f] rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-brand-orange h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(3, item.pct))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Top 10 Platos Más Vendidos */}
+            <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-4 shadow-lg">
+              <div className="flex items-center justify-between border-b border-[#222] pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-yellow" />
+                  <h4 className="text-xs font-black uppercase text-white tracking-wider">
+                    Top Platos / Inventario Vendido en el Período
+                  </h4>
+                </div>
+                <span className="text-xs font-black text-brand-yellow bg-brand-yellow/10 border border-brand-yellow/30 px-2.5 py-0.5 rounded-full">
+                  {totalItemsSold} platos despachados
+                </span>
+              </div>
+
+              {productSalesSummary.length === 0 ? (
+                <p className="text-xs text-gray-500 py-6 text-center">No hay datos de platos vendidos en el rango seleccionado</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#181818] text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-[#242424]">
+                      <tr>
+                        <th className="p-3"># Ranking</th>
+                        <th className="p-3">Plato / Producto</th>
+                        <th className="p-3 text-center">Unidades Vendidas</th>
+                        <th className="p-3 text-right">Total Facturado</th>
+                        <th className="p-3 text-right">Precio Promedio</th>
+                        <th className="p-3 text-right">% de Ventas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e1e]">
+                      {productSalesSummary.slice(0, 15).map((p, idx) => {
+                        const avg = p.cantidad > 0 ? Math.round(p.total / p.cantidad) : 0;
+                        const pct = orderMetrics.totalVentas > 0 ? ((p.total / orderMetrics.totalVentas) * 100).toFixed(1) : '0';
+                        return (
+                          <tr key={idx} className="hover:bg-[#181818]/50 transition">
+                            <td className="p-3 font-mono font-bold text-gray-400">
+                              <span className="w-5 h-5 rounded-md bg-[#222] text-brand-yellow inline-flex items-center justify-center text-[10px] font-black">
+                                #{idx + 1}
+                              </span>
+                            </td>
+                            <td className="p-3 font-bold text-white">{p.nombre}</td>
+                            <td className="p-3 text-center">
+                              <span className="px-2 py-0.5 rounded-full bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 font-black">
+                                {p.cantidad} und
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-mono font-bold text-white">{formatPrice(p.total)}</td>
+                            <td className="p-3 text-right font-mono text-gray-400">{formatPrice(avg)}</td>
+                            <td className="p-3 text-right font-mono font-bold text-emerald-400">{pct}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Listado de Pedidos Incluidos en el Reporte (Previsualización) */}
+            <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-4 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#222] pb-3">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-blue-400" />
+                  <h4 className="text-xs font-black uppercase text-white tracking-wider">
+                    Órdenes Incluidas en el Reporte ({orders.length} pedidos)
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportExcel}
+                    disabled={orders.length === 0}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 bg-emerald-950/40 text-emerald-300 border border-emerald-600/40 hover:bg-emerald-800/40 disabled:opacity-40 transition"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Exportar Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportPDF}
+                    disabled={orders.length === 0}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 bg-rose-950/40 text-rose-300 border border-rose-600/40 hover:bg-rose-800/40 disabled:opacity-40 transition"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Exportar PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              {orders.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">
+                  <p className="text-xs">No hay pedidos que coincidan con los filtros seleccionados.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#181818] text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-[#242424]">
+                      <tr>
+                        <th className="p-3">Código</th>
+                        <th className="p-3">Fecha/Hora</th>
+                        <th className="p-3">Cliente</th>
+                        <th className="p-3">Modalidad</th>
+                        <th className="p-3">Pago</th>
+                        <th className="p-3">Estado</th>
+                        <th className="p-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e1e]">
+                      {paginatedOrders.map((o) => {
+                        const d = new Date(o.createdAt);
+                        const dateStr = d.toLocaleDateString('es-CO');
+                        const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <tr key={o.id} className="hover:bg-[#181818]/50 transition">
+                            <td className="p-3 font-mono font-black text-brand-yellow">{o.codigo}</td>
+                            <td className="p-3 text-gray-400 text-[11px]">{dateStr} {timeStr}</td>
+                            <td className="p-3 font-bold text-white">{o.cliente}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md bg-[#222] text-gray-300 text-[10px] font-bold">
+                                {o.tipo === 'mesa' ? `Mesa ${o.numeroMesa || ''}` : o.tipo === 'domicilio' ? 'Domicilio' : 'Retiro'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md bg-[#1f2937] text-blue-300 text-[10px] font-bold">
+                                {o.metodoPago || 'Efectivo'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                o.estado === 'Entregado' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                                o.estado === 'Cancelado' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                              }`}>
+                                {o.estado}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-mono font-black text-brand-yellow text-sm">
+                              {formatPrice(o.total)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Pagination controls */}
+              {totalOrderPages > 1 && (
+                <div className="flex items-center justify-between pt-3 border-t border-[#1e1e1e] text-xs">
+                  <span className="text-gray-400">
+                    Página {ordersPage} de {totalOrderPages}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                      disabled={ordersPage === 1}
+                      className="px-3 py-1 bg-[#181818] border border-[#262626] rounded-lg text-white disabled:opacity-40 hover:border-gray-500"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrdersPage((p) => Math.min(totalOrderPages, p + 1))}
+                      disabled={ordersPage === totalOrderPages}
+                      className="px-3 py-1 bg-[#181818] border border-[#262626] rounded-lg text-white disabled:opacity-40 hover:border-gray-500"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ======================================================== */}
         {/* PESTAÑA: CAJA & TURNOS (ARQUEO Y CUADRE DIARIO)           */}
         {/* ======================================================== */}

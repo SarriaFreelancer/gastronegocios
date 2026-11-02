@@ -9,6 +9,7 @@ export async function GET(req: Request) {
     const tipo = searchParams.get('tipo');
     const estado = searchParams.get('estado');
     const mesaId = searchParams.get('mesaId');
+    const metodoPago = searchParams.get('metodoPago');
     const search = searchParams.get('search');
 
     const where: any = {};
@@ -51,6 +52,11 @@ export async function GET(req: Request) {
       where.estado = { in: ['Pendiente', 'En Preparación', 'Listo', 'Despachado'] };
     } else if (estado && estado !== 'todos') {
       where.estado = estado;
+    }
+
+    // Metodo de Pago filter
+    if (metodoPago && metodoPago !== 'todos') {
+      where.metodoPago = metodoPago;
     }
 
     // Table filter
