@@ -89,110 +89,220 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Decorative Glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-yellow/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-brand-orange/10 rounded-full blur-[100px] pointer-events-none" />
+    <div className="min-h-screen bg-[#070707] text-white flex flex-col justify-center items-center py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden select-none">
+      {/* Ambient background glowing orbs */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-brand-yellow/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/2 -right-32 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute -bottom-32 left-1/3 w-80 h-80 bg-brand-orange/10 rounded-full blur-[130px] pointer-events-none" />
 
-      {/* Header Back Button */}
-      <div className="absolute top-6 left-6 z-10">
+      {/* Floating subtle grid background */}
+      <div 
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
+          backgroundSize: '32px 32px'
+        }}
+      />
+
+      {/* Top Navigation Bar: Back & Live Status */}
+      <div className="w-full max-w-5xl flex items-center justify-between mb-6 sm:mb-8 relative z-20">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#141414] border border-[#242424] text-gray-300 hover:text-white hover:border-gray-500 text-xs font-bold transition shadow-md"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#141414]/90 hover:bg-[#1f1f1f] border border-[#2b2b2b] text-gray-300 hover:text-white text-xs font-bold transition shadow-lg backdrop-blur-md group hover:border-brand-yellow/50"
         >
-          <ArrowLeft className="w-4 h-4 text-brand-yellow" />
-          <span>Volver al Menú</span>
+          <ArrowLeft className="w-4 h-4 text-brand-yellow group-hover:-translate-x-1 transition-transform" />
+          <span>Volver a la Carta</span>
         </Link>
+
+        <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141414]/80 border border-[#262626] text-[11px] font-bold text-gray-400 backdrop-blur-md">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-gray-300">Punto G • Sistema Operativo</span>
+        </div>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 relative z-10">
-        {/* Logo and Welcome Banner */}
-        <div className="text-center space-y-3 mb-6">
-          <div className="flex justify-center">
-            <Logo size="lg" />
+      {/* Main Glassmorphic Card Container (Split layout on desktop) */}
+      <div className="w-full max-w-5xl bg-[#111111]/80 backdrop-blur-2xl border border-[#242424] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 relative z-10">
+        
+        {/* Left Side: Branded Visual Showcase (Desktop & Tablets) */}
+        <div className="lg:col-span-5 relative hidden lg:flex flex-col justify-between p-8 xl:p-10 overflow-hidden bg-gradient-to-br from-[#161616] via-[#101010] to-[#0a0a0a] border-r border-[#202020]">
+          {/* Background culinary image with dark gradient */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"
+              alt="Punto G Burgers & Kitchen"
+              className="w-full h-full object-cover opacity-25 scale-105 filter contrast-125"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/80 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#111111]" />
           </div>
-          <div className="inline-flex items-center gap-1.5 bg-brand-yellow/10 border border-brand-yellow/30 px-3 py-1 rounded-full">
-            <ShieldCheck className="w-3.5 h-3.5 text-brand-yellow" />
-            <span className="text-[10px] font-black uppercase text-brand-yellow tracking-widest">
-              ACCESO ADMINISTRATIVO & CAJA
-            </span>
+
+          {/* Top Branding */}
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-2">
+              <Logo size="md" />
+            </div>
+
+            <div className="space-y-1.5 pt-4">
+              <span className="text-[10px] font-black uppercase text-brand-yellow tracking-widest px-2.5 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 inline-block">
+                GASTRONOMÍA & SISTEMA POS
+              </span>
+              <h2 className="text-2xl xl:text-3xl font-black uppercase text-white font-display tracking-tight leading-tight">
+                ANTOJOS QUE <span className="text-brand-yellow italic">CONECTAN</span>
+              </h2>
+              <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
+                Plataforma integral para cocina KDS, mesas QR, domicilios, reportes contables y gestión de menú en tiempo real.
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-black uppercase text-white font-display tracking-wide">
-            INICIAR SESIÓN
-          </h1>
-          <p className="text-xs text-gray-400 max-w-xs mx-auto">
-            Ingresa con tus credenciales autorizadas para gestionar pedidos, caja, menú y usuarios de Punto G.
-          </p>
+
+          {/* Feature Highlights Badges */}
+          <div className="relative z-10 space-y-2.5 pt-6">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm">
+              <div className="w-8 h-8 rounded-xl bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-bold">
+                <ChefHat className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white leading-none">Cocina en Vivo (KDS)</p>
+                <span className="text-[10px] text-gray-400">Comandas en tiempo real sin recargar</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white leading-none">Caja & Reportes Oficiales</p>
+                <span className="text-[10px] text-gray-400">Exportación a Excel (.xlsx) y PDF</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom copyright / version */}
+          <div className="relative z-10 pt-4 border-t border-white/[0.08] flex items-center justify-between text-[10px] text-gray-500">
+            <span>Versión 2.0 • Dokploy Production</span>
+            <span className="text-brand-yellow font-bold">Cali, Colombia</span>
+          </div>
         </div>
 
-        {/* Login Box */}
-        <div className="bg-[#121212] border border-[#242424] py-7 px-5 sm:px-8 rounded-2xl shadow-2xl space-y-5">
+        {/* Right Side: Interactive Login Form */}
+        <div className="lg:col-span-7 p-6 sm:p-10 xl:p-12 flex flex-col justify-between space-y-6">
+          
+          {/* Header Mobile Logo & Welcome */}
+          <div className="space-y-3 text-center sm:text-left">
+            <div className="lg:hidden flex justify-center mb-2">
+              <Logo size="md" />
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[10px] font-black uppercase tracking-wider">
+              <Lock className="w-3.5 h-3.5" />
+              <span>TERMINAL DE ACCESO SEGURO</span>
+            </div>
+
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black uppercase text-white font-display tracking-tight">
+                INICIAR SESIÓN
+              </h1>
+              <p className="text-xs text-gray-400 mt-1">
+                Ingresa con tus credenciales para administrar Punto G.
+              </p>
+            </div>
+          </div>
+
+          {/* Error Banner */}
           {error && (
-            <div className="bg-red-500/15 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl flex items-start gap-2.5 animate-fadeIn">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span className="font-medium">{error}</span>
+            <div className="bg-red-500/15 border border-red-500/40 text-red-300 text-xs p-3.5 rounded-2xl flex items-start gap-3 animate-fadeIn">
+              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <span className="font-semibold leading-relaxed">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
             {/* Email Field */}
-            <div>
-              <label className="block text-gray-300 font-bold uppercase text-[11px] mb-1.5 tracking-wider">
+            <div className="space-y-1.5">
+              <label className="block text-gray-300 font-extrabold uppercase text-[11px] tracking-wider">
                 Correo Electrónico
               </label>
-              <div className="relative">
+              <div className="relative group">
                 <input
                   type="email"
                   required
                   placeholder="admin@puntog.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#181818] border border-[#2c2c2c] rounded-xl pl-10 pr-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs transition"
+                  className="w-full bg-[#171717] hover:bg-[#1a1a1a] focus:bg-[#1c1c1c] border border-[#2b2b2b] focus:border-brand-yellow rounded-2xl pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30 text-xs sm:text-sm font-medium transition-all shadow-inner"
                 />
-                <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                <div className="w-8 h-8 rounded-xl bg-[#222] text-gray-400 group-focus-within:text-brand-yellow group-focus-within:bg-brand-yellow/10 flex items-center justify-center absolute left-2 top-2 transition-colors">
+                  <Mail className="w-4 h-4" />
+                </div>
               </div>
             </div>
 
-            {/* Password Field with Eye Toggle */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-gray-300 font-bold uppercase text-[11px] tracking-wider">
+            {/* Password Field with Toggle */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-gray-300 font-extrabold uppercase text-[11px] tracking-wider">
                   Contraseña
                 </label>
-                <span className="text-[10px] text-gray-500">Sensible a mayúsculas</span>
+                <span className="text-[10px] text-gray-500 font-medium">Sensible a mayúsculas</span>
               </div>
-              <div className="relative">
+              <div className="relative group">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#181818] border border-[#2c2c2c] rounded-xl pl-10 pr-10 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs transition"
+                  className="w-full bg-[#171717] hover:bg-[#1a1a1a] focus:bg-[#1c1c1c] border border-[#2b2b2b] focus:border-brand-yellow rounded-2xl pl-11 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30 text-xs sm:text-sm font-medium transition-all shadow-inner"
                 />
-                <KeyRound className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                <div className="w-8 h-8 rounded-xl bg-[#222] text-gray-400 group-focus-within:text-brand-yellow group-focus-within:bg-brand-yellow/10 flex items-center justify-center absolute left-2 top-2 transition-colors">
+                  <KeyRound className="w-4 h-4" />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-2.5 text-gray-400 hover:text-white transition p-0.5"
+                  className="w-8 h-8 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center absolute right-2.5 top-2 transition"
                   title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4 text-brand-yellow" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4 text-brand-yellow" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* Demo Credentials Box */}
-            <div className="bg-[#181818] border border-[#282828] p-3 rounded-xl text-[11px] text-gray-400 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-brand-yellow block text-[10px] uppercase">
-                  Acceso Administrador:
+            {/* Quick Autofill Access Chips */}
+            <div className="bg-[#161616] border border-[#242424] rounded-2xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                  Acceso de Prueba Rápido (1 Clic):
                 </span>
-                <span className="text-white text-xs font-mono">admin@puntog.com</span>
+                <span className="text-[10px] text-brand-yellow font-bold">Auto-completar</span>
               </div>
-              <div className="text-right">
-                <span className="font-bold text-gray-500 block text-[10px] uppercase">Clave:</span>
-                <span className="text-white text-xs font-mono">admin123</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('admin@puntog.com');
+                    setPassword('admin123');
+                  }}
+                  className="py-1.5 px-2.5 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <span>⚡ Super Admin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('cocina@puntog.com');
+                    setPassword('cocina123');
+                  }}
+                  className="py-1.5 px-2.5 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <span>👨‍🍳 Chef / Cocina</span>
+                </button>
               </div>
             </div>
 
@@ -200,7 +310,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-brand-yellow via-yellow-400 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl shadow-[0_10px_30px_rgba(255,201,40,0.35)] hover:shadow-[0_12px_40px_rgba(255,201,40,0.5)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
@@ -209,37 +319,47 @@ function LoginForm() {
                 </>
               ) : (
                 <>
-                  <Lock className="w-4 h-4" />
+                  <Lock className="w-4 h-4 stroke-[2.5]" />
                   <span>INGRESAR AL PANEL</span>
                 </>
               )}
             </button>
           </form>
 
-          {/* Quick links */}
-          <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between text-[11px] text-gray-400">
+          {/* Footer Quick Links */}
+          <div className="pt-4 border-t border-[#1f1f1f] flex flex-wrap items-center justify-between gap-3 text-xs text-gray-400">
             <Link
               href="/cocina"
               target="_blank"
-              className="hover:text-brand-yellow transition flex items-center gap-1 font-bold"
+              className="hover:text-brand-yellow transition flex items-center gap-1.5 font-bold"
             >
-              <ChefHat className="w-3.5 h-3.5 text-brand-yellow" />
+              <ChefHat className="w-4 h-4 text-brand-yellow" />
               <span>Pantalla Cocina</span>
             </Link>
+
             <Link
               href="/rastreo"
-              className="hover:text-brand-yellow transition"
+              className="hover:text-brand-yellow transition font-semibold"
             >
-              Rastreo de Pedidos
+              Rastreo en Vivo
+            </Link>
+
+            <Link
+              href="/calificar"
+              className="hover:text-brand-yellow transition text-gray-500"
+            >
+              Calificaciones QR
             </Link>
           </div>
+
         </div>
 
-        {/* Footer info */}
-        <p className="text-center text-[11px] text-gray-500 mt-6">
-          Punto G &copy; {new Date().getFullYear()} — Antojos que conectan
-        </p>
       </div>
+
+      {/* Bottom Legal / Restaurant Slogan */}
+      <p className="text-center text-[11px] text-gray-500 mt-6 relative z-10">
+        Punto G Cali &copy; {new Date().getFullYear()} — Sistema Gastronómico y Punto de Venta
+      </p>
     </div>
   );
 }

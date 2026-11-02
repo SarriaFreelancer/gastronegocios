@@ -4,53 +4,103 @@ import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { Category, Product } from '@/types';
 import { categories } from '@/data/categories';
+import { products as allStaticProducts } from '@/data/products';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
-import { ChevronDown, Search, ArrowUpDown, Filter } from 'lucide-react';
+import { ChevronDown, Search, ArrowUpDown, Filter, Sparkles } from 'lucide-react';
 
 interface CategoryClientViewProps {
   category: Category;
-  products: Product[];
+  products?: Product[];
 }
 
 export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
-  category,
-  products,
+  category: initialCategory,
+  products: initialProducts,
 }) => {
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const allProducts = allStaticProducts;
+
+  // Detect whether initialCategory is a subcategory or a main category
+  const initialIsSub = Boolean(initialCategory.parentId);
+  const initialParent = initialIsSub
+    ? categories.find(
+        (c) => c.id === initialCategory.parentId || c.slug === initialCategory.parentId
+      )
+    : null;
+
+  // Active main category slug (e.g. 'comidas-rapidas', 'bebidas', 'platos-fuertes', 'combos')
+  const [activeMainSlug, setActiveMainSlug] = useState<string>(
+    initialParent ? initialParent.slug : initialCategory.slug
+  );
+
+  // Active subcategory slug (e.g. 'hamburguesas', 'cocteles', etc., or null for "all")
+  const [activeSubSlug, setActiveSubSlug] = useState<string | null>(
+    initialIsSub ? initialCategory.slug : null
+  );
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recomendados' | 'precio-menor' | 'precio-mayor' | 'nombre'>('recomendados');
 
-  // Find subcategories belonging to this category (or siblings if this is a subcategory)
-  const subcategories = useMemo(() => {
-    // If it's a main category (parentId == null), get its children
-    if (!category.parentId) {
-      return categories.filter(
-        (c) => c.parentId === category.id || c.parentId === category.slug
-      );
+  // Currently displayed category metadata for the Hero Banner and Title
+  const currentDisplayCategory = useMemo(() => {
+    if (activeSubSlug) {
+      const sub = categories.find((c) => c.slug === activeSubSlug);
+      if (sub) return sub;
     }
-    // If it's a subcategory, get all siblings sharing the same parent
-    return categories.filter((c) => c.parentId === category.parentId);
-  }, [category]);
+    const main = categories.find((c) => c.slug === activeMainSlug);
+    return main || initialCategory;
+  }, [activeMainSlug, activeSubSlug, initialCategory]);
 
-  // Filter & Sort products
+  // Main category object
+  const activeMainCategory = useMemo(() => {
+    return categories.find((c) => c.slug === activeMainSlug) || initialCategory;
+  }, [activeMainSlug, initialCategory]);
+
+  // Subcategories belonging to the active main category
+  const availableSubcategories = useMemo(() => {
+    return categories.filter(
+      (c) => c.parentId === activeMainCategory.id || c.parentId === activeMainCategory.slug
+    );
+  }, [activeMainCategory]);
+
+  // Handler for category and subcategory selection
+  const handleSelectCategory = (mainCatSlug: string, subSlug?: string) => {
+    setActiveMainSlug(mainCatSlug);
+    setActiveSubSlug(subSlug || null);
+    setSearchQuery('');
+
+    // Smoothly synchronize browser URL without full page reload
+    if (typeof window !== 'undefined') {
+      const targetSlug = subSlug || mainCatSlug;
+      window.history.pushState(null, '', `/menu/${targetSlug}`);
+    }
+  };
+
+  // Filter & Sort products from the whole catalog
   const filteredAndSortedProducts = useMemo(() => {
-    let result = products.filter((p) => {
-      let matchesSub = true;
-      if (selectedSubcategory) {
-        matchesSub = p.subcategoria === selectedSubcategory || p.categoria === selectedSubcategory;
+    let result = allProducts.filter((p) => {
+      // 1. Category / Subcategory Matching
+      let matchesCategory = false;
+      if (activeSubSlug) {
+        matchesCategory = p.subcategoria === activeSubSlug || p.categoria === activeSubSlug;
+      } else {
+        matchesCategory =
+          p.categoria === activeMainSlug ||
+          p.subcategoria === activeMainSlug ||
+          availableSubcategories.some((s) => s.slug === p.subcategoria);
       }
 
-      const query = searchQuery.toLowerCase();
+      // 2. Search query matching
+      const query = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !query ||
         p.nombre.toLowerCase().includes(query) ||
         p.descripcion.toLowerCase().includes(query) ||
         (p.ingredientes && p.ingredientes.some((i) => i.toLowerCase().includes(query)));
 
-      return matchesSub && matchesSearch;
+      return matchesCategory && matchesSearch;
     });
 
     switch (sortBy) {
@@ -70,13 +120,23 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     }
 
     return result;
-  }, [products, selectedSubcategory, searchQuery, sortBy]);
+  }, [allProducts, activeMainSlug, activeSubSlug, availableSubcategories, searchQuery, sortBy]);
+
+  // Total products count in active main category
+  const totalInMainCategory = useMemo(() => {
+    return allProducts.filter(
+      (p) =>
+        p.categoria === activeMainSlug ||
+        p.subcategoria === activeMainSlug ||
+        availableSubcategories.some((s) => s.slug === p.subcategoria)
+    ).length;
+  }, [allProducts, activeMainSlug, availableSubcategories]);
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16">
       
-      {/* 1. Category Top Hero Banner (matches Image 2 top section) */}
-      <div className="relative bg-gradient-to-r from-[#0d0d0d] via-[#141414] to-[#080808] border-b border-[#202020] overflow-hidden mb-8 sm:mb-12">
+      {/* 1. Dynamic Category Top Hero Banner */}
+      <div className="relative bg-gradient-to-r from-[#0d0d0d] via-[#141414] to-[#080808] border-b border-[#202020] overflow-hidden mb-8 sm:mb-12 transition-all duration-300">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
@@ -84,32 +144,34 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
             
             {/* Left Category Title & Intro */}
             <div className="md:col-span-7 space-y-2">
-              <span className="text-xs sm:text-sm font-black tracking-widest text-brand-yellow uppercase font-display">
-                NUESTRO MENÚ
-              </span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-black uppercase tracking-wider mb-1">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>NUESTRO MENÚ • {activeMainCategory.nombre}</span>
+              </div>
               
               <div className="relative inline-block">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white uppercase font-display tracking-tight drop-shadow-md">
-                  {category.nombre}
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase font-display tracking-tight drop-shadow-md">
+                  {currentDisplayCategory.nombre}
                 </h1>
                 {/* Yellow swash underline */}
                 <div className="w-full h-2.5 sm:h-3 bg-brand-yellow rounded-full -mt-1 sm:-mt-2 opacity-90 shadow-glow" />
               </div>
 
               <p className="text-sm sm:text-base text-gray-300 max-w-xl pt-2 font-medium">
-                {category.descripcion}
+                {currentDisplayCategory.descripcion}
               </p>
             </div>
 
-            {/* Right Hero Food Image (from approved design asset for burgers or high-res) */}
+            {/* Right Hero Food Image */}
             <div className="md:col-span-5 flex justify-center md:justify-end">
-              <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)]">
+              <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)] overflow-hidden rounded-2xl border border-[#262626]">
                 <Image
-                  src={category.imagen}
-                  alt={category.nombre}
+                  key={currentDisplayCategory.imagen}
+                  src={currentDisplayCategory.imagen}
+                  alt={currentDisplayCategory.nombre}
                   fill
                   priority
-                  className="object-cover rounded-2xl"
+                  className="object-cover rounded-2xl transition-all duration-500 hover:scale-105"
                   sizes="(max-width: 768px) 280px, 340px"
                 />
               </div>
@@ -125,15 +187,9 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
           
           {/* Left Column: Category Sidebar */}
           <CategorySidebar
-            currentSlug={category.slug}
-            currentSubSlug={selectedSubcategory || undefined}
-            onSelectCategory={(catSlug, subSlug) => {
-              if (subSlug) {
-                setSelectedSubcategory(subSlug);
-              } else if (catSlug === category.slug) {
-                setSelectedSubcategory(null);
-              }
-            }}
+            currentSlug={activeMainSlug}
+            currentSubSlug={activeSubSlug || undefined}
+            onSelectCategory={handleSelectCategory}
           />
 
           {/* Right Column: Main Products Area */}
@@ -145,14 +201,14 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               {/* Category Info Header */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold flex-shrink-0 shadow-glow">
-                  <CategoryIcon name={category.icono} size={20} className="text-black" />
+                  <CategoryIcon name={currentDisplayCategory.icono} size={20} className="text-black" />
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-white font-display uppercase tracking-wide">
-                    {category.nombre}
+                    {currentDisplayCategory.nombre}
                   </h2>
                   <p className="text-xs text-gray-400">
-                    {category.subtitulo || `${filteredAndSortedProducts.length} deliciosas opciones`}
+                    {currentDisplayCategory.subtitulo || `${filteredAndSortedProducts.length} deliciosas opciones disponibles`}
                   </p>
                 </div>
               </div>
@@ -191,59 +247,76 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
             </div>
 
             {/* Subcategories Filter Chips Toolbar */}
-            {subcategories.length > 0 && (
-              <div className="bg-[#121212] border border-[#222] rounded-2xl p-3.5 flex flex-wrap items-center gap-2 shadow-md">
+            {availableSubcategories.length > 0 && (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-3 sm:p-4 flex flex-wrap items-center gap-2 shadow-md">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mr-1">
                   <Filter className="w-3.5 h-3.5 text-brand-yellow" />
                   <span>Subcategorías:</span>
                 </span>
 
+                {/* Button: All products in active main category */}
                 <button
-                  onClick={() => setSelectedSubcategory(null)}
+                  onClick={() => handleSelectCategory(activeMainSlug, undefined)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    selectedSubcategory === null
+                    activeSubSlug === null
                       ? 'bg-brand-yellow text-black shadow-glow font-black'
                       : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
                   }`}
                 >
-                  Todas ({products.length})
+                  Todas ({totalInMainCategory})
                 </button>
 
-                {subcategories.map((sub) => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setSelectedSubcategory(sub.slug)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                      selectedSubcategory === sub.slug
-                        ? 'bg-brand-yellow text-black shadow-glow font-black'
-                        : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
-                    }`}
-                  >
-                    <CategoryIcon
-                      name={sub.icono}
-                      size={12}
-                      className={selectedSubcategory === sub.slug ? 'text-black' : 'text-brand-yellow'}
-                    />
-                    <span>{sub.nombre}</span>
-                  </button>
-                ))}
+                {availableSubcategories.map((sub) => {
+                  const isSelected = activeSubSlug === sub.slug;
+                  const count = allProducts.filter(
+                    (p) => p.subcategoria === sub.slug || p.categoria === sub.slug
+                  ).length;
+
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => handleSelectCategory(activeMainSlug, sub.slug)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-brand-yellow text-black shadow-glow font-black'
+                          : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
+                      }`}
+                    >
+                      <CategoryIcon
+                        name={sub.icono}
+                        size={12}
+                        className={isSelected ? 'text-black' : 'text-brand-yellow'}
+                      />
+                      <span>{sub.nombre}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          isSelected
+                            ? 'bg-black/20 text-black font-extrabold'
+                            : 'bg-black/40 text-gray-400'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
-            {/* Products Grid: 3 columns on desktop, matching Image 2 */}
+            {/* Products Grid: 3 columns on desktop */}
             {filteredAndSortedProducts.length === 0 ? (
               <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center">
                 <p className="text-base font-bold text-gray-300">
-                  No se encontraron productos con el término "{searchQuery}".
+                  No se encontraron productos disponibles en esta sección{searchQuery ? ` con "${searchQuery}"` : ''}.
                 </p>
                 <button
                   onClick={() => {
                     setSearchQuery('');
-                    setSelectedSubcategory(null);
+                    handleSelectCategory(activeMainSlug, undefined);
                   }}
                   className="mt-4 text-xs font-bold text-brand-yellow hover:underline"
                 >
-                  Limpiar filtros
+                  Ver todos los platos de {activeMainCategory.nombre}
                 </button>
               </div>
             ) : (
@@ -254,7 +327,7 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               </div>
             )}
 
-            {/* Bottom Promo Combo Banner (matches Image 2 bottom section) */}
+            {/* Bottom Promo Combo Banner */}
             <CategoryComboBanner />
 
           </div>
@@ -265,3 +338,4 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     </div>
   );
 };
+
