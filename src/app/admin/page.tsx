@@ -737,7 +737,7 @@ export default function AdminPage() {
 
   // Release Table
   const handleReleaseTable = async (tableId: number | string) => {
-    if (!confirm('¿Deseas cobrar y liberar esta mesa?')) return;
+    if (!confirm('¿Deseas liberar esta mesa y marcarla como libre?')) return;
     try {
       const res = await fetch(`/api/tables/${tableId}`, {
         method: 'PUT',
@@ -745,9 +745,52 @@ export default function AdminPage() {
         body: JSON.stringify({ action: 'liberar' }),
       });
       if (res.ok) {
-        fetchTables();
-        fetchOrders();
+        await Promise.all([fetchTables(), fetchOrders()]);
       }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Change Table Status directly
+  const handleUpdateTableStatus = async (tableId: number | string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/tables/${tableId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estado: newStatus,
+          action: newStatus === 'Libre' ? 'liberar' : undefined,
+        }),
+      });
+      if (res.ok) {
+        await Promise.all([fetchTables(), fetchOrders()]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Release All Occupied Tables
+  const handleReleaseAllTables = async () => {
+    const occupied = tables.filter((t) => t.estado !== 'Libre' || (t.orders && t.orders.length > 0));
+    if (occupied.length === 0) {
+      alert('Todas las mesas ya se encuentran libres.');
+      return;
+    }
+    if (!confirm(`¿Deseas liberar todas las ${occupied.length} mesas ocupadas? Se marcarán como libres.`)) return;
+
+    try {
+      await Promise.all(
+        occupied.map((t) =>
+          fetch(`/api/tables/${t.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'liberar' }),
+          })
+        )
+      );
+      await Promise.all([fetchTables(), fetchOrders()]);
     } catch (e) {
       console.error(e);
     }
@@ -2011,6 +2054,23 @@ export default function AdminPage() {
                                     <Bike className="w-3.5 h-3.5" />
                                   </button>
                                 )}
+                                {o.tipo === 'mesa' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const found = tables.find(t => t.numero === o.numeroMesa || t.id === o.mesaId);
+                                      if (found) {
+                                        handleReleaseTable(found.id);
+                                      } else {
+                                        alert(`No se encontró mesa registrada con el número ${o.numeroMesa}`);
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 transition"
+                                    title={`Liberar ${o.numeroMesa || 'Mesa'}`}
+                                  >
+                                    <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400" />
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );
@@ -2218,6 +2278,24 @@ export default function AdminPage() {
                           >
                             <Bike className="w-3.5 h-3.5" />
                             <span>Ruta Repartidor</span>
+                          </button>
+                        )}
+
+                        {o.tipo === 'mesa' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const found = tables.find(t => t.numero === o.numeroMesa || t.id === o.mesaId);
+                              if (found) {
+                                handleReleaseTable(found.id);
+                              } else {
+                                alert(`No se encontró mesa registrada con el número ${o.numeroMesa}`);
+                              }
+                            }}
+                            className="py-1.5 px-3 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 font-bold text-[11px] flex items-center gap-1.5 transition"
+                          >
+                            <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Liberar {o.numeroMesa || 'Mesa'}</span>
                           </button>
                         )}
                       </div>
@@ -3194,75 +3272,112 @@ export default function AdminPage() {
         {/* ======================================================== */}
         {activeTab === 'mesas' && (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#111] border border-[#222] p-4 sm:p-5 rounded-2xl">
               <div>
-                <h3 className="text-lg font-black uppercase text-white font-display">
-                  MÓDULO DE MESAS Y COMANDAS EN SITIO
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Monitorea mesas en tiempo real, genera códigos QR para pedidos automáticos y califica el servicio.
+                <div className="flex items-center gap-2">
+                  <UtensilsCrossed className="w-5 h-5 text-brand-yellow" />
+                  <h3 className="text-lg font-black uppercase text-white font-display">
+                    MÓDULO DE MESAS Y COMANDAS EN SITIO
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Monitorea mesas en tiempo real, libera mesas ocupadas tras pagar, genera códigos QR y gestiona reservas.
                 </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-0.5 rounded-full">
+                    🟢 {tables.filter(t => t.estado === 'Libre' && (!t.orders || t.orders.length === 0)).length} Libres
+                  </span>
+                  <span className="text-[11px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/40 px-2.5 py-0.5 rounded-full">
+                    🔴 {tables.filter(t => t.estado === 'Ocupada' || (t.orders && t.orders.length > 0)).length} Ocupadas
+                  </span>
+                  <span className="text-[11px] font-bold text-gray-400 bg-[#1c1c1c] border border-[#2c2c2c] px-2.5 py-0.5 rounded-full">
+                    Total: {tables.length} mesas
+                  </span>
+                </div>
               </div>
 
-              <button
-                onClick={() => setIsTableModalOpen(true)}
-                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Crear Nueva Mesa</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleReleaseAllTables}
+                  className="px-3.5 py-2.5 bg-[#1c1c1c] hover:bg-emerald-950/50 text-emerald-300 hover:text-emerald-200 border border-emerald-700/40 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                  title="Liberar todas las mesas que figuren como ocupadas"
+                >
+                  <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Liberar Todas Ocupadas</span>
+                </button>
+
+                <button
+                  onClick={() => setIsTableModalOpen(true)}
+                  className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear Nueva Mesa</span>
+                </button>
+              </div>
             </div>
 
             {/* Tables Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {tables.map((t) => {
                 const activeOrder = t.orders && t.orders[0];
                 const isOccupied = t.estado === 'Ocupada' || !!activeOrder;
+                const isReserved = t.estado === 'Reservada';
 
                 return (
                   <div
                     key={t.id}
-                    className={`bg-[#121212] border rounded-2xl p-5 space-y-4 transition-all relative overflow-hidden ${
-                      isOccupied ? 'border-brand-yellow/60 shadow-[0_0_15px_rgba(255,201,40,0.15)]' : 'border-[#222]'
+                    className={`bg-[#121212] border rounded-2xl p-5 space-y-3.5 transition-all relative overflow-hidden shadow-lg ${
+                      isOccupied
+                        ? 'border-brand-yellow/60 shadow-[0_0_15px_rgba(255,201,40,0.15)]'
+                        : isReserved
+                        ? 'border-purple-500/50'
+                        : 'border-[#222]'
                     }`}
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         <div
                           className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${
-                            isOccupied ? 'bg-brand-yellow text-black' : 'bg-[#1e1e1e] text-gray-300'
+                            isOccupied
+                              ? 'bg-brand-yellow text-black'
+                              : isReserved
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-[#1e1e1e] text-gray-300'
                           }`}
                         >
                           <UtensilsCrossed className="w-4 h-4" />
                         </div>
                         <div>
                           <h4 className="text-sm font-black text-white uppercase">{t.numero}</h4>
-                          <span className="text-[10px] text-gray-500">{t.ubicacion || 'Salón'} • {t.capacidad} puestos</span>
+                          <span className="text-[10px] text-gray-400">{t.ubicacion || 'Salón'} • {t.capacidad} puestos</span>
                         </div>
                       </div>
 
                       <span
-                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
                           isOccupied
                             ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                            : isReserved
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                             : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                         }`}
                       >
-                        {isOccupied ? '🔴 Ocupada' : '🟢 Libre'}
+                        {isOccupied ? '🔴 Ocupada' : isReserved ? '🟡 Reservada' : '🟢 Libre'}
                       </span>
                     </div>
 
-                    {/* Active Order Details */}
+                    {/* Active Order Details or Occupied Status Banner */}
                     {activeOrder ? (
-                      <div className="bg-[#181818] rounded-xl p-3 space-y-2 text-xs">
+                      <div className="bg-[#181818] rounded-xl p-3 space-y-2 text-xs border border-[#282828]">
                         <div className="flex justify-between items-center text-[11px]">
                           <span className="font-bold text-white">Comanda: #{activeOrder.codigo}</span>
-                          <span className="text-brand-yellow font-black">{formatPrice(activeOrder.total)}</span>
+                          <span className="text-brand-yellow font-black font-display">{formatPrice(activeOrder.total)}</span>
                         </div>
-                        <p className="text-[10px] text-gray-400">Cliente: {activeOrder.cliente}</p>
+                        <p className="text-[10px] text-gray-400">Cliente: <strong className="text-white">{activeOrder.cliente}</strong></p>
                         <p className="text-[10px] text-gray-400">
-                          {activeOrder.items?.length || 0} platos • Estado: <strong className="text-white">{activeOrder.estado}</strong>
+                          {activeOrder.items?.length || 0} platos • Estado: <strong className="text-amber-400">{activeOrder.estado}</strong>
                         </p>
                         {activeOrder.propina > 0 && (
                           <p className="text-[10px] text-brand-orange font-bold">
@@ -3270,21 +3385,83 @@ export default function AdminPage() {
                           </p>
                         )}
                         <button
+                          type="button"
                           onClick={() => handleReleaseTable(t.id)}
-                          className="w-full mt-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                          className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
                         >
-                          Cobrar y Liberar Mesa
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Cobrar y Liberar Mesa</span>
+                        </button>
+                      </div>
+                    ) : isOccupied ? (
+                      <div className="bg-amber-950/20 border border-amber-800/40 rounded-xl p-3 text-center space-y-2">
+                        <p className="text-[11px] text-amber-300 font-bold">
+                          ⚠️ Mesa marcada como Ocupada
+                        </p>
+                        <p className="text-[10px] text-gray-400">
+                          No tiene comanda pendiente activa. Puedes liberarla con un clic:
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleReleaseTable(t.id)}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Liberar Mesa Ahora (Marcar Libre)</span>
                         </button>
                       </div>
                     ) : (
-                      <div className="py-4 text-center text-xs text-gray-500">
-                        <span>Sin comanda activa</span>
+                      <div className="py-2.5 text-center text-xs text-gray-500 bg-[#161616] rounded-xl border border-[#222]">
+                        <span className="text-emerald-400 font-semibold text-[11px]">✓ Mesa lista para nuevos clientes</span>
                       </div>
                     )}
+
+                    {/* Quick State Selector Buttons for Admin */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-gray-500 uppercase font-bold block">
+                        Cambiar Estado Rápido:
+                      </span>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateTableStatus(t.id, 'Libre')}
+                          className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition ${
+                            t.estado === 'Libre' && !activeOrder
+                              ? 'bg-emerald-600 text-white border-emerald-500 font-black shadow-sm'
+                              : 'bg-[#181818] text-gray-400 border-[#2a2a2a] hover:text-white hover:bg-[#202020]'
+                          }`}
+                        >
+                          🟢 Libre
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateTableStatus(t.id, 'Ocupada')}
+                          className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition ${
+                            isOccupied
+                              ? 'bg-amber-600 text-black border-amber-500 font-black shadow-sm'
+                              : 'bg-[#181818] text-gray-400 border-[#2a2a2a] hover:text-white hover:bg-[#202020]'
+                          }`}
+                        >
+                          🔴 Ocupar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateTableStatus(t.id, 'Reservada')}
+                          className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition ${
+                            isReserved
+                              ? 'bg-purple-600 text-white border-purple-500 font-black shadow-sm'
+                              : 'bg-[#181818] text-gray-400 border-[#2a2a2a] hover:text-white hover:bg-[#202020]'
+                          }`}
+                        >
+                          🟡 Reservar
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Table Actions */}
                     <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
                       <button
+                        type="button"
                         onClick={() => handleOpenTableQr(t.id)}
                         className="flex-1 py-1.5 bg-[#1c1c1c] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold rounded-lg border border-[#2c2c2c] transition-colors flex items-center justify-center gap-1.5"
                       >

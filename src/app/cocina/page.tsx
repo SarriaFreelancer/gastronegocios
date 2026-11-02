@@ -310,38 +310,64 @@ export default function CocinaKDSPage() {
       )}
 
       {/* Top Bar for KDS */}
-      <header className="bg-[#101010] border-b border-[#222] px-4 py-3 sticky top-0 z-30 shadow-md">
-        <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      <header className="bg-[#101010] border-b border-[#222] px-3 sm:px-5 py-3 sticky top-0 z-30 shadow-md">
+        <div className="max-w-[1920px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
           
-          {/* Logo & Live Status */}
-          <div className="flex items-center gap-4">
+          {/* Logo, Status & Mobile Tools */}
+          <div className="flex items-center justify-between w-full md:w-auto gap-3">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-brand-yellow text-black rounded-xl font-black shadow-glow flex items-center justify-center">
-                <ChefHat className="w-6 h-6" />
+                <ChefHat className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-wider uppercase text-white flex items-center gap-2">
+                <h1 className="text-base sm:text-xl font-black tracking-wider uppercase text-white flex items-center gap-2">
                   PUNTO G <span className="text-brand-yellow">KDS</span>
                 </h1>
-                <p className="text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
+                <p className="text-[10px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                   <span>SISTEMA DE COCINA EN VIVO</span>
                 </p>
               </div>
             </div>
 
-            {/* Live Clock */}
-            <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 bg-[#181818] border border-[#2b2b2b] rounded-xl font-mono text-base font-bold text-brand-yellow">
-              <Clock className="w-4 h-4 text-gray-400" />
-              <span>{currentTime || '--:--:--'}</span>
+            {/* Mobile Action Tools */}
+            <div className="flex items-center gap-1.5 md:hidden">
+              <button
+                onClick={() => {
+                  if (!soundEnabled) enableSound();
+                  else setSoundEnabled(false);
+                }}
+                className={`p-2 rounded-xl border transition-colors ${
+                  soundEnabled
+                    ? 'bg-brand-yellow/10 border-brand-yellow text-brand-yellow'
+                    : 'bg-[#181818] border-[#2b2b2b] text-gray-400'
+                }`}
+                title={soundEnabled ? 'Silenciar campana' : 'Activar sonido'}
+              >
+                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => fetchOrders(false)}
+                className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow transition"
+                title="Refrescar"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <Link
+                href="/admin"
+                className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow"
+                title="Panel Admin"
+              >
+                <Shield className="w-4 h-4" />
+              </Link>
             </div>
           </div>
 
-          {/* Metrics summary pills */}
-          <div className="flex items-center gap-2">
+          {/* Metrics summary pills (Scrollable on small devices) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full md:w-auto">
             <button
               onClick={() => setFilterEstado('todos')}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'todos'
                   ? 'bg-white text-black shadow-md'
                   : 'bg-[#1a1a1a] text-gray-300 hover:bg-[#252525]'
@@ -353,7 +379,7 @@ export default function CocinaKDSPage() {
 
             <button
               onClick={() => setFilterEstado('Pendiente')}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'Pendiente'
                   ? 'bg-amber-500 text-black shadow-md'
                   : 'bg-amber-950/40 text-amber-400 border border-amber-900/50 hover:bg-amber-900/40'
@@ -364,7 +390,7 @@ export default function CocinaKDSPage() {
 
             <button
               onClick={() => setFilterEstado('En Preparación')}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'En Preparación'
                   ? 'bg-blue-500 text-white shadow-md'
                   : 'bg-blue-950/40 text-blue-400 border border-blue-900/50 hover:bg-blue-900/40'
@@ -376,7 +402,7 @@ export default function CocinaKDSPage() {
 
             <button
               onClick={() => setFilterEstado('Listo')}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'Listo'
                   ? 'bg-emerald-500 text-black shadow-md'
                   : 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900/40'
@@ -387,49 +413,47 @@ export default function CocinaKDSPage() {
             </button>
           </div>
 
-          {/* Action Tools */}
-          <div className="flex items-center gap-2">
-            {/* Audio Toggle */}
+          {/* Desktop Action Tools & Clock */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#181818] border border-[#2b2b2b] rounded-xl font-mono text-xs font-bold text-brand-yellow">
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <span>{currentTime || '--:--:--'}</span>
+            </div>
+
             <button
               onClick={() => {
-                if (!soundEnabled) {
-                  enableSound();
-                } else {
-                  setSoundEnabled(false);
-                }
+                if (!soundEnabled) enableSound();
+                else setSoundEnabled(false);
               }}
               className={`p-2 rounded-xl border transition-colors ${
                 soundEnabled
                   ? 'bg-brand-yellow/10 border-brand-yellow text-brand-yellow'
                   : 'bg-[#181818] border-[#2b2b2b] text-gray-400 hover:text-white'
               }`}
-              title={soundEnabled ? 'Silenciar campana' : 'Activar sonido de pedidos'}
+              title={soundEnabled ? 'Silenciar campana' : 'Activar sonido'}
             >
-              {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
-            {/* Refresh */}
             <button
               onClick={() => fetchOrders(false)}
-              className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow transition-colors"
+              className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow transition"
               title="Refrescar manualmente"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4" />
             </button>
 
-            {/* Fullscreen */}
             <button
               onClick={toggleFullscreen}
-              className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-white transition-colors"
-              title="Pantalla Completa (F11)"
+              className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-white transition"
+              title="Pantalla Completa"
             >
-              {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
 
-            {/* Link to Admin */}
             <Link
               href="/admin"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-xs font-semibold text-gray-300 hover:text-brand-yellow transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181818] border border-[#2b2b2b] text-xs font-semibold text-gray-300 hover:text-brand-yellow transition"
             >
               <Shield className="w-3.5 h-3.5" />
               <span>Admin</span>
@@ -461,7 +485,7 @@ export default function CocinaKDSPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3.5 sm:gap-5 items-start">
             {filteredOrders.map((order) => {
               const elapsed = getElapsedInfo(order.createdAt);
               const isUpdating = updatingId === order.id;

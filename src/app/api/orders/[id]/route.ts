@@ -69,18 +69,31 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
 
     // If order is finished or cancelled and attached to a table, check if any other active orders exist on that table
-    if (estado && ['Entregado', 'Cancelado'].includes(estado) && updated.mesaId) {
-      const activeCount = await prisma.order.count({
-        where: {
-          mesaId: updated.mesaId,
-          estado: { notIn: ['Entregado', 'Cancelado'] },
-        },
-      });
-      if (activeCount === 0) {
-        await prisma.restaurantTable.update({
-          where: { id: updated.mesaId },
-          data: { estado: 'Libre' },
+    if (estado && ['Entregado', 'Cancelado'].includes(estado)) {
+      let targetMesaId = updated.mesaId;
+      if (!targetMesaId && updated.numeroMesa) {
+        const found = await prisma.restaurantTable.findUnique({
+          where: { numero: updated.numeroMesa },
         });
+        if (found) targetMesaId = found.id;
+      }
+
+      if (targetMesaId) {
+        const activeCount = await prisma.order.count({
+          where: {
+            OR: [
+              { mesaId: targetMesaId },
+              ...(updated.numeroMesa ? [{ numeroMesa: updated.numeroMesa }] : []),
+            ],
+            estado: { notIn: ['Entregado', 'Cancelado'] },
+          },
+        });
+        if (activeCount === 0) {
+          await prisma.restaurantTable.update({
+            where: { id: targetMesaId },
+            data: { estado: 'Libre' },
+          });
+        }
       }
     }
 
