@@ -43,8 +43,18 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronRight,
-  Star
+  Star,
+  Sparkles,
+  Receipt,
+  Wallet,
+  Coins,
+  FileText,
+  MessageCircle,
+  Bike,
+  Send
 } from 'lucide-react';
+import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
+import { ProductAddon } from '@/types';
 
 interface OrderItem {
   id?: number | string;
@@ -52,6 +62,7 @@ interface OrderItem {
   precio: number;
   cantidad: number;
   notas?: string | null;
+  adicionales?: string | null;
 }
 
 interface Order {
@@ -71,6 +82,8 @@ interface Order {
   estado: string;
   metodoPago: string;
   notasCliente?: string | null;
+  repartidor?: string | null;
+  repartidorTel?: string | null;
   createdAt: string;
   items: OrderItem[];
 }
@@ -160,7 +173,7 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'mesas' | 'categorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
+    'pedidos' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
   >('pedidos');
 
   // Loading States
@@ -261,6 +274,61 @@ export default function AdminPage() {
   });
   const [savedSettings, setSavedSettings] = useState(false);
 
+  // ==================== 8. CAJA & TURNOS STATE ====================
+  const [activeShift, setActiveShift] = useState<any | null>(null);
+  const [shiftHistory, setShiftHistory] = useState<any[]>([]);
+  const [isOpenShiftModalOpen, setIsOpenShiftModalOpen] = useState(false);
+  const [openShiftData, setOpenShiftData] = useState({ cajero: 'Admin', baseInicial: 100000, notas: '' });
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
+  const [closeShiftData, setCloseShiftData] = useState({ efectivoReal: '', notas: '' });
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [expenseFormData, setExpenseFormData] = useState({ descripcion: '', monto: '', categoria: 'Insumos' });
+
+  // ==================== 9. TOPPINGS & ADICIONALES STATE ====================
+  const [addonsList, setAddonsList] = useState<ProductAddon[]>([]);
+  const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
+  const [editingAddon, setEditingAddon] = useState<ProductAddon | null>(null);
+  const [addonFormData, setAddonFormData] = useState({
+    nombre: '',
+    precio: '',
+    categoria: 'Toppings',
+    activo: true,
+  });
+
+  // ==================== 10. THERMAL RECEIPT STATE ====================
+  const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptType, setReceiptType] = useState<'factura' | 'comanda'>('factura');
+
+  const openReceipt = (order: any, type: 'factura' | 'comanda' = 'factura') => {
+    setReceiptOrder(order);
+    setReceiptType(type);
+    setIsReceiptModalOpen(true);
+  };
+
+  const notifyCustomerWhatsApp = (order: Order) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005';
+    const cleanPhone = (order.telefono || '').replace(/\D/g, '');
+    const phone = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
+    const msg = `¡Hola ${order.cliente}! 🔥 Te escribimos de *PUNTO G*.\nTu pedido *#${order.codigo}* está en estado: *${order.estado.toUpperCase()}* 🍔✨\n\nPuedes ver el estado de preparación y rastreo en vivo aquí:\n👉 ${origin}/pedido/${order.codigo}\n\n¡Muchas gracias por elegirnos!`;
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const dispatchDeliveryWhatsApp = (order: Order) => {
+    const addressQuery = encodeURIComponent(`${order.direccion || ''}, Cali, Colombia`);
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${addressQuery}`;
+    const msg = `🛵 *PEDIDO PARA DOMICILIO - PUNTO G* 🛵\n\n` +
+      `📦 Orden: *#${order.codigo}*\n` +
+      `👤 Cliente: *${order.cliente}*\n` +
+      `📱 Teléfono: *${order.telefono}*\n` +
+      `📍 Dirección: *${order.direccion || 'No especificada'}* ${order.barrio ? `(${order.barrio})` : ''}\n` +
+      `💳 Método de Pago: *${order.metodoPago || 'Efectivo'}*\n` +
+      `💵 Total a Cobrar: *$${(order.total || 0).toLocaleString('es-CO')}*\n` +
+      `${order.notasCliente ? `⚠️ Nota: ${order.notasCliente}\n` : ''}\n` +
+      `🗺️ Enlace a Google Maps:\n${mapsUrl}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
   // Check auth from localStorage
   useEffect(() => {
     try {
@@ -291,8 +359,47 @@ export default function AdminPage() {
       fetchReviews(),
       fetchUsers(),
       fetchConfig(),
+      fetchCurrentShift(),
+      fetchShiftHistory(),
+      fetchAddons(),
     ]);
     setIsLoading(false);
+  };
+
+  const fetchCurrentShift = async () => {
+    try {
+      const res = await fetch('/api/shifts?current=true');
+      if (res.ok) {
+        const data = await res.json();
+        setActiveShift(data.shift);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchShiftHistory = async () => {
+    try {
+      const res = await fetch('/api/shifts');
+      if (res.ok) {
+        const data = await res.json();
+        setShiftHistory(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchAddons = async () => {
+    try {
+      const res = await fetch('/api/addons');
+      if (res.ok) {
+        const data = await res.json();
+        setAddonsList(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // ==================== API FETCHERS ====================
@@ -753,6 +860,190 @@ export default function AdminPage() {
     }
   };
 
+  // ==================== CASH SHIFT ACTIONS ====================
+  const handleOpenShiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/shifts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cajero: openShiftData.cajero || currentUser?.nombre || 'Admin',
+          baseInicial: Number(openShiftData.baseInicial) || 0,
+          notas: openShiftData.notas,
+        }),
+      });
+      if (res.ok) {
+        setIsOpenShiftModalOpen(false);
+        setOpenShiftData({ cajero: 'Admin', baseInicial: 100000, notas: '' });
+        fetchCurrentShift();
+        fetchShiftHistory();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Error al abrir turno');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCloseShiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeShift) return;
+    try {
+      const res = await fetch('/api/shifts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: activeShift.id,
+          efectivoReal: Number(closeShiftData.efectivoReal) || 0,
+          notas: closeShiftData.notas,
+        }),
+      });
+      if (res.ok) {
+        setIsCloseShiftModalOpen(false);
+        setCloseShiftData({ efectivoReal: '', notas: '' });
+        fetchCurrentShift();
+        fetchShiftHistory();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAddExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeShift) return;
+    try {
+      const res = await fetch(`/api/shifts/${activeShift.id}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          descripcion: expenseFormData.descripcion,
+          monto: Number(expenseFormData.monto),
+          categoria: expenseFormData.categoria,
+          creadoPor: currentUser?.nombre || 'Admin',
+        }),
+      });
+      if (res.ok) {
+        setIsExpenseModalOpen(false);
+        setExpenseFormData({ descripcion: '', monto: '', categoria: 'Insumos' });
+        fetchCurrentShift();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: number) => {
+    if (!activeShift || !confirm('¿Eliminar este egreso de caja?')) return;
+    try {
+      const res = await fetch(`/api/shifts/${activeShift.id}/expenses?id=${expenseId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchCurrentShift();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ==================== TOPPINGS / ADDONS ACTIONS ====================
+  const handleOpenNewAddon = () => {
+    setEditingAddon(null);
+    setAddonFormData({
+      nombre: '',
+      precio: '',
+      categoria: 'Toppings',
+      activo: true,
+    });
+    setIsAddonModalOpen(true);
+  };
+
+  const handleOpenEditAddon = (addon: ProductAddon) => {
+    setEditingAddon(addon);
+    setAddonFormData({
+      nombre: addon.nombre,
+      precio: String(addon.precio),
+      categoria: addon.categoria,
+      activo: addon.activo,
+    });
+    setIsAddonModalOpen(true);
+  };
+
+  const handleSaveAddon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingAddon) {
+        await fetch('/api/addons', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingAddon.id,
+            nombre: addonFormData.nombre,
+            precio: Number(addonFormData.precio) || 0,
+            categoria: addonFormData.categoria,
+            activo: addonFormData.activo,
+          }),
+        });
+      } else {
+        await fetch('/api/addons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: addonFormData.nombre,
+            precio: Number(addonFormData.precio) || 0,
+            categoria: addonFormData.categoria,
+          }),
+        });
+      }
+      setIsAddonModalOpen(false);
+      fetchAddons();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleToggleAddonActive = async (addon: ProductAddon) => {
+    try {
+      await fetch('/api/addons', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: addon.id,
+          activo: !addon.activo,
+        }),
+      });
+      fetchAddons();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteAddon = async (id: number) => {
+    if (!confirm('¿Eliminar este adicional?')) return;
+    try {
+      await fetch(`/api/addons?id=${id}`, { method: 'DELETE' });
+      fetchAddons();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleAssignRepartidor = async (orderId: number | string, repartidorNombre: string) => {
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repartidor: repartidorNombre }),
+      });
+      fetchOrders();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const formatPrice = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
 
   // ==================== LOGIN VIEW ====================
@@ -908,13 +1199,15 @@ export default function AdminPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
           {[
             { id: 'pedidos', label: 'Pedidos & Filtros', icon: ShoppingBag, count: orders.length },
+            { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
+            { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length },
             { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length },
             { id: 'categorias', label: 'Categorías', icon: Layers, count: categoryList.length },
             { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length },
             { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length },
             { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
             { id: 'configuracion', label: 'Configuración', icon: Settings },
-          ].map((tab) => {
+          ].map((tab: any) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
@@ -929,6 +1222,9 @@ export default function AdminPage() {
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className="text-[10px] ml-0.5">{tab.badge}</span>
+                )}
                 {tab.count !== undefined && (
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
@@ -1236,15 +1532,41 @@ export default function AdminPage() {
                     {/* Order Items */}
                     <div className="bg-[#181818] rounded-xl p-3 space-y-1.5 text-xs">
                       <span className="text-[10px] text-gray-500 uppercase font-bold block">Productos:</span>
-                      {o.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-gray-300">
-                          <span>
-                            <strong className="text-brand-yellow">{item.cantidad}x</strong> {item.nombre}
-                            {item.notas && <span className="text-[10px] text-gray-400 italic ml-1.5">({item.notas})</span>}
-                          </span>
-                          <span className="font-medium text-white">{formatPrice(item.precio * item.cantidad)}</span>
-                        </div>
-                      ))}
+                      {o.items.map((item, idx) => {
+                        let itemAddons: any[] = [];
+                        if (item.adicionales) {
+                          try {
+                            const parsed = JSON.parse(item.adicionales);
+                            if (Array.isArray(parsed)) itemAddons = parsed;
+                          } catch {}
+                        }
+
+                        return (
+                          <div key={idx} className="border-b border-[#222] pb-1.5 last:border-0 last:pb-0">
+                            <div className="flex justify-between items-center text-gray-300">
+                              <span>
+                                <strong className="text-brand-yellow">{item.cantidad}x</strong> {item.nombre}
+                                {item.notas && <span className="text-[10px] text-gray-400 italic ml-1.5">({item.notas})</span>}
+                              </span>
+                              <span className="font-medium text-white">{formatPrice(item.precio * item.cantidad)}</span>
+                            </div>
+
+                            {/* Toppings in admin */}
+                            {itemAddons.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1 pl-4">
+                                {itemAddons.map((ad, aIdx) => (
+                                  <span
+                                    key={aIdx}
+                                    className="text-[10px] bg-brand-yellow/15 text-brand-yellow font-bold px-1.5 py-0.5 rounded border border-brand-yellow/30"
+                                  >
+                                    + {ad.nombre}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
 
                       {o.notasCliente && (
                         <div className="mt-2 pt-2 border-t border-[#252525] text-[11px] text-amber-300/90 italic">
@@ -1273,6 +1595,69 @@ export default function AdminPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Quick POS & Messaging Toolbar */}
+                    <div className="pt-2.5 border-t border-[#222] flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openReceipt(o, 'factura')}
+                          className="py-1.5 px-3 rounded-lg bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#303030] font-bold text-[11px] flex items-center gap-1.5 transition"
+                          title="Imprimir ticket de venta / pre-cuenta en 58mm/80mm"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-brand-yellow" />
+                          <span>Ticket POS</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openReceipt(o, 'comanda')}
+                          className="py-1.5 px-3 rounded-lg bg-[#1c1c1c] hover:bg-[#282828] text-neutral-300 hover:text-white border border-[#303030] font-bold text-[11px] flex items-center gap-1.5 transition"
+                          title="Imprimir comanda para cocina"
+                        >
+                          <ChefHat className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Comanda</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => notifyCustomerWhatsApp(o)}
+                          className="py-1.5 px-3 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800/40 font-bold text-[11px] flex items-center gap-1.5 transition"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp Cliente</span>
+                        </button>
+
+                        {o.tipo === 'domicilio' && (
+                          <button
+                            type="button"
+                            onClick={() => dispatchDeliveryWhatsApp(o)}
+                            className="py-1.5 px-3 rounded-lg bg-blue-950/40 hover:bg-blue-900/50 text-blue-400 border border-blue-800/40 font-bold text-[11px] flex items-center gap-1.5 transition"
+                          >
+                            <Bike className="w-3.5 h-3.5" />
+                            <span>Ruta Repartidor</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Repartidor Assignment (if delivery) */}
+                      {o.tipo === 'domicilio' && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500 uppercase font-bold">Repartidor:</span>
+                          <input
+                            type="text"
+                            placeholder="Ej: Carlos Moto 1"
+                            defaultValue={o.repartidor || ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (o.repartidor || '')) {
+                                handleAssignRepartidor(o.id, e.target.value.trim());
+                              }
+                            }}
+                            className="bg-[#181818] border border-[#2d2d2d] rounded-lg px-2 py-1 text-white text-[11px] focus:outline-none focus:border-brand-yellow w-36"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1282,6 +1667,389 @@ export default function AdminPage() {
 
         {/* ======================================================== */}
         {/* TAB 2: MESAS / COMANDAS Y GENERACIÓN DE QR               */}
+        {/* ======================================================== */}
+        {/* PESTAÑA: CAJA & TURNOS (ARQUEO Y CUADRE DIARIO)           */}
+        {/* ======================================================== */}
+        {activeTab === 'caja' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#111] border border-[#222] p-5 rounded-2xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      activeShift?.estado === 'Abierto' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'
+                    }`}
+                  />
+                  <h3 className="text-lg font-black uppercase text-white font-display">
+                    CONTROL DE CAJA Y ARQUEO DE TURNOS
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {activeShift?.estado === 'Abierto'
+                    ? `Turno actual abierto por ${activeShift.cajero} el ${new Date(activeShift.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    : 'No hay un turno de caja abierto en este momento.'}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                {activeShift?.estado === 'Abierto' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsExpenseModalOpen(true)}
+                      className="px-3.5 py-2.5 bg-[#202020] hover:bg-[#2b2b2b] text-neutral-200 border border-[#333] rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                    >
+                      <Plus className="w-4 h-4 text-red-400" />
+                      <span>Registrar Egreso / Salida</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCloseShiftData({
+                          efectivoReal: String(activeShift.totalEfectivoEsperado || activeShift.baseInicial || 0),
+                          notas: '',
+                        });
+                        setIsCloseShiftModalOpen(true);
+                      }}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-lg shadow-red-600/20"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Cerrar Turno & Cuadre</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsOpenShiftModalOpen(true)}
+                    className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-glow"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Abrir Nuevo Turno de Caja</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Shift Metrics */}
+            {activeShift && activeShift.estado === 'Abierto' ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {/* Base */}
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-500 block">Base Inicial en Caja</span>
+                    <span className="text-xl font-black text-white font-display">
+                      {formatPrice(activeShift.baseInicial)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Cambio al iniciar turno</span>
+                  </div>
+
+                  {/* Efectivo */}
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 block">Ventas en Efectivo</span>
+                    <span className="text-xl font-black text-emerald-400 font-display">
+                      {formatPrice(activeShift.ventasEfectivo || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Ingresado en caja física</span>
+                  </div>
+
+                  {/* Transferencia */}
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-blue-400 block">Nequi / Daviplata</span>
+                    <span className="text-xl font-black text-blue-400 font-display">
+                      {formatPrice(activeShift.ventasTransfer || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Transferencias verificadas</span>
+                  </div>
+
+                  {/* Datáfono */}
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-purple-400 block">Datáfono / Tarjetas</span>
+                    <span className="text-xl font-black text-purple-400 font-display">
+                      {formatPrice(activeShift.ventasDatafono || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Comprobantes terminal</span>
+                  </div>
+
+                  {/* Propinas */}
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 block">Propinas del Personal</span>
+                    <span className="text-xl font-black text-amber-400 font-display">
+                      {formatPrice(activeShift.propinasTotal || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Recaudadas voluntarias</span>
+                  </div>
+
+                  {/* Egresos */}
+                  <div className="bg-[#121212] border border-red-900/30 rounded-2xl p-4 space-y-1 bg-red-950/10">
+                    <span className="text-[10px] uppercase font-bold text-red-400 block">Egresos / Salidas</span>
+                    <span className="text-xl font-black text-red-400 font-display">
+                      - {formatPrice(activeShift.totalEgresos || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Gastos menores de caja</span>
+                  </div>
+
+                  {/* Total Ventas Turno */}
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Total Ventas Turno</span>
+                    <span className="text-xl font-black text-white font-display">
+                      {formatPrice(activeShift.totalVentas || 0)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 block">Todos los medios de pago</span>
+                  </div>
+
+                  {/* Efectivo Esperado en Caja (Hero) */}
+                  <div className="bg-brand-yellow/15 border border-brand-yellow rounded-2xl p-4 space-y-1 shadow-lg shadow-brand-yellow/10">
+                    <span className="text-[10px] uppercase font-black text-brand-yellow block">
+                      💵 EFECTIVO ESPERADO EN GAVETA
+                    </span>
+                    <span className="text-2xl font-black text-white font-display">
+                      {formatPrice(activeShift.totalEfectivoEsperado || (activeShift.baseInicial + (activeShift.ventasEfectivo || 0) - (activeShift.totalEgresos || 0)))}
+                    </span>
+                    <span className="text-[10px] text-neutral-300 block">Base + Efectivo - Egresos</span>
+                  </div>
+                </div>
+
+                {/* Egresos / Gastos Menores Section */}
+                <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-extrabold uppercase text-white tracking-wide">
+                        Egresos y Salidas de Caja del Turno
+                      </h4>
+                      <p className="text-xs text-gray-400">
+                        Registro de gastos rápidos (hielo, domiciliarios, anticipos, insumos de emergencia).
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsExpenseModalOpen(true)}
+                      className="py-1.5 px-3 bg-[#202020] hover:bg-[#2b2b2b] text-neutral-200 border border-[#333] rounded-xl text-xs font-bold flex items-center gap-1 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-brand-yellow" />
+                      <span>Agregar Gasto</span>
+                    </button>
+                  </div>
+
+                  {(!activeShift.egresos || activeShift.egresos.length === 0) ? (
+                    <div className="p-6 text-center text-xs text-neutral-500 border border-dashed border-[#282828] rounded-xl">
+                      No hay egresos registrados en este turno de caja.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-[#222] text-gray-500 text-[10px] uppercase">
+                            <th className="py-2 px-3">Hora</th>
+                            <th className="py-2 px-3">Descripción</th>
+                            <th className="py-2 px-3">Categoría</th>
+                            <th className="py-2 px-3">Registrado Por</th>
+                            <th className="py-2 px-3 text-right">Monto</th>
+                            <th className="py-2 px-3 text-right">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#1e1e1e]">
+                          {activeShift.egresos.map((egreso: any) => (
+                            <tr key={egreso.id} className="hover:bg-[#161616]">
+                              <td className="py-2.5 px-3 text-gray-400 font-mono">
+                                {new Date(egreso.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-white">{egreso.descripcion}</td>
+                              <td className="py-2.5 px-3">
+                                <span className="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded border border-neutral-700">
+                                  {egreso.categoria}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-gray-400">{egreso.creadoPor || 'Admin'}</td>
+                              <td className="py-2.5 px-3 text-right font-black text-red-400">
+                                - {formatPrice(egreso.monto)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExpense(egreso.id)}
+                                  className="text-gray-500 hover:text-red-400 p-1 transition"
+                                  title="Eliminar egreso"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-10 text-center space-y-3">
+                <Coins className="w-12 h-12 mx-auto text-brand-yellow/60" />
+                <h4 className="text-base font-extrabold text-white">No hay turno activo</h4>
+                <p className="text-xs text-neutral-400 max-w-md mx-auto">
+                  Abre un nuevo turno de caja ingresando la base inicial de efectivo para comenzar a registrar pedidos y cuadres.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsOpenShiftModalOpen(true)}
+                  className="px-5 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider transition shadow-glow"
+                >
+                  Abrir Turno de Caja Ahora
+                </button>
+              </div>
+            )}
+
+            {/* Historial de Turnos Cerrados */}
+            <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-4">
+              <h4 className="text-sm font-extrabold uppercase text-white tracking-wide">
+                Historial de Cierres de Caja Anteriores
+              </h4>
+
+              {shiftHistory.length === 0 ? (
+                <p className="text-xs text-neutral-500 italic">No hay historial de turnos previos.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-[#222] text-gray-500 text-[10px] uppercase">
+                        <th className="py-2 px-3">Fecha y Hora</th>
+                        <th className="py-2 px-3">Cajero</th>
+                        <th className="py-2 px-3">Estado</th>
+                        <th className="py-2 px-3 text-right">Base</th>
+                        <th className="py-2 px-3 text-right">Total Ventas</th>
+                        <th className="py-2 px-3 text-right">Efectivo Real</th>
+                        <th className="py-2 px-3 text-right">Diferencia</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1e1e1e]">
+                      {shiftHistory.map((s: any) => (
+                        <tr key={s.id} className="hover:bg-[#161616]">
+                          <td className="py-2.5 px-3 text-gray-300 font-mono">
+                            {new Date(s.createdAt).toLocaleDateString('es-CO', { dateStyle: 'short' })}{' '}
+                            {new Date(s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-white">{s.cajero}</td>
+                          <td className="py-2.5 px-3">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                s.estado === 'Abierto'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                              }`}
+                            >
+                              {s.estado}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-medium text-gray-300">{formatPrice(s.baseInicial)}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-white">{formatPrice(s.totalVentas)}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-brand-yellow">
+                            {s.efectivoReal !== null ? formatPrice(s.efectivoReal) : '--'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-black">
+                            {s.diferencia !== null ? (
+                              s.diferencia >= 0 ? (
+                                <span className="text-emerald-400">+{formatPrice(s.diferencia)} (Sobrante)</span>
+                              ) : (
+                                <span className="text-red-400">{formatPrice(s.diferencia)} (Faltante)</span>
+                              )
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* PESTAÑA: TOPPINGS & ADICIONALES (CONFIGURACIÓN)           */}
+        {/* ======================================================== */}
+        {activeTab === 'toppings' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  TOPPINGS, SALSAS Y ADICIONALES
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Configura los ingredientes extras que tus clientes pueden agregar al menú (tocineta, queso, salsas especiales, papas).
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenNewAddon}
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nuevo Adicional</span>
+              </button>
+            </div>
+
+            {/* Addons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {addonsList.map((addon) => (
+                <div
+                  key={addon.id}
+                  className={`bg-[#121212] border rounded-2xl p-4 flex flex-col justify-between transition-all ${
+                    addon.activo ? 'border-[#262626] hover:border-brand-yellow/40' : 'border-neutral-800 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-brand-yellow tracking-wider">
+                        {addon.categoria}
+                      </span>
+                      <h4 className="text-sm font-bold text-white mt-0.5">{addon.nombre}</h4>
+                    </div>
+
+                    <span className="text-base font-black text-brand-yellow font-display">
+                      {formatPrice(addon.precio)}
+                    </span>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t border-[#1e1e1e] flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAddonActive(addon)}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded transition ${
+                        addon.activo ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      }`}
+                    >
+                      {addon.activo ? '✓ Activo' : '✕ Desactivado'}
+                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditAddon(addon)}
+                        className="p-1.5 rounded-lg bg-[#1c1c1c] text-gray-400 hover:text-white transition"
+                        title="Editar"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddon(addon.id)}
+                        className="p-1.5 rounded-lg bg-[#1c1c1c] text-gray-400 hover:text-red-400 transition"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ======================================================== */}
         {activeTab === 'mesas' && (
           <div className="space-y-6">
@@ -2409,6 +3177,316 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* MODAL: ABRIR TURNO DE CAJA                               */}
+      {/* ======================================================== */}
+      {isOpenShiftModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              ABRIR TURNO DE CAJA
+            </h3>
+            <form onSubmit={handleOpenShiftSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre del Cajero *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Carlos Gómez"
+                  value={openShiftData.cajero}
+                  onChange={(e) => setOpenShiftData({ ...openShiftData, cajero: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Base Inicial en Efectivo (COP) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="100000"
+                  value={openShiftData.baseInicial}
+                  onChange={(e) => setOpenShiftData({ ...openShiftData, baseInicial: Number(e.target.value) })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+                <span className="text-[10px] text-gray-500 mt-1 block">Dinero en monedas y billetes para cambio al inicio del turno.</span>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Observaciones / Notas</label>
+                <textarea
+                  rows={2}
+                  placeholder="Turno mañana / noche..."
+                  value={openShiftData.notas}
+                  onChange={(e) => setOpenShiftData({ ...openShiftData, notas: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOpenShiftModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl shadow-glow"
+                >
+                  Confirmar Apertura
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: REGISTRAR EGRESO / GASTO MENOR                    */}
+      {/* ======================================================== */}
+      {isExpenseModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              REGISTRAR SALIDA / EGRESO DE CAJA
+            </h3>
+            <form onSubmit={handleAddExpenseSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Motivo / Descripción *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Compra de 2 bolsas de hielo"
+                  value={expenseFormData.descripcion}
+                  onChange={(e) => setExpenseFormData({ ...expenseFormData, descripcion: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Monto de Salida (COP) *</label>
+                <input
+                  type="number"
+                  required
+                  min="100"
+                  placeholder="15000"
+                  value={expenseFormData.monto}
+                  onChange={(e) => setExpenseFormData({ ...expenseFormData, monto: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Categoría</label>
+                <select
+                  value={expenseFormData.categoria}
+                  onChange={(e) => setExpenseFormData({ ...expenseFormData, categoria: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                >
+                  <option value="Insumos">Insumos (Hielo, gas, empaques)</option>
+                  <option value="Domicilios">Pago Carreras Domiciliario</option>
+                  <option value="Personal">Anticipo / Propinas Personal</option>
+                  <option value="Varios">Varios / Otros</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsExpenseModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black uppercase rounded-xl"
+                >
+                  Guardar Egreso
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: CIERRE Y CUADRE DE CAJA                           */}
+      {/* ======================================================== */}
+      {isCloseShiftModalOpen && activeShift && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              CIERRE DE TURNO Y CUADRE DE CAJA
+            </h3>
+
+            {/* Calculated expectations */}
+            <div className="bg-[#1b1b1b] p-3.5 rounded-2xl border border-[#2a2a2a] space-y-1.5 text-xs">
+              <div className="flex justify-between text-gray-400">
+                <span>Base Inicial:</span>
+                <span className="font-bold text-white">{formatPrice(activeShift.baseInicial)}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>Ventas en Efectivo:</span>
+                <span className="font-bold text-emerald-400">+{formatPrice(activeShift.ventasEfectivo || 0)}</span>
+              </div>
+              <div className="flex justify-between text-gray-400">
+                <span>Total Egresos:</span>
+                <span className="font-bold text-red-400">-{formatPrice(activeShift.totalEgresos || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-black text-brand-yellow pt-2 border-t border-[#262626]">
+                <span>Total Esperado en Efectivo:</span>
+                <span>{formatPrice(activeShift.totalEfectivoEsperado || (activeShift.baseInicial + (activeShift.ventasEfectivo || 0) - (activeShift.totalEgresos || 0)))}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleCloseShiftSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">
+                  Efectivo Físico Contado en Gaveta (COP) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="Ingresa el dinero físico que contaste"
+                  value={closeShiftData.efectivoReal}
+                  onChange={(e) => setCloseShiftData({ ...closeShiftData, efectivoReal: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white font-bold text-sm focus:border-brand-yellow"
+                />
+
+                {/* Live Difference Calculation */}
+                {closeShiftData.efectivoReal !== '' && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-[#1e1e1e] border border-[#333] flex justify-between items-center text-xs">
+                    <span className="font-bold text-gray-400">Diferencia de Cuadre:</span>
+                    {(() => {
+                      const expected = activeShift.totalEfectivoEsperado || (activeShift.baseInicial + (activeShift.ventasEfectivo || 0) - (activeShift.totalEgresos || 0));
+                      const diff = Number(closeShiftData.efectivoReal) - expected;
+                      if (diff === 0) {
+                        return <span className="text-emerald-400 font-black">✓ Cuadre Exacto ($0)</span>;
+                      } else if (diff > 0) {
+                        return <span className="text-emerald-400 font-black">+{formatPrice(diff)} (Sobrante)</span>;
+                      } else {
+                        return <span className="text-red-400 font-black">{formatPrice(diff)} (Faltante)</span>;
+                      }
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Observaciones de Cierre</label>
+                <textarea
+                  rows={2}
+                  placeholder="Detalles sobre faltante, billetes deteriorados, etc..."
+                  value={closeShiftData.notas}
+                  onChange={(e) => setCloseShiftData({ ...closeShiftData, notas: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCloseShiftModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black uppercase rounded-xl shadow-lg"
+                >
+                  Confirmar y Cerrar Turno
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: CREAR / EDITAR ADICIONAL (TOPPING)                */}
+      {/* ======================================================== */}
+      {isAddonModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <h3 className="text-lg font-black uppercase text-white font-display">
+              {editingAddon ? 'EDITAR ADICIONAL' : 'CREAR NUEVO ADICIONAL'}
+            </h3>
+            <form onSubmit={handleSaveAddon} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre del Adicional *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Tocineta Ahumada Crispy"
+                  value={addonFormData.nombre}
+                  onChange={(e) => setAddonFormData({ ...addonFormData, nombre: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Precio (COP) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    placeholder="4000"
+                    value={addonFormData.precio}
+                    onChange={(e) => setAddonFormData({ ...addonFormData, precio: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Categoría</label>
+                  <select
+                    value={addonFormData.categoria}
+                    onChange={(e) => setAddonFormData({ ...addonFormData, categoria: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                  >
+                    <option value="Toppings">Toppings</option>
+                    <option value="Salsas">Salsas</option>
+                    <option value="Acompañamientos">Acompañamientos</option>
+                    <option value="Bebidas">Bebidas</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddonModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                >
+                  Guardar Adicional
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* POS Thermal Receipt Modal for Invoicing and Kitchen Tickets */}
+      <ThermalReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        order={receiptOrder}
+        ticketType={receiptType}
+      />
 
     </div>
   );

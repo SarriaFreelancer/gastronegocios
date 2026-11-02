@@ -1,14 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem } from '@/types';
+import { Product, CartItem, ProductAddon } from '@/types';
 import { restaurantInfo } from '@/data/restaurant-info';
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product, quantity?: number, notes?: string) => void;
-  removeFromCart: (productId: string | number) => void;
-  updateQuantity: (productId: string | number, quantity: number) => void;
+  addToCart: (product: Product, quantity?: number, notes?: string, selectedAddons?: ProductAddon[]) => void;
+  removeFromCart: (indexOrId: string | number) => void;
+  updateQuantity: (indexOrId: string | number, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
@@ -99,21 +99,35 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [items, isHydrated]);
 
-  const addToCart = (product: Product, quantity = 1, notes = '') => {
+  const addToCart = (
+    product: Product,
+    quantity = 1,
+    notes = '',
+    selectedAddons: ProductAddon[] = []
+  ) => {
     if (quantity <= 0) return;
 
     setItems((prev) => {
-      const existingIndex = prev.findIndex((item) => String(item.product.id) === String(product.id));
+      // Find item with same product AND exact same addons IDs and notes
+      const addonKey = selectedAddons.map((a) => a.id).sort().join(',');
+      const existingIndex = prev.findIndex((item) => {
+        const itemAddonKey = (item.selectedAddons || []).map((a) => a.id).sort().join(',');
+        return (
+          String(item.product.id) === String(product.id) &&
+          itemAddonKey === addonKey &&
+          (item.notes || '') === (notes || '')
+        );
+      });
+
       if (existingIndex > -1) {
         const next = [...prev];
         next[existingIndex] = {
           ...next[existingIndex],
           quantity: next[existingIndex].quantity + quantity,
-          notes: notes || next[existingIndex].notes,
         };
         return next;
       }
-      return [...prev, { product, quantity, notes }];
+      return [...prev, { product, quantity, notes, selectedAddons }];
     });
 
     setLastAddedProduct(product);
@@ -122,20 +136,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 3500);
   };
 
-  const removeFromCart = (productId: string | number) => {
-    setItems((prev) => prev.filter((item) => String(item.product.id) !== String(productId)));
+  const removeFromCart = (indexOrId: string | number) => {
+    setItems((prev) => {
+      if (typeof indexOrId === 'number' && indexOrId < prev.length) {
+        return prev.filter((_, idx) => idx !== indexOrId);
+      }
+      return prev.filter((item) => String(item.product.id) !== String(indexOrId));
+    });
   };
 
-  const updateQuantity = (productId: string | number, quantity: number) => {
+  const updateQuantity = (indexOrId: string | number, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(indexOrId);
       return;
     }
-    setItems((prev) =>
-      prev.map((item) =>
-        String(item.product.id) === String(productId) ? { ...item, quantity } : item
-      )
-    );
+    setItems((prev) => {
+      if (typeof indexOrId === 'number' && indexOrId < prev.length) {
+        const next = [...prev];
+        next[indexOrId] = { ...next[indexOrId], quantity };
+        return next;
+      }
+      return prev.map((item) =>
+        String(item.product.id) === String(indexOrId) ? { ...item, quantity } : item
+      );
+    });
   };
 
   const clearCart = () => {
@@ -157,7 +181,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotal = items.reduce((acc, item) => acc + item.product.precio * item.quantity, 0);
+  const subtotal = items.reduce((acc, item) => {
+    const addonsCost = (item.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
+    return acc + (item.product.precio + addonsCost) * item.quantity;
+  }, 0);
   const deliveryFee = deliveryType === 'domicilio' && subtotal > 0 ? 5000 : 0;
 
   // Calculate tip amount
@@ -186,12 +213,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           total: totalPrice,
           metodoPago: paymentMethod,
           notasCliente: customerNotes.trim(),
-          items: items.map((i) => ({
-            nombre: i.product.nombre,
-            precio: i.product.precio,
-            cantidad: i.quantity,
-            notas: i.notes,
-          })),
+          items: items.map((i) => {
+            const addonsCost = (i.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
+            return {
+              nombre: i.product.nombre,
+              precio: i.product.precio + addonsCost,
+              cantidad: i.quantity,
+              notas: i.notes || null,
+              adicionales: i.selectedAddons && i.selectedAddons.length > 0 ? JSON.stringify(i.selectedAddons) : null,
+            };
+          }),
         }),
       });
 
@@ -266,7 +297,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     message += `\n📋 *PRODUCTOS SELECCIONADOS:*\n`;
     items.forEach((item, index) => {
-      message += `${index + 1}. *${item.quantity}x* ${item.product.nombre} - ${formatCurrency(item.product.precio * item.quantity)}\n`;
+      const addonsCost = (item.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
+      const itemUnitPrice = item.product.precio + addonsCost;
+      message += `${index + 1}. *${item.quantity}x* ${item.product.nombre} - ${formatCurrency(itemUnitPrice * item.quantity)}\n`;
+      if (item.selectedAddons && item.selectedAddons.length > 0) {
+        message += `   _Toppings: ${item.selectedAddons.map((a) => `+${a.nombre}`).join(', ')}_\n`;
+      }
       if (item.notes) {
         message += `   _Nota: ${item.notes}_\n`;
       }

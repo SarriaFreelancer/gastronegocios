@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
-import { ShoppingCart, Plus, Minus, Check } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Check, SlidersHorizontal } from 'lucide-react';
+import { ProductCustomizerModal } from '@/components/menu/ProductCustomizerModal';
 
 interface ProductCardProps {
   product: Product;
@@ -18,6 +19,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
 
   const handleAdd = () => {
     addToCart(product, quantity);
@@ -49,7 +51,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <div className="group bg-[#121212] hover:bg-[#161616] rounded-2xl border border-[#222222] hover:border-brand-yellow/50 overflow-hidden flex flex-col transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.85)] hover:-translate-y-1">
       {/* Product Image Container */}
-      <div className="relative w-full aspect-[4/3] bg-black overflow-hidden">
+      <div 
+        onClick={() => setIsCustomizerOpen(true)}
+        className="relative w-full aspect-[4/3] bg-black overflow-hidden cursor-pointer"
+      >
         <Image
           src={product.imagen}
           alt={product.nombre}
@@ -76,7 +81,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Content Container */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
-        <div>
+        <div onClick={() => setIsCustomizerOpen(true)} className="cursor-pointer">
           <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-brand-yellow transition-colors line-clamp-1">
             {product.nombre}
           </h3>
@@ -86,7 +91,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Price & Action Section */}
-        <div className="pt-2 border-t border-[#1e1e1e] space-y-3">
+        <div className="pt-2 border-t border-[#1e1e1e] space-y-2.5">
           <div className="flex items-baseline justify-between">
             <span className="text-lg sm:text-xl font-black text-brand-yellow tracking-tight font-display">
               ${product.precio.toLocaleString('es-CO')}
@@ -116,30 +121,48 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Add to order button */}
-          <button
-            type="button"
-            onClick={handleAdd}
-            className={`w-full py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 ${
-              isAdded
-                ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.4)]'
-                : 'bg-brand-yellow hover:bg-brand-yellowHover text-black shadow-glow transform active:scale-95'
-            }`}
-          >
-            {isAdded ? (
-              <>
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>¡AGREGADO!</span>
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="w-4 h-4 fill-current" />
-                <span>AGREGAR AL PEDIDO</span>
-              </>
-            )}
-          </button>
+          {/* Action buttons: Personalizar (toppings) + Agregar */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCustomizerOpen(true)}
+              className="py-2.5 px-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 hover:border-neutral-500 transition-colors"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-brand-yellow" />
+              <span>Toppings</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAdd}
+              className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-200 ${
+                isAdded
+                  ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.4)]'
+                  : 'bg-brand-yellow hover:bg-brand-yellowHover text-black shadow-glow transform active:scale-95'
+              }`}
+            >
+              {isAdded ? (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>¡Listo!</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-3.5 h-3.5 fill-current" />
+                  <span>Agregar</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Product Customizer Modal */}
+      <ProductCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+        product={product}
+      />
     </div>
   );
 };

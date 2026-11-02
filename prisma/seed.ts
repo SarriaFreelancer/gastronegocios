@@ -385,6 +385,56 @@ async function main() {
     });
   }
   console.log('✅ Reviews seeded with numeric IDs');
+
+  // 8. Seed Addons / Toppings
+  const existingAddons = await prisma.productAddon.count();
+  if (existingAddons === 0) {
+    const addons = [
+      { nombre: 'Tocineta Ahumada Crispy', precio: 4000, categoria: 'Toppings' },
+      { nombre: 'Queso Cheddar Fundido', precio: 3500, categoria: 'Toppings' },
+      { nombre: 'Carne Artesanal 150g', precio: 8000, categoria: 'Toppings' },
+      { nombre: 'Huevo Frito a Caballo', precio: 2500, categoria: 'Toppings' },
+      { nombre: 'Cebolla Caramelizada', precio: 2000, categoria: 'Toppings' },
+      { nombre: 'Guacamole Artesanal', precio: 3500, categoria: 'Toppings' },
+      { nombre: 'Jalapeños Picantes', precio: 2500, categoria: 'Toppings' },
+      { nombre: 'Papas Francesas Extra', precio: 5000, categoria: 'Acompañamientos' },
+      { nombre: 'Papas Rústicas Criollas', precio: 6000, categoria: 'Acompañamientos' },
+      { nombre: 'Salsa Tártara Punto G Extra', precio: 2000, categoria: 'Salsas' },
+      { nombre: 'Salsa BBQ Ahumada Extra', precio: 2000, categoria: 'Salsas' },
+      { nombre: 'Salsa Picante Habano Extra', precio: 2000, categoria: 'Salsas' },
+    ];
+    for (const a of addons) {
+      await prisma.productAddon.create({ data: a });
+    }
+    console.log('✅ Product Addons / Toppings seeded');
+  }
+
+  // 9. Seed Today's Cash Shift if none exists
+  const existingShift = await prisma.cashShift.count();
+  if (existingShift === 0) {
+    const shift = await prisma.cashShift.create({
+      data: {
+        cajero: 'David Sarria',
+        baseInicial: 150000,
+        ventasEfectivo: 95000,
+        ventasTransfer: 78000,
+        ventasDatafono: 45000,
+        propinasTotal: 18000,
+        totalVentas: 218000,
+        totalEgresos: 25000,
+        estado: 'Abierto',
+        notas: 'Turno de tarde/noche iniciado con base completa de cambio.',
+        egresos: {
+          create: [
+            { descripcion: 'Compra de 2 bolsas de hielo', monto: 15000, categoria: 'Insumos', creadoPor: 'David Sarria' },
+            { descripcion: 'Pago anticipo propina lavaplatos', monto: 10000, categoria: 'Personal', creadoPor: 'David Sarria' },
+          ]
+        }
+      }
+    });
+    console.log('✅ Initial Cash Shift seeded');
+  }
+
   console.log('🎉 Seeding completed successfully!');
 }
 

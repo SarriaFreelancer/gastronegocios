@@ -93,6 +93,8 @@ model Order {
   estado       String           @default("Pendiente") // Pendiente, En Preparación, Listo, Despachado, Entregado, Cancelado
   metodoPago   String           @default("Efectivo") // Efectivo, Nequi, Daviplata, Datáfono, Transferencia
   notasCliente String?          @db.Text // Comentarios del pedido ("sin cebolla, salsas aparte", etc.)
+  repartidor   String?          // Nombre del domiciliario asignado e.g. "Carlos Moto 1"
+  repartidorTel String?         // Teléfono del domiciliario
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   items        OrderItem[]
@@ -105,18 +107,67 @@ model Order {
 }
 
 model OrderItem {
-  id         Int      @id @default(autoincrement())
-  orderId    Int
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId  Int?
-  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  nombre     String
-  precio     Float
-  cantidad   Int      @default(1)
-  notas      String?  @db.Text
-  createdAt  DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  nombre      String
+  precio      Float
+  cantidad    Int      @default(1)
+  notas       String?  @db.Text
+  adicionales String?  @db.Text // JSON string: [{ id, nombre, precio }]
+  createdAt   DateTime @default(now())
 
   @@map("order_items")
+}
+
+model ProductAddon {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  precio    Float    @default(0)
+  categoria String   @default("Toppings") // Toppings, Salsas, Adiciones, Acompañamientos
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("product_addons")
+}
+
+model CashShift {
+  id             Int           @id @default(autoincrement())
+  cajero         String        @default("Admin")
+  fecha          DateTime      @default(now())
+  baseInicial    Float         @default(0)
+  ventasEfectivo Float         @default(0)
+  ventasTransfer Float         @default(0) // Nequi/Daviplata
+  ventasDatafono Float         @default(0) // Tarjetas
+  propinasTotal  Float         @default(0)
+  totalVentas    Float         @default(0)
+  totalEgresos   Float         @default(0)
+  efectivoReal   Float?
+  diferencia     Float?
+  notas          String?       @db.Text
+  estado         String        @default("Abierto") // Abierto, Cerrado
+  cerradoEn      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  egresos        CashExpense[]
+
+  @@map("cash_shifts")
+}
+
+model CashExpense {
+  id          Int       @id @default(autoincrement())
+  shiftId     Int
+  shift       CashShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  descripcion String
+  monto       Float
+  categoria   String    @default("Insumos") // Insumos, Domicilios, Personal, Varios
+  creadoPor   String?   @default("Admin")
+  createdAt   DateTime  @default(now())
+
+  @@map("cash_expenses")
 }
 
 model Review {

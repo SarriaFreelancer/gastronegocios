@@ -122,6 +122,8 @@ export async function POST(req: Request) {
       total = 0,
       metodoPago = 'Efectivo',
       notasCliente,
+      repartidor,
+      repartidorTel,
       items = [],
     } = body;
 
@@ -167,12 +169,15 @@ export async function POST(req: Request) {
         estado: 'Pendiente',
         metodoPago,
         notasCliente: notasCliente || null,
+        repartidor: repartidor || null,
+        repartidorTel: repartidorTel || null,
         items: {
           create: items.map((i: any) => ({
             nombre: i.nombre,
             precio: Number(i.precio),
             cantidad: Number(i.cantidad) || 1,
             notas: i.notas || null,
+            adicionales: i.adicionales ? (typeof i.adicionales === 'string' ? i.adicionales : JSON.stringify(i.adicionales)) : null,
           })),
         },
       },

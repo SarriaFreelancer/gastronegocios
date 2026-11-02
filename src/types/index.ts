@@ -47,10 +47,19 @@ export interface Category {
   };
 }
 
+export interface ProductAddon {
+  id: number;
+  nombre: string;
+  precio: number;
+  categoria: string;
+  activo: boolean;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
   notes?: string;
+  selectedAddons?: ProductAddon[];
 }
 
 export interface ComboItem {

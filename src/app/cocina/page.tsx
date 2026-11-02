@@ -18,16 +18,21 @@ import {
   AlertTriangle,
   ArrowRight,
   Shield,
-  Layers
+  Layers,
+  Printer,
+  MessageCircle,
+  Send
 } from 'lucide-react';
+import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 
 interface OrderItem {
   id: number;
   nombre: string;
   cantidad: number;
   precio: number;
-  subtotal: number;
+  subtotal?: number;
   notas?: string | null;
+  adicionales?: string | null;
 }
 
 interface Order {
@@ -38,9 +43,16 @@ interface Order {
   tipo: string;
   numeroMesa?: string | null;
   direccion?: string | null;
+  barrio?: string | null;
+  notasCliente?: string | null;
   notas?: string | null;
   estado: string;
+  subtotal: number;
+  propina?: number;
+  costoEnvio?: number;
   total: number;
+  metodoPago: string;
+  repartidor?: string | null;
   createdAt: string;
   items: OrderItem[];
 }
@@ -55,6 +67,38 @@ export default function CocinaKDSPage() {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [receiptType, setReceiptType] = useState<'comanda' | 'factura'>('comanda');
+
+  const openReceipt = (order: Order, type: 'comanda' | 'factura' = 'comanda') => {
+    setReceiptOrder(order);
+    setReceiptType(type);
+    setIsReceiptOpen(true);
+  };
+
+  const notifyCustomerWhatsApp = (order: Order) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005';
+    const cleanPhone = (order.telefono || '').replace(/\D/g, '');
+    const phone = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
+    const msg = `¡Hola ${order.cliente}! 🔥 Te escribimos de *PUNTO G*.\nTu pedido *#${order.codigo}* está actualmente en estado: *${order.estado.toUpperCase()}* 🍔✨\n\nPuedes ver el estado de preparación y despacho en vivo aquí:\n👉 ${origin}/pedido/${order.codigo}\n\n¡Muchas gracias por elegirnos!`;
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const dispatchToDeliveryWhatsApp = (order: Order) => {
+    const addressQuery = encodeURIComponent(`${order.direccion || ''}, Cali, Colombia`);
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${addressQuery}`;
+    const msg = `🛵 *PEDIDO PARA DOMICILIO - PUNTO G* 🛵\n\n` +
+      `📦 Orden: *#${order.codigo}*\n` +
+      `👤 Cliente: *${order.cliente}*\n` +
+      `📱 Teléfono: *${order.telefono}*\n` +
+      `📍 Dirección: *${order.direccion || 'No especificada'}* ${order.barrio ? `(${order.barrio})` : ''}\n` +
+      `💳 Método de Pago: *${order.metodoPago || 'Efectivo'}*\n` +
+      `💵 Total a Cobrar: *$${(order.total || 0).toLocaleString('es-CO')}*\n` +
+      `${order.notasCliente ? `⚠️ Nota: ${order.notasCliente}\n` : ''}\n` +
+      `🗺️ Enlace a Google Maps:\n${mapsUrl}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+  };
 
   const prevOrderCountRef = useRef<number>(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -475,40 +519,99 @@ export default function CocinaKDSPage() {
 
                   {/* Card Body: Items List (Very readable and large for kitchen) */}
                   <div className="p-4 flex-1 space-y-3.5 max-h-[360px] overflow-y-auto">
-                    {order.items.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-[#181818] p-3 rounded-xl border border-[#262626] flex flex-col gap-1.5"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <span className="w-7 h-7 rounded-lg bg-brand-yellow text-black font-black text-sm flex items-center justify-center flex-shrink-0 shadow-sm">
-                            {item.cantidad}x
-                          </span>
-                          <div className="flex-1">
-                            <h4 className="font-black text-white text-sm sm:text-base leading-tight uppercase">
-                              {item.nombre}
-                            </h4>
-                          </div>
-                        </div>
+                    {order.items.map((item, idx) => {
+                      let itemAddons: any[] = [];
+                      if (item.adicionales) {
+                        try {
+                          const parsed = JSON.parse(item.adicionales);
+                          if (Array.isArray(parsed)) itemAddons = parsed;
+                        } catch {}
+                      }
 
-                        {/* Special Customization Note */}
-                        {item.notas && (
-                          <div className="mt-1 px-2.5 py-1.5 rounded-lg bg-amber-950/70 border border-brand-yellow/50 text-brand-yellow text-xs font-bold flex items-start gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                            <span>{item.notas}</span>
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-[#181818] p-3 rounded-xl border border-[#262626] flex flex-col gap-1.5"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <span className="w-7 h-7 rounded-lg bg-brand-yellow text-black font-black text-sm flex items-center justify-center flex-shrink-0 shadow-sm">
+                              {item.cantidad}x
+                            </span>
+                            <div className="flex-1">
+                              <h4 className="font-black text-white text-sm sm:text-base leading-tight uppercase">
+                                {item.nombre}
+                              </h4>
+
+                              {/* Toppings / Addons */}
+                              {itemAddons.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {itemAddons.map((ad, aIdx) => (
+                                    <span
+                                      key={aIdx}
+                                      className="text-[10px] bg-brand-yellow/20 text-brand-yellow font-extrabold px-1.5 py-0.5 rounded border border-brand-yellow/40"
+                                    >
+                                      + {ad.nombre}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+
+                          {/* Special Customization Note */}
+                          {item.notas && (
+                            <div className="mt-1 px-2.5 py-1.5 rounded-lg bg-amber-950/70 border border-brand-yellow/50 text-brand-yellow text-xs font-bold flex items-start gap-1.5">
+                              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                              <span>{item.notas}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
 
                     {/* General Order Note */}
-                    {order.notas && (
+                    {(order.notasCliente || order.notas) && (
                       <div className="p-2.5 rounded-xl bg-[#201505] border border-amber-600/40 text-amber-300 text-xs font-semibold">
                         <span className="font-bold text-brand-yellow uppercase text-[10px] block mb-0.5">
                           Nota general del cliente:
                         </span>
-                        {order.notas}
+                        {order.notasCliente || order.notas}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Card Quick Action Tools: Imprimir Comanda & WhatsApp */}
+                  <div className="px-3 pt-2.5 pb-1 bg-[#141414] border-t border-[#222] flex items-center justify-between gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openReceipt(order, 'comanda')}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-[#202020] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white font-bold text-[11px] flex items-center justify-center gap-1 transition"
+                      title="Imprimir comanda térmica 58mm/80mm"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-brand-yellow" />
+                      <span>Comanda</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => notifyCustomerWhatsApp(order)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 font-bold text-[11px] border border-emerald-800/40 flex items-center justify-center gap-1 transition"
+                      title="Notificar cambio de estado al cliente por WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Avisar Cliente</span>
+                    </button>
+
+                    {order.tipo === 'domicilio' && (
+                      <button
+                        type="button"
+                        onClick={() => dispatchToDeliveryWhatsApp(order)}
+                        className="py-1.5 px-2 rounded-lg bg-blue-950/40 hover:bg-blue-900/50 text-blue-400 font-bold text-[11px] border border-blue-800/40 flex items-center justify-center gap-1 transition"
+                        title="Enviar detalles y Google Maps al repartidor"
+                      >
+                        <Bike className="w-3.5 h-3.5" />
+                        <span>Ruta</span>
+                      </button>
                     )}
                   </div>
 
@@ -612,6 +715,14 @@ export default function CocinaKDSPage() {
           </Link>
         </div>
       </footer>
+
+      {/* POS Thermal Receipt Modal for Kitchen Tickets */}
+      <ThermalReceiptModal
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
+        order={receiptOrder}
+        ticketType={receiptType}
+      />
 
     </div>
   );

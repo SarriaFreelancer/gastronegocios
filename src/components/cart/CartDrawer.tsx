@@ -196,61 +196,82 @@ export const CartDrawer: React.FC = () => {
               <>
                 {/* Product List */}
                 <div className="space-y-3">
-                  {items.map(({ product, quantity, notes }) => (
-                    <div
-                      key={product.id}
-                      className="bg-[#161616] border border-[#242424] rounded-xl p-3 flex gap-3 relative group"
-                    >
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-[#202020] flex-shrink-0">
-                        <Image
-                          src={product.imagen}
-                          alt={product.nombre}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
+                  {items.map((item, idx) => {
+                    const addonsCost = (item.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
+                    const itemUnitPrice = item.product.precio + addonsCost;
+                    const itemTotalPrice = itemUnitPrice * item.quantity;
 
-                      <div className="flex-1 min-w-0 pr-6">
-                        <h4 className="text-xs font-bold text-white truncate">
-                          {product.nombre}
-                        </h4>
-                        <p className="text-xs font-black text-brand-yellow mt-0.5">
-                          {formatPrice(product.precio * quantity)}
-                        </p>
-                        {notes && (
-                          <p className="text-[10px] text-gray-400 italic line-clamp-1 mt-0.5">
-                            Nota: {notes}
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-2 mt-2">
-                          <button
-                            onClick={() => updateQuantity(product.id, quantity - 1)}
-                            className="w-6 h-6 rounded bg-[#252525] hover:bg-[#303030] flex items-center justify-center text-gray-300 hover:text-white transition-colors"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="text-xs font-bold text-white w-4 text-center">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(product.id, quantity + 1)}
-                            className="w-6 h-6 rounded bg-[#252525] hover:bg-[#303030] flex items-center justify-center text-gray-300 hover:text-white transition-colors"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => removeFromCart(product.id)}
-                        className="absolute top-3 right-3 text-gray-500 hover:text-red-400 p-1 transition-colors"
-                        aria-label="Eliminar del pedido"
+                    return (
+                      <div
+                        key={idx}
+                        className="bg-[#161616] border border-[#242424] rounded-xl p-3 flex gap-3 relative group"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-[#202020] flex-shrink-0">
+                          <Image
+                            src={item.product.imagen}
+                            alt={item.product.nombre}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0 pr-6">
+                          <h4 className="text-xs font-bold text-white truncate">
+                            {item.product.nombre}
+                          </h4>
+                          <p className="text-xs font-black text-brand-yellow mt-0.5">
+                            {formatPrice(itemTotalPrice)}
+                          </p>
+
+                          {/* Toppings / Addons */}
+                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {item.selectedAddons.map((addon, aIdx) => (
+                                <span
+                                  key={aIdx}
+                                  className="text-[9px] bg-neutral-800 text-amber-300 px-1.5 py-0.5 rounded border border-neutral-700"
+                                >
+                                  +{addon.nombre}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {item.notes && (
+                            <p className="text-[10px] text-gray-400 italic line-clamp-1 mt-1">
+                              👉 {item.notes}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 mt-2">
+                            <button
+                              onClick={() => updateQuantity(idx, item.quantity - 1)}
+                              className="w-6 h-6 rounded bg-[#252525] hover:bg-[#303030] flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-xs font-bold text-white w-4 text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(idx, item.quantity + 1)}
+                              className="w-6 h-6 rounded bg-[#252525] hover:bg-[#303030] flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => removeFromCart(idx)}
+                          className="absolute top-3 right-3 text-gray-500 hover:text-red-400 p-1 transition-colors"
+                          aria-label="Eliminar del pedido"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Delivery & Ordering Mode */}

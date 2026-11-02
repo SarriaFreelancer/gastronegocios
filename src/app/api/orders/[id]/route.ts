@@ -39,11 +39,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { estado } = await req.json();
-
-    if (!estado) {
-      return NextResponse.json({ error: 'Estado requerido' }, { status: 400 });
-    }
+    const body = await req.json();
+    const { estado, repartidor, repartidorTel, metodoPago } = body;
 
     const isNum = !isNaN(Number(params.id));
     let orderToUpdateId: number;
@@ -56,9 +53,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       orderToUpdateId = found.id;
     }
 
+    const dataToUpdate: any = {};
+    if (estado !== undefined) dataToUpdate.estado = estado;
+    if (repartidor !== undefined) dataToUpdate.repartidor = repartidor;
+    if (repartidorTel !== undefined) dataToUpdate.repartidorTel = repartidorTel;
+    if (metodoPago !== undefined) dataToUpdate.metodoPago = metodoPago;
+
     const updated = await prisma.order.update({
       where: { id: orderToUpdateId },
-      data: { estado },
+      data: dataToUpdate,
       include: {
         items: true,
         mesa: true,
@@ -66,7 +69,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
 
     // If order is finished or cancelled and attached to a table, check if any other active orders exist on that table
-    if (['Entregado', 'Cancelado'].includes(estado) && updated.mesaId) {
+    if (estado && ['Entregado', 'Cancelado'].includes(estado) && updated.mesaId) {
       const activeCount = await prisma.order.count({
         where: {
           mesaId: updated.mesaId,
