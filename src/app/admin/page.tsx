@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/components/ui/Logo';
@@ -148,6 +148,7 @@ interface AdminUser {
   id: number | string;
   nombre: string;
   email: string;
+  password?: string;
   rol: string;
   estado: string;
   createdAt?: string;
@@ -196,6 +197,38 @@ export default function AdminPage() {
   const [filterEstado, setFilterEstado] = useState('todos');
   const [filterMesa, setFilterMesa] = useState('todas');
   const [searchOrder, setSearchOrder] = useState('');
+
+  // Orders Table View & Pagination
+  const [ordersViewMode, setOrdersViewMode] = useState<'tabla' | 'tarjetas'>('tabla');
+  const [ordersPage, setOrdersPage] = useState<number>(1);
+  const [ordersPerPage, setOrdersPerPage] = useState<number>(10);
+  const [showInventorySummary, setShowInventorySummary] = useState(false);
+
+  // Derived calculations for Orders & Inventory Sales
+  const productSalesSummary = useMemo(() => {
+    const map: Record<string, { nombre: string; cantidad: number; total: number }> = {};
+    orders.forEach((o) => {
+      (o.items || []).forEach((item) => {
+        const key = item.nombre;
+        if (!map[key]) {
+          map[key] = { nombre: item.nombre, cantidad: 0, total: 0 };
+        }
+        map[key].cantidad += item.cantidad;
+        map[key].total += item.precio * item.cantidad;
+      });
+    });
+    return Object.values(map).sort((a, b) => b.cantidad - a.cantidad);
+  }, [orders]);
+
+  const totalItemsSold = useMemo(() => {
+    return productSalesSummary.reduce((sum, p) => sum + p.cantidad, 0);
+  }, [productSalesSummary]);
+
+  const totalOrderPages = Math.ceil(orders.length / ordersPerPage) || 1;
+  const paginatedOrders = useMemo(() => {
+    const start = (ordersPage - 1) * ordersPerPage;
+    return orders.slice(start, start + ordersPerPage);
+  }, [orders, ordersPage, ordersPerPage]);
 
   // ==================== 2. MESAS STATE ====================
   const [tables, setTables] = useState<RestaurantTable[]>([]);
@@ -278,6 +311,8 @@ export default function AdminPage() {
     rol: 'Cajero',
     estado: 'Activo',
   });
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string | number, boolean>>({});
+  const [showUserModalPassword, setShowUserModalPassword] = useState(false);
 
   // ==================== 7. CONFIGURACIÓN STATE ====================
   const [config, setConfig] = useState({
@@ -906,6 +941,20 @@ export default function AdminPage() {
       rol: 'Cajero',
       estado: 'Activo',
     });
+    setShowUserModalPassword(false);
+    setIsUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (user: AdminUser) => {
+    setEditingUser(user);
+    setUserFormData({
+      nombre: user.nombre,
+      email: user.email,
+      password: user.password || '',
+      rol: user.rol,
+      estado: user.estado,
+    });
+    setShowUserModalPassword(false);
     setIsUserModalOpen(true);
   };
 
@@ -1515,32 +1564,349 @@ export default function AdminPage() {
                     className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
                   />
                 </div>
+              </div>
 
-                {/* Date Hasta */}
-                <div>
-                  <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
-                    Fecha Hasta
-                  </label>
-                  <input
-                    type="date"
-                    value={filterHasta}
-                    onChange={(e) => setFilterHasta(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                  />
+              {/* View Mode Toolbar & Total Inventory Button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#1e1e1e]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center bg-[#181818] border border-[#262626] rounded-xl p-1">
+                    <button
+                      type="button"
+                      onClick={() => setOrdersViewMode('tabla')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                        ordersViewMode === 'tabla'
+                          ? 'bg-brand-yellow text-black shadow-sm font-black'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Tabla Detallada & Inventario</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrdersViewMode('tarjetas')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                        ordersViewMode === 'tarjetas'
+                          ? 'bg-brand-yellow text-black shadow-sm font-black'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Tarjetas</span>
+                    </button>
+                  </div>
+
+                  {/* Toggle Inventory Sold Summary */}
+                  <button
+                    type="button"
+                    onClick={() => setShowInventorySummary(!showInventorySummary)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border ${
+                      showInventorySummary
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                        : 'bg-[#181818] text-gray-300 border-[#262626] hover:border-gray-600'
+                    }`}
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Inventario Vendido ({totalItemsSold} platos)</span>
+                  </button>
+                </div>
+
+                {/* Pagination Size Selector */}
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <span>Filas por página:</span>
+                  <select
+                    value={ordersPerPage}
+                    onChange={(e) => {
+                      setOrdersPerPage(Number(e.target.value));
+                      setOrdersPage(1);
+                    }}
+                    className="bg-[#181818] border border-[#262626] rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-brand-yellow"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
                 </div>
               </div>
+
+              {/* Expandable Inventory Summary Drawer */}
+              {showInventorySummary && (
+                <div className="bg-[#121212] border border-amber-500/30 rounded-2xl p-4 sm:p-5 space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black uppercase text-white tracking-wide">
+                        RESUMEN DE PRODUCTOS / INVENTARIO VENDIDO EN ESTE PERÍODO
+                      </h4>
+                      <p className="text-xs text-gray-400">
+                        Total de unidades despachadas ordenadas por mayor demanda.
+                      </p>
+                    </div>
+                    <span className="text-xs font-black text-brand-yellow font-display bg-brand-yellow/10 border border-brand-yellow/30 px-3 py-1 rounded-full">
+                      {totalItemsSold} unidades en total
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-2">
+                    {productSalesSummary.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-[#181818] border border-[#282828] rounded-xl p-3 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-md bg-brand-yellow text-black font-black text-xs flex items-center justify-center">
+                            #{idx + 1}
+                          </span>
+                          <span className="font-bold text-xs text-white truncate max-w-[150px]">
+                            {item.nombre}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-black text-brand-yellow font-display">
+                            {item.cantidad}x
+                          </span>
+                          <span className="text-[10px] text-gray-400 block font-mono">
+                            {formatPrice(item.total)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Orders List */}
+            {/* Orders Display */}
             {orders.length === 0 ? (
               <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center text-gray-500">
                 <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-40 text-brand-yellow" />
                 <p className="text-sm font-bold text-gray-300">No se encontraron pedidos con estos filtros</p>
                 <p className="text-xs text-gray-500 mt-1">Prueba seleccionando otro rango de fechas o modalidad.</p>
               </div>
+            ) : ordersViewMode === 'tabla' ? (
+              /* ================= TABULAR VIEW WITH PAGINATION & ITEM INVENTORY ================= */
+              <div className="space-y-4">
+                <div className="bg-[#121212] border border-[#242424] rounded-2xl overflow-hidden shadow-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#181818] text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-[#242424]">
+                        <tr>
+                          <th className="p-3.5"># Orden</th>
+                          <th className="p-3.5">Cliente</th>
+                          <th className="p-3.5">Modalidad</th>
+                          <th className="p-3.5 min-w-[280px]">Inventario / Productos del Pedido</th>
+                          <th className="p-3.5">Pago</th>
+                          <th className="p-3.5 text-right">Total</th>
+                          <th className="p-3.5">Estado</th>
+                          <th className="p-3.5 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1e1e1e]">
+                        {paginatedOrders.map((o) => {
+                          const totalItemsInOrder = o.items.reduce((s, i) => s + i.cantidad, 0);
+
+                          return (
+                            <tr key={o.id} className="hover:bg-[#161616] transition-colors">
+                              {/* Order Code & Date */}
+                              <td className="p-3.5 align-top font-mono">
+                                <span className="font-black text-brand-yellow text-sm block">
+                                  #{o.codigo}
+                                </span>
+                                <span className="text-[10px] text-gray-400 block mt-0.5">
+                                  {new Date(o.createdAt).toLocaleDateString('es-CO', { dateStyle: 'short' })}{' '}
+                                  {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </td>
+
+                              {/* Customer Info */}
+                              <td className="p-3.5 align-top">
+                                <span className="font-bold text-white block">{o.cliente}</span>
+                                <span className="text-[11px] text-gray-400 block">{o.telefono}</span>
+                                {o.repartidor && (
+                                  <span className="text-[10px] text-blue-400 font-bold block mt-1">
+                                    🛵 Rep: {o.repartidor}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Modality */}
+                              <td className="p-3.5 align-top">
+                                <span
+                                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full inline-block ${
+                                    o.tipo === 'mesa'
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                      : o.tipo === 'domicilio'
+                                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  }`}
+                                >
+                                  {o.tipo === 'mesa' ? `🍽️ ${o.numeroMesa || 'Mesa'}` : o.tipo === 'domicilio' ? '🛵 Domicilio' : '🏪 Recoger'}
+                                </span>
+                                {o.direccion && (
+                                  <p className="text-[10px] text-gray-400 max-w-[140px] truncate mt-1">
+                                    {o.direccion}
+                                  </p>
+                                )}
+                              </td>
+
+                              {/* Products Breakdown / Inventory Details */}
+                              <td className="p-3.5 align-top space-y-1">
+                                <div className="flex items-center gap-1.5 pb-1">
+                                  <span className="text-[10px] font-bold text-gray-500 uppercase">
+                                    Contenido ({totalItemsInOrder} {totalItemsInOrder === 1 ? 'ítem' : 'ítems'}):
+                                  </span>
+                                </div>
+
+                                <div className="space-y-1">
+                                  {o.items.map((item, idx) => {
+                                    let itemAddons: any[] = [];
+                                    if (item.adicionales) {
+                                      try {
+                                        const parsed = JSON.parse(item.adicionales);
+                                        if (Array.isArray(parsed)) itemAddons = parsed;
+                                      } catch {}
+                                    }
+
+                                    return (
+                                      <div key={idx} className="bg-[#181818] border border-[#262626] rounded-lg p-1.5 text-[11px]">
+                                        <div className="flex justify-between items-start">
+                                          <span>
+                                            <strong className="text-brand-yellow font-black">{item.cantidad}x</strong>{' '}
+                                            <span className="text-white font-semibold">{item.nombre}</span>
+                                          </span>
+                                          <span className="font-mono text-gray-300 text-[10px]">
+                                            {formatPrice(item.precio * item.cantidad)}
+                                          </span>
+                                        </div>
+
+                                        {/* Toppings in table */}
+                                        {itemAddons.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 mt-0.5 pl-3">
+                                            {itemAddons.map((ad, aIdx) => (
+                                              <span
+                                                key={aIdx}
+                                                className="text-[9px] bg-brand-yellow/15 text-brand-yellow font-bold px-1.5 rounded"
+                                              >
+                                                +{ad.nombre}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {item.notas && (
+                                          <p className="text-[9px] text-gray-400 italic pl-3 mt-0.5">
+                                            👉 {item.notas}
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {o.notasCliente && (
+                                  <p className="text-[10px] text-amber-300/90 italic pt-0.5">
+                                    💬 "{o.notasCliente}"
+                                  </p>
+                                )}
+                              </td>
+
+                              {/* Payment Method */}
+                              <td className="p-3.5 align-top">
+                                <span className="font-bold text-brand-yellow text-xs">{o.metodoPago}</span>
+                              </td>
+
+                              {/* Totals */}
+                              <td className="p-3.5 align-top text-right">
+                                <span className="font-black text-white text-sm font-display block">
+                                  {formatPrice(o.total)}
+                                </span>
+                                <span className="text-[9px] text-gray-500 block">
+                                  Sub: {formatPrice(o.subtotal)}
+                                </span>
+                                {o.propina > 0 && (
+                                  <span className="text-[9px] text-amber-400 block">
+                                    +Prop: {formatPrice(o.propina)}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Status Selector */}
+                              <td className="p-3.5 align-top">
+                                <select
+                                  value={o.estado}
+                                  onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                                  className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border focus:outline-none transition-colors ${
+                                    o.estado === 'Pendiente'
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                      : o.estado === 'En Preparación'
+                                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                                      : o.estado === 'Listo'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                      : o.estado === 'Despachado'
+                                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                                      : o.estado === 'Entregado'
+                                      ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                      : 'bg-red-500/20 text-red-300 border-red-500/40'
+                                  }`}
+                                >
+                                  <option value="Pendiente">🟡 Pendiente</option>
+                                  <option value="En Preparación">🔵 En Preparación</option>
+                                  <option value="Listo">🟢 Listo</option>
+                                  <option value="Despachado">🟣 En Camino</option>
+                                  <option value="Entregado">✅ Entregado</option>
+                                  <option value="Cancelado">❌ Cancelado</option>
+                                </select>
+                              </td>
+
+                              {/* Action Buttons */}
+                              <td className="p-3.5 align-top text-right space-x-1 whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => openReceipt(o, 'factura')}
+                                  className="p-1.5 rounded-lg bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#303030] transition"
+                                  title="Imprimir Ticket POS"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-brand-yellow" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openReceipt(o, 'comanda')}
+                                  className="p-1.5 rounded-lg bg-[#1c1c1c] hover:bg-[#282828] text-neutral-300 border border-[#303030] transition"
+                                  title="Imprimir Comanda de Cocina"
+                                >
+                                  <ChefHat className="w-3.5 h-3.5 text-amber-400" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => notifyCustomerWhatsApp(o)}
+                                  className="p-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800/40 transition"
+                                  title="Notificar cliente por WhatsApp"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </button>
+                                {o.tipo === 'domicilio' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => dispatchDeliveryWhatsApp(o)}
+                                    className="p-1.5 rounded-lg bg-blue-950/40 hover:bg-blue-900/50 text-blue-400 border border-blue-800/40 transition"
+                                    title="Enviar ruta a repartidor"
+                                  >
+                                    <Bike className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             ) : (
+              /* ================= CARD VIEW (PAGINATED) ================= */
               <div className="grid gap-4">
-                {orders.map((o) => (
+                {paginatedOrders.map((o) => (
                   <div
                     key={o.id}
                     className="bg-[#121212] border border-[#242424] hover:border-brand-yellow/40 rounded-2xl p-4 sm:p-5 space-y-3 transition-colors"
@@ -1759,6 +2125,52 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* ================= PAGINATION CONTROLS BAR ================= */}
+            {orders.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#111] border border-[#222] p-4 rounded-2xl text-xs">
+                <div className="text-gray-400 text-xs">
+                  Mostrando <strong className="text-white">{(ordersPage - 1) * ordersPerPage + 1}</strong> a{' '}
+                  <strong className="text-white">{Math.min(ordersPage * ordersPerPage, orders.length)}</strong> de{' '}
+                  <strong className="text-brand-yellow">{orders.length} pedidos</strong>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={ordersPage === 1}
+                    onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#262626] text-gray-300 hover:text-white disabled:opacity-40 disabled:hover:text-gray-300 font-bold text-xs transition"
+                  >
+                    ← Anterior
+                  </button>
+
+                  {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setOrdersPage(pageNum)}
+                      className={`w-7 h-7 rounded-lg text-xs font-bold transition ${
+                        ordersPage === pageNum
+                          ? 'bg-brand-yellow text-black font-black shadow-sm'
+                          : 'bg-[#181818] text-gray-400 hover:bg-[#222] hover:text-white'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    disabled={ordersPage === totalOrderPages}
+                    onClick={() => setOrdersPage((p) => Math.min(totalOrderPages, p + 1))}
+                    className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#262626] text-gray-300 hover:text-white disabled:opacity-40 disabled:hover:text-gray-300 font-bold text-xs transition"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -2869,48 +3281,85 @@ export default function AdminPage() {
                     <tr>
                       <th className="p-4">Nombre</th>
                       <th className="p-4">Email</th>
+                      <th className="p-4">Contraseña</th>
                       <th className="p-4">Rol</th>
                       <th className="p-4">Estado</th>
                       <th className="p-4 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e1e1e]">
-                    {userList.map((u) => (
-                      <tr key={u.id} className="hover:bg-[#161616] transition-colors">
-                        <td className="p-4 font-bold text-white flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-bold text-xs">
-                            {u.nombre.charAt(0)}
-                          </div>
-                          <span>{u.nombre}</span>
-                        </td>
-                        <td className="p-4 text-gray-400">{u.email}</td>
-                        <td className="p-4">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#1e1e1e] text-brand-yellow border border-[#2d2d2d]">
-                            {u.rol}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              u.estado === 'Activo'
-                                ? 'bg-emerald-500/20 text-emerald-300'
-                                : 'bg-red-500/20 text-red-300'
-                            }`}
-                          >
-                            {u.estado}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right space-x-2">
-                          <button
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                            title="Eliminar usuario"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {userList.map((u) => {
+                      const isPwdVisible = !!visiblePasswords[u.id];
+                      return (
+                        <tr key={u.id} className="hover:bg-[#161616] transition-colors">
+                          <td className="p-4 font-bold text-white flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-bold text-xs">
+                              {u.nombre.charAt(0)}
+                            </div>
+                            <span>{u.nombre}</span>
+                          </td>
+                          <td className="p-4 text-gray-400">{u.email}</td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`font-mono text-xs ${
+                                  isPwdVisible
+                                    ? 'text-brand-yellow font-extrabold bg-[#1a1a1a] px-2 py-0.5 rounded border border-brand-yellow/30'
+                                    : 'text-gray-500 tracking-widest'
+                                }`}
+                              >
+                                {isPwdVisible ? (u.password || 'admin123') : '••••••••'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVisiblePasswords((prev) => ({
+                                    ...prev,
+                                    [u.id]: !prev[u.id],
+                                  }))
+                                }
+                                className="p-1 rounded-lg bg-[#1c1c1c] hover:bg-[#252525] text-gray-400 hover:text-white transition"
+                                title={isPwdVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
+                              >
+                                {isPwdVisible ? <EyeOff className="w-3.5 h-3.5 text-brand-yellow" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#1e1e1e] text-brand-yellow border border-[#2d2d2d]">
+                              {u.rol}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                u.estado === 'Activo'
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : 'bg-red-500/20 text-red-300'
+                              }`}
+                            >
+                              {u.estado}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right space-x-1.5">
+                            <button
+                              onClick={() => handleOpenEditUser(u)}
+                              className="p-1.5 bg-[#1c1c1c] hover:bg-[#282828] text-gray-300 hover:text-brand-yellow rounded-lg transition-colors"
+                              title="Editar usuario"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              className="p-1.5 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-colors"
+                              title="Eliminar usuario"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -3568,7 +4017,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-black uppercase text-white font-display">
-              CREAR USUARIO / STAFF
+              {editingUser ? 'EDITAR USUARIO / STAFF' : 'CREAR USUARIO / STAFF'}
             </h3>
             <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
               <div>
@@ -3597,14 +4046,24 @@ export default function AdminPage() {
 
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Contraseña *</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={userFormData.password}
-                  onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
-                />
+                <div className="relative">
+                  <input
+                    type={showUserModalPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={userFormData.password}
+                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-4 pr-10 py-2.5 text-white text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUserModalPassword(!showUserModalPassword)}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-brand-yellow transition"
+                    title={showUserModalPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showUserModalPassword ? <EyeOff className="w-4 h-4 text-brand-yellow" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

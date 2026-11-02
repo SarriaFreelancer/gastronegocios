@@ -20,6 +20,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         id: true,
         nombre: true,
         email: true,
+        password: true,
         rol: true,
         estado: true,
         createdAt: true,
