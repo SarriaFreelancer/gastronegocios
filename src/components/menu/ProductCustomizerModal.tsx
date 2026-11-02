@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Product, ProductAddon } from '@/types';
 import { useCart } from '@/context/CartContext';
@@ -27,12 +28,29 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
   product,
 }) => {
   const { addToCart } = useCart();
+  const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<ProductAddon[]>([]);
   const [notes, setNotes] = useState('');
   const [addonsList, setAddonsList] = useState<ProductAddon[]>([]);
   const [loadingAddons, setLoadingAddons] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock body scroll on mobile when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   // Load available addons from API
   useEffect(() => {
@@ -59,7 +77,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
     }
   }, [isOpen, product]);
 
-  if (!isOpen || !product) return null;
+  if (!isOpen || !product || !mounted) return null;
 
   const toggleAddon = (addon: ProductAddon) => {
     setSelectedAddons((prev) => {
@@ -103,17 +121,16 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
     }, 900);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-[#121212] border border-[#2a2a2a] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition backdrop-blur-md"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
+  const modalContent = (
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-fadeIn"
+      style={{ touchAction: 'pan-y' }}
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg bg-[#121212] border border-[#2a2a2a] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+      >
         {/* Product Hero Banner */}
         <div className="relative w-full h-48 sm:h-56 bg-black flex-shrink-0">
           <Image
@@ -122,10 +139,29 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
             fill
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-black/50" />
 
-          <div className="absolute bottom-3 left-4 right-4">
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-brand-yellow text-black">
+          {/* Close button with large hit target, high z-index, touch & click support */}
+          <button
+            type="button"
+            aria-label="Cerrar personalización"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute top-3 right-3 z-50 w-11 h-11 flex items-center justify-center rounded-full bg-black/80 hover:bg-black active:scale-90 text-white shadow-xl border border-white/20 transition-all cursor-pointer pointer-events-auto"
+          >
+            <X className="w-5 h-5 stroke-[2.5]" />
+          </button>
+
+          <div className="absolute bottom-3 left-4 right-4 pointer-events-none">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-brand-yellow text-black pointer-events-auto">
               {product.categoria || 'PUNTO G'}
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-white uppercase drop-shadow-md mt-1">
@@ -287,4 +323,6 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

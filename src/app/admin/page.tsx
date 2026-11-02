@@ -57,7 +57,8 @@ import {
   Bike,
   Send,
   FolderTree,
-  GitFork
+  GitFork,
+  X
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
@@ -4352,11 +4353,36 @@ export default function AdminPage() {
       {/* MODAL: CREAR MESA                                        */}
       {/* ======================================================== */}
       {isTableModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              CREAR NUEVA MESA
-            </h3>
+        <div 
+          onClick={() => setIsTableModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                CREAR NUEVA MESA
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsTableModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsTableModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleSaveTable} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Nombre / Número de Mesa *</label>
@@ -4420,11 +4446,36 @@ export default function AdminPage() {
       {/* MODAL: CATEGORÍA                                         */}
       {/* ======================================================== */}
       {isCatModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              {editingCat ? 'EDITAR CATEGORÍA' : 'NUEVA CATEGORÍA'}
-            </h3>
+        <div 
+          onClick={() => setIsCatModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                {editingCat ? 'EDITAR CATEGORÍA' : 'NUEVA CATEGORÍA'}
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsCatModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsCatModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleSaveCategory} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Nombre *</label>
@@ -4530,13 +4581,38 @@ export default function AdminPage() {
       {/* MODAL: SUBCATEGORÍA DEDICADA                             */}
       {/* ======================================================== */}
       {isSubcatModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <FolderTree className="w-5 h-5 text-brand-yellow" />
-              <h3 className="text-lg font-black uppercase text-white font-display">
-                {editingSubcat ? 'EDITAR SUBCATEGORÍA' : 'NUEVA SUBCATEGORÍA'}
-              </h3>
+        <div 
+          onClick={() => setIsSubcatModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <div className="flex items-center gap-2">
+                <FolderTree className="w-5 h-5 text-brand-yellow" />
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  {editingSubcat ? 'EDITAR SUBCATEGORÍA' : 'NUEVA SUBCATEGORÍA'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsSubcatModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsSubcatModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
             </div>
 
             <p className="text-xs text-gray-400">
@@ -4672,11 +4748,36 @@ export default function AdminPage() {
       {/* MODAL: PRODUCTO                                          */}
       {/* ======================================================== */}
       {isProductModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              {editingProduct ? 'EDITAR PRODUCTO' : 'AGREGAR PRODUCTO'}
-            </h3>
+        <div 
+          onClick={() => setIsProductModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                {editingProduct ? 'EDITAR PRODUCTO' : 'AGREGAR PRODUCTO'}
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsProductModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsProductModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleSaveProduct} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Nombre *</label>
@@ -4821,11 +4922,36 @@ export default function AdminPage() {
       {/* MODAL: USUARIO                                           */}
       {/* ======================================================== */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              {editingUser ? 'EDITAR USUARIO / STAFF' : 'CREAR USUARIO / STAFF'}
-            </h3>
+        <div 
+          onClick={() => setIsUserModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                {editingUser ? 'EDITAR USUARIO / STAFF' : 'CREAR USUARIO / STAFF'}
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsUserModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsUserModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleSaveUser} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Nombre Completo *</label>
@@ -4926,11 +5052,36 @@ export default function AdminPage() {
       {/* MODAL: ABRIR TURNO DE CAJA                               */}
       {/* ======================================================== */}
       {isOpenShiftModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              ABRIR TURNO DE CAJA
-            </h3>
+        <div 
+          onClick={() => setIsOpenShiftModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                ABRIR TURNO DE CAJA
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsOpenShiftModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsOpenShiftModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleOpenShiftSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Nombre del Cajero *</label>
@@ -4993,11 +5144,36 @@ export default function AdminPage() {
       {/* MODAL: REGISTRAR EGRESO / GASTO MENOR                    */}
       {/* ======================================================== */}
       {isExpenseModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              REGISTRAR SALIDA / EGRESO DE CAJA
-            </h3>
+        <div 
+          onClick={() => setIsExpenseModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                REGISTRAR SALIDA / EGRESO DE CAJA
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsExpenseModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsExpenseModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleAddExpenseSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Motivo / Descripción *</label>
@@ -5062,11 +5238,36 @@ export default function AdminPage() {
       {/* MODAL: CIERRE Y CUADRE DE CAJA                           */}
       {/* ======================================================== */}
       {isCloseShiftModalOpen && activeShift && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              CIERRE DE TURNO Y CUADRE DE CAJA
-            </h3>
+        <div 
+          onClick={() => setIsCloseShiftModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                CIERRE DE TURNO Y CUADRE DE CAJA
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsCloseShiftModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsCloseShiftModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
 
             {/* Calculated expectations */}
             <div className="bg-[#1b1b1b] p-3.5 rounded-2xl border border-[#2a2a2a] space-y-1.5 text-xs">
@@ -5157,11 +5358,36 @@ export default function AdminPage() {
       {/* MODAL: CREAR / EDITAR ADICIONAL (TOPPING)                */}
       {/* ======================================================== */}
       {isAddonModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-black uppercase text-white font-display">
-              {editingAddon ? 'EDITAR ADICIONAL' : 'CREAR NUEVO ADICIONAL'}
-            </h3>
+        <div 
+          onClick={() => setIsAddonModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                {editingAddon ? 'EDITAR ADICIONAL' : 'CREAR NUEVO ADICIONAL'}
+              </h3>
+              <button
+                type="button"
+                aria-label="Cerrar modal"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsAddonModalOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsAddonModalOpen(false);
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] active:scale-90 transition border border-[#333] cursor-pointer"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
             <form onSubmit={handleSaveAddon} className="space-y-3 text-xs">
               <div>
                 <label className="block text-gray-300 font-bold uppercase mb-1">Nombre del Adicional *</label>
