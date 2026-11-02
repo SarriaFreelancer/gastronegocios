@@ -5,9 +5,20 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const soloPrincipales = searchParams.get('principales') === 'true';
+    const soloSubcategorias = searchParams.get('subcategorias') === 'true';
+    const parentIdParam = searchParams.get('parentId');
+
+    const where: any = {};
+    if (soloPrincipales) {
+      where.parentId = null;
+    } else if (soloSubcategorias) {
+      where.parentId = { not: null };
+    } else if (parentIdParam) {
+      where.parentId = Number(parentIdParam);
+    }
 
     const categories = await prisma.category.findMany({
-      where: soloPrincipales ? { parentId: null } : {},
+      where,
       include: {
         parent: {
           select: { id: true, nombre: true, slug: true },

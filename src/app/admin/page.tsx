@@ -51,7 +51,9 @@ import {
   FileText,
   MessageCircle,
   Bike,
-  Send
+  Send,
+  FolderTree,
+  GitFork
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
@@ -173,7 +175,7 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
+    'pedidos' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
   >('pedidos');
 
   // Loading States
@@ -218,6 +220,21 @@ export default function AdminPage() {
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [catFormData, setCatFormData] = useState({
+    nombre: '',
+    slug: '',
+    descripcion: '',
+    icono: 'Utensils',
+    imagen: '',
+    orden: 0,
+    activo: true,
+    parentId: '',
+  });
+
+  // ==================== 3.1 SUBCATEGORÍAS STATE ====================
+  const [filterSubcatParent, setFilterSubcatParent] = useState<string>('todas');
+  const [isSubcatModalOpen, setIsSubcatModalOpen] = useState(false);
+  const [editingSubcat, setEditingSubcat] = useState<Category | null>(null);
+  const [subcatFormData, setSubcatFormData] = useState({
     nombre: '',
     slug: '',
     descripcion: '',
@@ -698,6 +715,87 @@ export default function AdminPage() {
 
   const handleDeleteCategory = async (id: number | string) => {
     if (!confirm('¿Eliminar esta categoría? Los productos asociados podrían verse afectados.')) return;
+    try {
+      await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      fetchCategories();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ==================== SUBCATEGORÍAS ACTIONS ====================
+  const handleOpenNewSubcategory = (preselectedParentId?: string | number) => {
+    setEditingSubcat(null);
+    const mainCats = categoryList.filter((c) => !c.parentId);
+    const defaultParentId = preselectedParentId
+      ? String(preselectedParentId)
+      : filterSubcatParent !== 'todas'
+      ? filterSubcatParent
+      : (mainCats[0] ? String(mainCats[0].id) : '');
+
+    setSubcatFormData({
+      nombre: '',
+      slug: '',
+      descripcion: '',
+      icono: 'Utensils',
+      imagen: '',
+      orden: 0,
+      activo: true,
+      parentId: defaultParentId,
+    });
+    setIsSubcatModalOpen(true);
+  };
+
+  const handleOpenEditSubcategory = (subcat: Category) => {
+    setEditingSubcat(subcat);
+    setSubcatFormData({
+      nombre: subcat.nombre,
+      slug: subcat.slug,
+      descripcion: subcat.descripcion || '',
+      icono: subcat.icono || 'Utensils',
+      imagen: subcat.imagen || '',
+      orden: subcat.orden || 0,
+      activo: subcat.activo ?? true,
+      parentId: subcat.parentId ? String(subcat.parentId) : '',
+    });
+    setIsSubcatModalOpen(true);
+  };
+
+  const handleSaveSubcategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subcatFormData.parentId) {
+      alert('Debes seleccionar la Categoría Principal obligatoriamente');
+      return;
+    }
+    try {
+      const payload = {
+        ...subcatFormData,
+        parentId: Number(subcatFormData.parentId),
+        orden: Number(subcatFormData.orden) || 0,
+      };
+
+      if (editingSubcat) {
+        await fetch(`/api/categories/${editingSubcat.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      setIsSubcatModalOpen(false);
+      fetchCategories();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteSubcategory = async (id: number | string) => {
+    if (!confirm('¿Eliminar esta subcategoría?')) return;
     try {
       await fetch(`/api/categories/${id}`, { method: 'DELETE' });
       fetchCategories();
@@ -1202,7 +1300,8 @@ export default function AdminPage() {
             { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
             { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length },
             { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length },
-            { id: 'categorias', label: 'Categorías', icon: Layers, count: categoryList.length },
+            { id: 'categorias', label: 'Categorías Principales', icon: Layers, count: categoryList.filter(c => !c.parentId).length },
+            { id: 'subcategorias', label: 'Subcategorías', icon: FolderTree, count: categoryList.filter(c => !!c.parentId).length },
             { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length },
             { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length },
             { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
@@ -2159,101 +2258,338 @@ export default function AdminPage() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 3: CATEGORÍAS (CRUD COMPLETO)                        */}
+        {/* TAB 3: CATEGORÍAS PRINCIPALES                            */}
         {/* ======================================================== */}
         {activeTab === 'categorias' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black uppercase text-white font-display">
-                  GESTIÓN DE CATEGORÍAS DEL MENÚ
+                  CATEGORÍAS PRINCIPALES DEL MENÚ ({categoryList.filter((c) => !c.parentId).length})
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Crea, modifica o reordena las categorías principales de la tienda en MySQL.
+                  Las grandes secciones del menú (Comidas Rápidas, Bebidas, Platos Fuertes). Agrupa subcategorías dentro de ellas.
                 </p>
               </div>
 
-              <button
-                onClick={handleOpenNewCategory}
-                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nueva Categoría</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('subcategorias')}
+                  className="px-3.5 py-2.5 bg-[#1e1e1e] hover:bg-[#282828] text-brand-yellow border border-brand-yellow/30 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                >
+                  <FolderTree className="w-4 h-4" />
+                  <span>Ir a Subcategorías 👉</span>
+                </button>
+
+                <button
+                  onClick={handleOpenNewCategory}
+                  className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nueva Categoría Principal</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categoryList.map((cat) => {
-                const parentCat = cat.parentId ? categoryList.find(c => c.id === cat.parentId || c.slug === cat.parentId) : null;
-                const subCount = categoryList.filter(c => c.parentId === cat.id || c.parentId === cat.slug).length;
+              {categoryList
+                .filter((cat) => !cat.parentId)
+                .map((cat) => {
+                  const subcategoriesOfThis = categoryList.filter(
+                    (c) => c.parentId === cat.id || c.parentId === cat.slug
+                  );
 
-                return (
-                  <div
-                    key={cat.id}
-                    className={`bg-[#121212] border rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between ${
-                      !cat.parentId ? 'border-[#2d2d2d] hover:border-brand-yellow/60' : 'border-[#1f1f1f] hover:border-blue-500/50 bg-[#0e0e0e]'
-                    }`}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-gray-500 uppercase">
-                          Orden #{cat.orden}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {!cat.parentId ? (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
-                              ⭐ Principal ({subCount} sub)
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 truncate max-w-[150px]">
-                              ↳ {parentCat?.nombre || 'Subcategoría'}
-                            </span>
-                          )}
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              cat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
-                            }`}
-                          >
-                            {cat.activo ? 'Activa' : 'Inactiva'}
+                  return (
+                    <div
+                      key={cat.id}
+                      className="bg-[#121212] border border-[#2d2d2d] hover:border-brand-yellow/60 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between shadow-md"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-gray-500 uppercase">
+                            Orden #{cat.orden}
                           </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                              ⭐ Principal
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                cat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                              }`}
+                            >
+                              {cat.activo ? 'Activa' : 'Inactiva'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <h4 className="text-base font-black text-white uppercase font-display">
+                          {cat.nombre}
+                        </h4>
+                        <p className="text-xs text-gray-400 line-clamp-2">
+                          {cat.descripcion || 'Sin descripción'}
+                        </p>
+
+                        {/* Subcategories list pills */}
+                        <div className="pt-1 border-t border-[#1e1e1e] space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-400 font-bold uppercase text-[10px]">
+                              Subcategorías vinculadas ({subcategoriesOfThis.length}):
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenNewSubcategory(cat.id)}
+                              className="text-[10px] text-brand-yellow hover:underline font-bold"
+                            >
+                              + Añadir Sub
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1">
+                            {subcategoriesOfThis.length === 0 ? (
+                              <span className="text-[10px] text-gray-600 italic">Sin subcategorías aún</span>
+                            ) : (
+                              subcategoriesOfThis.map((sub) => (
+                                <span
+                                  key={sub.id}
+                                  className="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded border border-neutral-700"
+                                >
+                                  {sub.nombre}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-brand-yellow pt-1">
+                          <span>Slug: <code>/menu/{cat.slug}</code></span>
                         </div>
                       </div>
 
-                      <h4 className="text-base font-black text-white uppercase font-display">
-                        {cat.nombre}
-                      </h4>
-                      <p className="text-xs text-gray-400 line-clamp-2">
-                        {cat.descripcion || 'Sin descripción'}
-                      </p>
+                      <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilterSubcatParent(String(cat.id));
+                            setActiveTab('subcategorias');
+                          }}
+                          className="py-1.5 px-3 bg-[#1c1c1c] hover:bg-[#282828] text-brand-yellow font-bold text-[11px] rounded-lg transition border border-[#2a2a2a] flex items-center gap-1"
+                        >
+                          <FolderTree className="w-3.5 h-3.5" />
+                          <span>Ver Subcategorías</span>
+                        </button>
 
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-brand-yellow">
-                        <span>Slug: <code>/menu/{cat.slug}</code></span>
-                        {cat._count?.products !== undefined && (
-                          <span className="text-gray-400">• {cat._count.products} platos</span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditCategory(cat)}
+                            className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                            title="Editar Categoría Principal"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                  <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => handleOpenEditCategory(cat)}
-                      className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
             </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB 3.1: NUEVO MENÚ DE SUBCATEGORÍAS ASOCIADAS           */}
+        {/* ======================================================== */}
+        {activeTab === 'subcategorias' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#111] border border-[#222] p-5 rounded-2xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <FolderTree className="w-5 h-5 text-brand-yellow" />
+                  <h3 className="text-lg font-black uppercase text-white font-display">
+                    MÓDULO DE SUBCATEGORÍAS
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Crea subcategorías y organízalas vinculándolas directamente a su categoría principal (ej: Bebidas ➔ Gaseosas, Cócteles).
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('categorias')}
+                  className="px-3.5 py-2.5 bg-[#202020] hover:bg-[#2b2b2b] text-neutral-300 border border-[#333] rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                >
+                  <Layers className="w-4 h-4 text-brand-yellow" />
+                  <span>Categorías Principales</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenNewSubcategory()}
+                  className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear Nueva Subcategoría</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter by Parent Category */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#141414] border border-[#222] p-4 rounded-xl text-xs">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-brand-yellow" />
+                <span className="font-bold text-gray-300 uppercase">Filtrar por Categoría Principal:</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFilterSubcatParent('todas')}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                    filterSubcatParent === 'todas'
+                      ? 'bg-brand-yellow text-black shadow-sm font-black'
+                      : 'bg-[#202020] text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Todas ({categoryList.filter((c) => !!c.parentId).length})
+                </button>
+
+                {categoryList
+                  .filter((c) => !c.parentId)
+                  .map((mainCat) => {
+                    const count = categoryList.filter(
+                      (c) => c.parentId === mainCat.id || c.parentId === mainCat.slug
+                    ).length;
+
+                    return (
+                      <button
+                        key={mainCat.id}
+                        type="button"
+                        onClick={() => setFilterSubcatParent(String(mainCat.id))}
+                        className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                          filterSubcatParent === String(mainCat.id)
+                            ? 'bg-brand-yellow text-black shadow-sm font-black'
+                            : 'bg-[#202020] text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {mainCat.nombre} ({count})
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Subcategories Grid */}
+            {categoryList.filter(
+              (c) =>
+                !!c.parentId &&
+                (filterSubcatParent === 'todas' ||
+                  String(c.parentId) === filterSubcatParent ||
+                  c.parent?.slug === filterSubcatParent)
+            ).length === 0 ? (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-10 text-center space-y-3">
+                <FolderTree className="w-12 h-12 mx-auto text-gray-600" />
+                <h4 className="text-base font-bold text-white">No hay subcategorías en esta sección</h4>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  Crea una nueva subcategoría y asígnala a la categoría principal seleccionada para organizar tu menú.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenNewSubcategory()}
+                  className="px-4 py-2 bg-brand-yellow text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow"
+                >
+                  + Crear Subcategoría
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {categoryList
+                  .filter(
+                    (cat) =>
+                      !!cat.parentId &&
+                      (filterSubcatParent === 'todas' ||
+                        String(cat.parentId) === filterSubcatParent ||
+                        cat.parent?.slug === filterSubcatParent)
+                  )
+                  .map((subcat) => {
+                    const parentCat =
+                      categoryList.find(
+                        (c) => c.id === subcat.parentId || c.slug === subcat.parentId
+                      ) || subcat.parent;
+
+                    return (
+                      <div
+                        key={subcat.id}
+                        className="bg-[#121212] border border-[#262626] hover:border-brand-yellow/50 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between shadow-lg"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono text-gray-500 uppercase">
+                              Orden #{subcat.orden || 0}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                subcat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                              }`}
+                            >
+                              {subcat.activo ? '✓ Activa' : '✕ Inactiva'}
+                            </span>
+                          </div>
+
+                          {/* Parent Category Badge */}
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-yellow/15 border border-brand-yellow/40 text-brand-yellow text-xs font-black">
+                            <Layers className="w-3.5 h-3.5" />
+                            <span>Categoría Padre: {parentCat?.nombre || 'Principal'}</span>
+                          </div>
+
+                          <h4 className="text-base font-black text-white uppercase font-display">
+                            {subcat.nombre}
+                          </h4>
+
+                          <p className="text-xs text-gray-400 line-clamp-2">
+                            {subcat.descripcion || 'Sin descripción'}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-400 pt-1 border-t border-[#1e1e1e]">
+                            <span>Slug: <code className="text-brand-yellow">{subcat.slug}</code></span>
+                            {subcat._count?.subProducts !== undefined && (
+                              <span>• {subcat._count.subProducts} platos asociados</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditSubcategory(subcat)}
+                            className="p-2 bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                            title="Editar Subcategoría"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubcategory(subcat.id)}
+                            className="p-2 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                            title="Eliminar Subcategoría"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
 
@@ -2927,6 +3263,148 @@ export default function AdminPage() {
                   className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
                 >
                   Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: SUBCATEGORÍA DEDICADA                             */}
+      {/* ======================================================== */}
+      {isSubcatModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <FolderTree className="w-5 h-5 text-brand-yellow" />
+              <h3 className="text-lg font-black uppercase text-white font-display">
+                {editingSubcat ? 'EDITAR SUBCATEGORÍA' : 'NUEVA SUBCATEGORÍA'}
+              </h3>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Crea una subcategoría y vincúlala a su categoría principal correspondiente.
+            </p>
+
+            <form onSubmit={handleSaveSubcategory} className="space-y-3.5 text-xs">
+              {/* Parent Category Selector */}
+              <div>
+                <label className="block text-gray-200 font-extrabold uppercase mb-1">
+                  Categoría Principal Asociada *
+                </label>
+                <select
+                  required
+                  value={subcatFormData.parentId}
+                  onChange={(e) => setSubcatFormData({ ...subcatFormData, parentId: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-brand-yellow/50 rounded-xl px-4 py-2.5 text-brand-yellow font-bold text-xs focus:outline-none"
+                >
+                  <option value="">-- Selecciona una categoría principal --</option>
+                  {categoryList
+                    .filter((c) => !c.parentId)
+                    .map((mainCat) => (
+                      <option key={mainCat.id} value={mainCat.id}>
+                        ⭐ {mainCat.nombre}
+                      </option>
+                    ))}
+                </select>
+                <span className="text-[10px] text-gray-400 mt-1 block">
+                  Los productos de esta subcategoría pertenecerán a esta sección principal.
+                </span>
+              </div>
+
+              {/* Subcategory Name */}
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">
+                  Nombre de la Subcategoría *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Gaseosas, Cócteles, Jugos Naturales..."
+                  value={subcatFormData.nombre}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const autoSlug = val
+                      .toLowerCase()
+                      .trim()
+                      .replace(/[^a-z0-9]+/g, '-')
+                      .replace(/(^-|-$)+/g, '');
+                    setSubcatFormData({
+                      ...subcatFormData,
+                      nombre: val,
+                      slug: editingSubcat ? subcatFormData.slug : autoSlug,
+                    });
+                  }}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              {/* Slug */}
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">
+                  Slug (Identificador URL)
+                </label>
+                <input
+                  type="text"
+                  placeholder="gaseosas, cocteles..."
+                  value={subcatFormData.slug}
+                  onChange={(e) => setSubcatFormData({ ...subcatFormData, slug: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white font-mono text-xs"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">
+                  Descripción (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Descripción de la subcategoría..."
+                  value={subcatFormData.descripcion}
+                  onChange={(e) => setSubcatFormData({ ...subcatFormData, descripcion: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs resize-none"
+                />
+              </div>
+
+              {/* Order & Status */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Orden de Aparición</label>
+                  <input
+                    type="number"
+                    value={subcatFormData.orden}
+                    onChange={(e) => setSubcatFormData({ ...subcatFormData, orden: Number(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Estado</label>
+                  <select
+                    value={subcatFormData.activo ? 'true' : 'false'}
+                    onChange={(e) => setSubcatFormData({ ...subcatFormData, activo: e.target.value === 'true' })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                  >
+                    <option value="true">Activa</option>
+                    <option value="false">Inactiva</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSubcatModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl shadow-glow"
+                >
+                  Guardar Subcategoría
                 </button>
               </div>
             </form>
