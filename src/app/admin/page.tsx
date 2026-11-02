@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
 import { 
   ShoppingBag, 
@@ -170,6 +171,7 @@ const getTodayDateString = () => {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loginEmail, setLoginEmail] = useState('admin@puntog.com');
@@ -424,18 +426,21 @@ export default function AdminPage() {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // Check auth from localStorage
+  // Check auth from localStorage; redirect to /login if not authenticated
   useEffect(() => {
     try {
       const auth = localStorage.getItem(LOCAL_STORAGE_AUTH);
       if (auth) {
         setIsAuthenticated(true);
         setCurrentUser(JSON.parse(auth));
+      } else {
+        router.replace('/login');
       }
     } catch (e) {
       console.error(e);
+      router.replace('/login');
     }
-  }, []);
+  }, [router]);
 
   // Fetch initial data when authenticated
   useEffect(() => {
@@ -628,6 +633,7 @@ export default function AdminPage() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     localStorage.removeItem(LOCAL_STORAGE_AUTH);
+    router.push('/login');
   };
 
   // Quick Date Preset Filters
@@ -1283,95 +1289,41 @@ export default function AdminPage() {
 
   const formatPrice = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
 
-  // ==================== LOGIN VIEW ====================
+  // ==================== REDIRECT TO /login IF NOT AUTHENTICATED ====================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-[calc(100vh-5rem)] bg-[#080808] flex items-center justify-center pt-24 sm:pt-28 pb-12 px-4">
-        <div className="w-full max-w-[380px] bg-[#121212] border border-[#252525] rounded-2xl p-6 sm:p-7 shadow-2xl space-y-4 relative overflow-hidden">
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-[#121212] border border-[#242424] rounded-2xl p-8 text-center space-y-4 shadow-2xl relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-36 h-36 bg-brand-yellow/10 rounded-full blur-2xl pointer-events-none" />
 
-          <div className="text-center space-y-2">
-            <div className="flex justify-center mb-1">
-              <Logo size="sm" />
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[10px] font-bold uppercase tracking-wider">
-              <Lock className="w-3 h-3" />
-              <span>Acceso Administrativo MySQL</span>
-            </div>
-            <h1 className="text-xl font-black uppercase text-white font-display tracking-wide">
-              INICIAR SESIÓN
-            </h1>
-            <p className="text-[11px] text-gray-400">
-              Ingresa tus credenciales para administrar Punto G.
+          <div className="w-14 h-14 bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow rounded-2xl flex items-center justify-center mx-auto shadow-glow">
+            <Lock className="w-7 h-7" />
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-xl font-black uppercase text-white font-display tracking-wide">
+              ACCESO ADMINISTRATIVO PROTEGIDO
+            </h2>
+            <p className="text-xs text-gray-400">
+              Debes iniciar sesión con tus credenciales de Punto G para acceder a este panel. Redirigiendo a la ruta de inicio de sesión...
             </p>
           </div>
 
-          {loginError && (
-            <div className="bg-red-500/20 border border-red-500/40 text-red-400 text-xs p-2.5 rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{loginError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
-            <div>
-              <label className="block text-gray-300 font-bold uppercase text-[11px] mb-1">
-                Correo Electrónico
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  placeholder="admin@puntog.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-9 pr-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs transition-colors"
-                />
-                <Mail className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-gray-300 font-bold uppercase text-[11px] mb-1">
-                Contraseña
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl pl-9 pr-9 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow text-xs transition-colors"
-                />
-                <KeyRound className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-500 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-[#181818] border border-[#282828] p-2.5 rounded-xl text-[10px] text-gray-400">
-              <span className="font-bold text-brand-yellow block">Credenciales demo:</span>
-              <span>Usuario: <strong className="text-white">admin@puntog.com</strong> | Clave: <strong className="text-white">admin123</strong></span>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.01] active:scale-[0.99] mt-1"
+          <div className="pt-2 space-y-2">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.01] active:scale-[0.99]"
             >
-              INGRESAR AL PANEL
-            </button>
-          </form>
+              <Lock className="w-4 h-4" />
+              <span>INICIAR SESIÓN EN /login</span>
+            </Link>
 
-          <div className="text-center pt-1">
-            <Link href="/" className="text-[11px] text-gray-400 hover:text-brand-yellow transition-colors inline-flex items-center gap-1">
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 bg-[#181818] hover:bg-[#202020] border border-[#2b2b2b] text-gray-300 hover:text-white rounded-xl text-xs font-bold transition"
+            >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Regresar al restaurante</span>
+              <span>Regresar al Sitio Principal</span>
             </Link>
           </div>
         </div>

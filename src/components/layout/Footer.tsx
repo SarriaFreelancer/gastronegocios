@@ -4,13 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
-import { Clock, MapPin, MessageCircle, Shield, ChefHat } from 'lucide-react';
+import { Clock, MapPin, MessageCircle, Shield, ChefHat, Lock } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();
 
-  if (pathname.startsWith('/cocina')) {
+  if (pathname.startsWith('/cocina') || pathname.startsWith('/login')) {
     return null;
   }
   return (
@@ -133,6 +133,14 @@ export const Footer: React.FC = () => {
             >
               <Shield className="w-3.5 h-3.5" />
               <span>Panel Admin</span>
+            </Link>
+            <span className="text-gray-700">•</span>
+            <Link 
+              href="/login" 
+              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-brand-yellow transition-colors"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Login</span>
             </Link>
           </div>
         </div>
