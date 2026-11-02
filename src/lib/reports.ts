@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -95,55 +95,176 @@ export const exportSalesReportToExcel = ({
 
   const totalItemsSold = productSalesSummary.reduce((sum, p) => sum + p.cantidad, 0);
 
+  // Black border for tables and data cells
+  const blackBorder = {
+    top: { style: 'thin', color: { rgb: '000000' } },
+    bottom: { style: 'thin', color: { rgb: '000000' } },
+    left: { style: 'thin', color: { rgb: '000000' } },
+    right: { style: 'thin', color: { rgb: '000000' } },
+  };
+
+  // Header style with business yellow (FBBF24 / Punto G Brand Yellow) and black border
+  const headerYellowStyle = {
+    font: { bold: true, color: { rgb: '000000' }, sz: 11, name: 'Calibri' },
+    fill: { fgColor: { rgb: 'FBBF24' } },
+    border: blackBorder,
+    alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+  };
+
+  // Section title banner style with yellow accent and black border
+  const sectionTitleStyle = {
+    font: { bold: true, color: { rgb: '000000' }, sz: 11, name: 'Calibri' },
+    fill: { fgColor: { rgb: 'FCD34D' } },
+    border: blackBorder,
+    alignment: { vertical: 'center', horizontal: 'left' },
+  };
+
+  // Main restaurant header banner
+  const mainBannerStyle = {
+    font: { bold: true, color: { rgb: '000000' }, sz: 13, name: 'Calibri' },
+    fill: { fgColor: { rgb: 'F59E0B' } },
+    border: blackBorder,
+    alignment: { vertical: 'center', horizontal: 'center' },
+  };
+
+  // Metadata label style
+  const metaLabelStyle = {
+    font: { bold: true, color: { rgb: '000000' }, sz: 10, name: 'Calibri' },
+    fill: { fgColor: { rgb: 'FEF08A' } },
+    border: blackBorder,
+    alignment: { vertical: 'center', horizontal: 'left' },
+  };
+
+  // Metadata value style
+  const metaValueStyle = {
+    font: { color: { rgb: '111111' }, sz: 10, name: 'Calibri' },
+    fill: { fgColor: { rgb: 'FFFFFF' } },
+    border: blackBorder,
+    alignment: { vertical: 'center', horizontal: 'left' },
+  };
+
+  // Helper for table data cells with black borders
+  const dataCell = (value: any, align: 'left' | 'center' | 'right' = 'left', isAlt = false, isBold = false) => ({
+    v: value ?? '',
+    s: {
+      font: { bold: isBold, color: { rgb: '000000' }, sz: 10, name: 'Calibri' },
+      fill: { fgColor: { rgb: isAlt ? 'FFFBEB' : 'FFFFFF' } },
+      border: blackBorder,
+      alignment: { vertical: 'center', horizontal: align, wrapText: true },
+    },
+  });
+
+  const headerCell = (value: string) => ({
+    v: value,
+    s: headerYellowStyle,
+  });
+
+  const sectionCell = (value: string) => ({
+    v: value,
+    s: sectionTitleStyle,
+  });
+
   // ==========================================
   // SHEET 1: RESUMEN EJECUTIVO
   // ==========================================
   const summaryRows: any[][] = [
-    ['PUNTO G - RESTAURANTE & COMIDAS RÁPIDAS'],
-    ['INFORME DE VENTAS E INVENTARIO'],
-    ['Fecha de Generación:', `${dateFormatted} ${timeFormatted}`],
-    ['Generado Por:', userName],
-    ['Período Consultado:', `Del ${formatDate(filters.desde)} al ${formatDate(filters.hasta)}`],
+    // Banner principal con amarillo institucional
+    [{ v: 'PUNTO G - RESTAURANTE & COMIDAS RÁPIDAS', s: mainBannerStyle }],
+    [{ v: 'INFORME OFICIAL DE VENTAS E INVENTARIO', s: sectionTitleStyle }],
     [
-      'Filtros Aplicados:',
-      `Estado: ${filters.estado || 'Todos'} | Tipo: ${filters.tipo || 'Todos'} | Método Pago: ${filters.metodoPago || 'Todos'} | Mesa: ${filters.mesa || 'Todas'}`,
+      { v: 'Fecha de Generación:', s: metaLabelStyle },
+      { v: `${dateFormatted} ${timeFormatted}`, s: metaValueStyle },
+    ],
+    [
+      { v: 'Generado Por:', s: metaLabelStyle },
+      { v: userName, s: metaValueStyle },
+    ],
+    [
+      { v: 'Período Consultado:', s: metaLabelStyle },
+      { v: `Del ${formatDate(filters.desde)} al ${formatDate(filters.hasta)}`, s: metaValueStyle },
+    ],
+    [
+      { v: 'Filtros Aplicados:', s: metaLabelStyle },
+      {
+        v: `Estado: ${filters.estado || 'Todos'} | Tipo: ${filters.tipo || 'Todos'} | Método Pago: ${filters.metodoPago || 'Todos'} | Mesa: ${filters.mesa || 'Todas'}`,
+        s: metaValueStyle,
+      },
     ],
     [], // Blank line
-    ['INDICADORES CLAVE DE RENDIMIENTO (KPIs)'],
-    ['Métrica', 'Valor'],
-    ['Ventas Totales Facturadas', formatMoney(metrics.totalVentas)],
-    ['Total Propinas Recaudadas', formatMoney(metrics.totalPropinas)],
-    ['Total Pedidos Registrados', metrics.totalPedidos],
-    ['Ticket Promedio por Pedido', formatMoney(metrics.ticketPromedio)],
-    ['Total Platos / Ítems Despachados', totalItemsSold],
+
+    // TABLA 1: KPIs
+    [{ v: 'INDICADORES CLAVE DE RENDIMIENTO (KPIs)', s: sectionTitleStyle }],
+    [headerCell('Métrica'), headerCell('Valor')],
+    [dataCell('Ventas Totales Facturadas', 'left', false, true), dataCell(formatMoney(metrics.totalVentas), 'right', false, true)],
+    [dataCell('Total Propinas Recaudadas', 'left', true), dataCell(formatMoney(metrics.totalPropinas), 'right', true)],
+    [dataCell('Total Pedidos Registrados', 'left'), dataCell(metrics.totalPedidos, 'right')],
+    [dataCell('Ticket Promedio por Pedido', 'left', true), dataCell(formatMoney(metrics.ticketPromedio), 'right', true)],
+    [dataCell('Total Platos / Ítems Despachados', 'left'), dataCell(totalItemsSold, 'right')],
     [], // Blank line
-    ['DESGLOSE POR MÉTODO DE PAGO'],
-    ['Método de Pago', 'N° Pedidos', 'Monto Facturado', '% Participación'],
-    ...Object.entries(paymentBreakdown).map(([method, data]) => {
+
+    // TABLA 2: DESGLOSE POR MÉTODO DE PAGO
+    [{ v: 'DESGLOSE POR MÉTODO DE PAGO', s: sectionTitleStyle }],
+    [
+      headerCell('Método de Pago'),
+      headerCell('N° Pedidos'),
+      headerCell('Monto Facturado'),
+      headerCell('% Participación'),
+    ],
+    ...Object.entries(paymentBreakdown).map(([method, data], idx) => {
+      const isAlt = idx % 2 === 1;
       const pct = metrics.totalVentas > 0 ? ((data.total / metrics.totalVentas) * 100).toFixed(1) + '%' : '0%';
-      return [method, data.count, formatMoney(data.total), pct];
+      return [
+        dataCell(method, 'left', isAlt, true),
+        dataCell(data.count, 'center', isAlt),
+        dataCell(formatMoney(data.total), 'right', isAlt, true),
+        dataCell(pct, 'center', isAlt),
+      ];
     }),
     [], // Blank line
-    ['DESGLOSE POR TIPO DE SERVICIO / ENTREGA'],
-    ['Tipo de Servicio', 'N° Pedidos', 'Monto Facturado'],
-    ...Object.entries(typeBreakdown).map(([type, data]) => [
-      type,
-      data.count,
-      formatMoney(data.total),
-    ]),
+
+    // TABLA 3: DESGLOSE POR TIPO DE SERVICIO / ENTREGA
+    [{ v: 'DESGLOSE POR TIPO DE SERVICIO / ENTREGA', s: sectionTitleStyle }],
+    [
+      headerCell('Tipo de Servicio'),
+      headerCell('N° Pedidos'),
+      headerCell('Monto Facturado'),
+    ],
+    ...Object.entries(typeBreakdown).map(([type, data], idx) => {
+      const isAlt = idx % 2 === 1;
+      return [
+        dataCell(type, 'left', isAlt, true),
+        dataCell(data.count, 'center', isAlt),
+        dataCell(formatMoney(data.total), 'right', isAlt, true),
+      ];
+    }),
     [], // Blank line
-    ['TOP PLATOS / INVENTARIO VENDIDO EN EL PERÍODO'],
-    ['Ranking', 'Producto / Plato', 'Unidades Vendidas', 'Total Facturado ($)', 'Precio Promedio'],
+
+    // TABLA 4: TOP PLATOS / INVENTARIO VENDIDO
+    [{ v: 'TOP PLATOS / INVENTARIO VENDIDO EN EL PERÍODO', s: sectionTitleStyle }],
+    [
+      headerCell('Ranking'),
+      headerCell('Producto / Plato'),
+      headerCell('Unidades Vendidas'),
+      headerCell('Total Facturado ($)'),
+      headerCell('Precio Promedio'),
+    ],
     ...productSalesSummary.map((p, idx) => {
+      const isAlt = idx % 2 === 1;
       const avgPrice = p.cantidad > 0 ? Math.round(p.total / p.cantidad) : 0;
-      return [idx + 1, p.nombre, p.cantidad, formatMoney(p.total), formatMoney(avgPrice)];
+      return [
+        dataCell(`#${idx + 1}`, 'center', isAlt, true),
+        dataCell(p.nombre, 'left', isAlt, true),
+        dataCell(p.cantidad, 'center', isAlt),
+        dataCell(formatMoney(p.total), 'right', isAlt, true),
+        dataCell(formatMoney(avgPrice), 'right', isAlt),
+      ];
     }),
   ];
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
   // Set column widths for Sheet 1
   wsSummary['!cols'] = [
-    { wch: 35 },
+    { wch: 36 },
     { wch: 25 },
     { wch: 25 },
     { wch: 20 },
@@ -170,9 +291,10 @@ export const exportSalesReportToExcel = ({
     'Envío ($)',
     'Total ($)',
     'Notas del Cliente',
-  ];
+  ].map((h) => headerCell(h));
 
-  const orderRows = orders.map((o) => {
+  const orderRows = orders.map((o, idx) => {
+    const isAlt = idx % 2 === 1;
     const d = new Date(o.createdAt);
     const dateStr = d.toLocaleDateString('es-CO');
     const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
@@ -183,41 +305,41 @@ export const exportSalesReportToExcel = ({
       .join('; ');
 
     return [
-      o.codigo,
-      dateStr,
-      timeStr,
-      o.cliente,
-      o.telefono || 'N/A',
-      o.tipo === 'mesa' ? 'Mesa' : o.tipo === 'domicilio' ? 'Domicilio' : 'Retiro',
-      location,
-      o.estado,
-      o.metodoPago || 'Efectivo',
-      itemsSummary,
-      formatMoney(o.subtotal || 0),
-      formatMoney(o.propina || 0),
-      formatMoney(o.costoEnvio || 0),
-      formatMoney(o.total || 0),
-      o.notasCliente || '',
+      dataCell(o.codigo, 'center', isAlt, true),
+      dataCell(dateStr, 'center', isAlt),
+      dataCell(timeStr, 'center', isAlt),
+      dataCell(o.cliente, 'left', isAlt, true),
+      dataCell(o.telefono || 'N/A', 'center', isAlt),
+      dataCell(o.tipo === 'mesa' ? 'Mesa' : o.tipo === 'domicilio' ? 'Domicilio' : 'Retiro', 'center', isAlt),
+      dataCell(location, 'left', isAlt),
+      dataCell(o.estado, 'center', isAlt, true),
+      dataCell(o.metodoPago || 'Efectivo', 'center', isAlt),
+      dataCell(itemsSummary, 'left', isAlt),
+      dataCell(formatMoney(o.subtotal || 0), 'right', isAlt),
+      dataCell(formatMoney(o.propina || 0), 'right', isAlt),
+      dataCell(formatMoney(o.costoEnvio || 0), 'right', isAlt),
+      dataCell(formatMoney(o.total || 0), 'right', isAlt, true),
+      dataCell(o.notasCliente || '', 'left', isAlt),
     ];
   });
 
   const wsOrders = XLSX.utils.aoa_to_sheet([orderHeaders, ...orderRows]);
   wsOrders['!cols'] = [
-    { wch: 12 }, // Código
-    { wch: 12 }, // Fecha
+    { wch: 14 }, // Código
+    { wch: 13 }, // Fecha
     { wch: 10 }, // Hora
-    { wch: 22 }, // Cliente
+    { wch: 24 }, // Cliente
     { wch: 15 }, // Teléfono
-    { wch: 12 }, // Tipo
-    { wch: 25 }, // Mesa / Dirección
-    { wch: 15 }, // Estado
-    { wch: 15 }, // Método Pago
-    { wch: 45 }, // Productos
-    { wch: 15 }, // Subtotal
-    { wch: 12 }, // Propina
-    { wch: 12 }, // Envío
-    { wch: 16 }, // Total
-    { wch: 30 }, // Notas
+    { wch: 13 }, // Tipo
+    { wch: 28 }, // Mesa / Dirección
+    { wch: 16 }, // Estado
+    { wch: 16 }, // Método Pago
+    { wch: 48 }, // Productos
+    { wch: 16 }, // Subtotal
+    { wch: 14 }, // Propina
+    { wch: 14 }, // Envío
+    { wch: 18 }, // Total
+    { wch: 32 }, // Notas
   ];
   XLSX.utils.book_append_sheet(wb, wsOrders, 'Detalle de Pedidos');
 

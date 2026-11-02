@@ -310,28 +310,34 @@ export default function CocinaKDSPage() {
       )}
 
       {/* Top Bar for KDS */}
-      <header className="bg-[#101010] border-b border-[#222] px-3 sm:px-5 py-3 sticky top-0 z-30 shadow-md">
-        <div className="max-w-[1920px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <header className="bg-[#101010] border-b border-[#222] px-3 sm:px-5 py-2.5 sm:py-3 sticky top-0 z-30 shadow-md">
+        <div className="max-w-[1920px] mx-auto flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           
-          {/* Logo, Status & Mobile Tools */}
-          <div className="flex items-center justify-between w-full md:w-auto gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-brand-yellow text-black rounded-xl font-black shadow-glow flex items-center justify-center">
+          {/* Top Row: Logo, Status & Action Tools */}
+          <div className="flex items-center justify-between w-full xl:w-auto gap-3">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="p-1.5 sm:p-2 bg-brand-yellow text-black rounded-xl font-black shadow-glow flex items-center justify-center">
                 <ChefHat className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h1 className="text-base sm:text-xl font-black tracking-wider uppercase text-white flex items-center gap-2">
+                <h1 className="text-sm sm:text-lg md:text-xl font-black tracking-wider uppercase text-white flex items-center gap-1.5 sm:gap-2">
                   PUNTO G <span className="text-brand-yellow">KDS</span>
                 </h1>
-                <p className="text-[10px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
+                <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                   <span>SISTEMA DE COCINA EN VIVO</span>
                 </p>
               </div>
             </div>
 
-            {/* Mobile Action Tools */}
-            <div className="flex items-center gap-1.5 md:hidden">
+            {/* Action Tools & Clock (Available on phones, tablets & desktop) */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#181818] border border-[#2b2b2b] rounded-xl font-mono text-xs font-bold text-brand-yellow">
+                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                <span className="hidden sm:inline">{currentTime || '--:--:--'}</span>
+                <span className="sm:hidden">{currentTime ? currentTime.slice(0, 5) : '--:--'}</span>
+              </div>
+
               <button
                 onClick={() => {
                   if (!soundEnabled) enableSound();
@@ -340,36 +346,47 @@ export default function CocinaKDSPage() {
                 className={`p-2 rounded-xl border transition-colors ${
                   soundEnabled
                     ? 'bg-brand-yellow/10 border-brand-yellow text-brand-yellow'
-                    : 'bg-[#181818] border-[#2b2b2b] text-gray-400'
+                    : 'bg-[#181818] border-[#2b2b2b] text-gray-400 hover:text-white'
                 }`}
                 title={soundEnabled ? 'Silenciar campana' : 'Activar sonido'}
               >
                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
+
               <button
                 onClick={() => fetchOrders(false)}
                 className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow transition"
-                title="Refrescar"
+                title="Refrescar manualmente"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
+
+              <button
+                onClick={toggleFullscreen}
+                className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-white transition"
+                title="Pantalla Completa"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+
               <Link
                 href="/admin"
-                className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow"
-                title="Panel Admin"
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#181818] border border-[#2b2b2b] text-xs font-semibold text-gray-300 hover:text-brand-yellow transition inline-flex items-center gap-1.5"
+                title="Panel de Administración"
               >
                 <Shield className="w-4 h-4" />
+                <span className="hidden md:inline">Admin</span>
               </Link>
             </div>
           </div>
 
-          {/* Metrics summary pills (Scrollable on small devices) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full md:w-auto">
+          {/* Metrics summary pills (Scrollable on small devices, flexible on tablets) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 xl:pb-0 scrollbar-none w-full xl:w-auto">
             <button
               onClick={() => setFilterEstado('todos')}
               className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'todos'
-                  ? 'bg-white text-black shadow-md'
+                  ? 'bg-white text-black shadow-md font-black'
                   : 'bg-[#1a1a1a] text-gray-300 hover:bg-[#252525]'
               }`}
             >
@@ -381,7 +398,7 @@ export default function CocinaKDSPage() {
               onClick={() => setFilterEstado('Pendiente')}
               className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'Pendiente'
-                  ? 'bg-amber-500 text-black shadow-md'
+                  ? 'bg-amber-500 text-black shadow-md font-black'
                   : 'bg-amber-950/40 text-amber-400 border border-amber-900/50 hover:bg-amber-900/40'
               }`}
             >
@@ -392,7 +409,7 @@ export default function CocinaKDSPage() {
               onClick={() => setFilterEstado('En Preparación')}
               className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'En Preparación'
-                  ? 'bg-blue-500 text-white shadow-md'
+                  ? 'bg-blue-500 text-white shadow-md font-black'
                   : 'bg-blue-950/40 text-blue-400 border border-blue-900/50 hover:bg-blue-900/40'
               }`}
             >
@@ -404,7 +421,7 @@ export default function CocinaKDSPage() {
               onClick={() => setFilterEstado('Listo')}
               className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 filterEstado === 'Listo'
-                  ? 'bg-emerald-500 text-black shadow-md'
+                  ? 'bg-emerald-500 text-black shadow-md font-black'
                   : 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-900/40'
               }`}
             >
@@ -412,54 +429,6 @@ export default function CocinaKDSPage() {
               <span>Listos ({listosCount})</span>
             </button>
           </div>
-
-          {/* Desktop Action Tools & Clock */}
-          <div className="hidden md:flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#181818] border border-[#2b2b2b] rounded-xl font-mono text-xs font-bold text-brand-yellow">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              <span>{currentTime || '--:--:--'}</span>
-            </div>
-
-            <button
-              onClick={() => {
-                if (!soundEnabled) enableSound();
-                else setSoundEnabled(false);
-              }}
-              className={`p-2 rounded-xl border transition-colors ${
-                soundEnabled
-                  ? 'bg-brand-yellow/10 border-brand-yellow text-brand-yellow'
-                  : 'bg-[#181818] border-[#2b2b2b] text-gray-400 hover:text-white'
-              }`}
-              title={soundEnabled ? 'Silenciar campana' : 'Activar sonido'}
-            >
-              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </button>
-
-            <button
-              onClick={() => fetchOrders(false)}
-              className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-brand-yellow transition"
-              title="Refrescar manualmente"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={toggleFullscreen}
-              className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-white transition"
-              title="Pantalla Completa"
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181818] border border-[#2b2b2b] text-xs font-semibold text-gray-300 hover:text-brand-yellow transition"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </Link>
-          </div>
-
         </div>
       </header>
 
@@ -609,31 +578,31 @@ export default function CocinaKDSPage() {
                     <button
                       type="button"
                       onClick={() => openReceipt(order, 'comanda')}
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-[#202020] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white font-bold text-[11px] flex items-center justify-center gap-1 transition"
+                      className="flex-1 min-w-0 py-1.5 px-2 rounded-lg bg-[#202020] hover:bg-[#2c2c2c] text-neutral-300 hover:text-white font-bold text-[11px] flex items-center justify-center gap-1 transition"
                       title="Imprimir comanda térmica 58mm/80mm"
                     >
-                      <Printer className="w-3.5 h-3.5 text-brand-yellow" />
-                      <span>Comanda</span>
+                      <Printer className="w-3.5 h-3.5 text-brand-yellow flex-shrink-0" />
+                      <span className="truncate">Comanda</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => notifyCustomerWhatsApp(order)}
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 font-bold text-[11px] border border-emerald-800/40 flex items-center justify-center gap-1 transition"
+                      className="flex-1 min-w-0 py-1.5 px-2 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 font-bold text-[11px] border border-emerald-800/40 flex items-center justify-center gap-1 transition"
                       title="Notificar cambio de estado al cliente por WhatsApp"
                     >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>Avisar Cliente</span>
+                      <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">Avisar</span>
                     </button>
 
                     {order.tipo === 'domicilio' && (
                       <button
                         type="button"
                         onClick={() => dispatchToDeliveryWhatsApp(order)}
-                        className="py-1.5 px-2 rounded-lg bg-blue-950/40 hover:bg-blue-900/50 text-blue-400 font-bold text-[11px] border border-blue-800/40 flex items-center justify-center gap-1 transition"
+                        className="py-1.5 px-2.5 rounded-lg bg-blue-950/40 hover:bg-blue-900/50 text-blue-400 font-bold text-[11px] border border-blue-800/40 flex items-center justify-center gap-1 transition flex-shrink-0"
                         title="Enviar detalles y Google Maps al repartidor"
                       >
-                        <Bike className="w-3.5 h-3.5" />
+                        <Bike className="w-3.5 h-3.5 flex-shrink-0" />
                         <span>Ruta</span>
                       </button>
                     )}

@@ -1567,7 +1567,7 @@ export default function AdminPage() {
               </div>
 
               {/* Advanced Filter Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 text-xs">
                 {/* Search */}
                 <div>
                   <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
@@ -2454,7 +2454,7 @@ export default function AdminPage() {
               </div>
 
               {/* Form Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
                 {/* Fecha Desde */}
                 <div>
                   <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
@@ -2565,7 +2565,7 @@ export default function AdminPage() {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 space-y-1 shadow-lg">
                 <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <DollarSign className="w-3.5 h-3.5 text-brand-yellow" />
