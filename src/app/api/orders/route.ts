@@ -48,7 +48,7 @@ export async function GET(req: Request) {
     // Estado filter
     const soloCocina = searchParams.get('cocina') === 'true';
     if (soloCocina) {
-      where.estado = { in: ['Pendiente', 'En Preparación', 'Listo'] };
+      where.estado = { in: ['Pendiente', 'En Preparación', 'Listo', 'Despachado'] };
     } else if (estado && estado !== 'todos') {
       where.estado = estado;
     }

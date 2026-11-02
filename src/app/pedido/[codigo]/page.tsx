@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { 
   ClipboardCheck, 
   Flame, 
+  PackageCheck,
   Bike, 
   UtensilsCrossed, 
   ShoppingBag, 
@@ -53,7 +54,10 @@ interface OrderData {
 export default function OrderTrackingPage() {
   const params = useParams();
   const rawCode = params?.codigo as string;
-  const codigo = rawCode ? decodeURIComponent(rawCode).trim() : '';
+  // Clean leading '#' and trim
+  const codigo = rawCode
+    ? decodeURIComponent(rawCode).replace(/^#+/, '').trim()
+    : '';
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +73,7 @@ export default function OrderTrackingPage() {
     if (!codigo) return;
     try {
       if (isInitial) setLoading(true);
-      const res = await fetch(`/api/orders/${codigo}`);
+      const res = await fetch(`/api/orders/${encodeURIComponent(codigo)}`);
       if (!res.ok) {
         if (res.status === 404) {
           setError(`No encontramos ningún pedido registrado con el código #${codigo}.`);
@@ -111,22 +115,22 @@ export default function OrderTrackingPage() {
     }
   };
 
-  // Determine active step index (0 to 3)
+  // Determine active step index (0 to 4)
+  // Handles all possible status names seamlessly:
+  // 0: Pendiente / Recibido
+  // 1: En Preparación / Cocina / Fuego
+  // 2: Listo / Listo en Cocina / Listo para Entrega
+  // 3: Despachado / En Camino / En Ruta
+  // 4: Entregado / Completado / Finalizado
   const getStepIndex = (estado: string) => {
-    switch (estado) {
-      case 'Pendiente':
-        return 0;
-      case 'En Preparación':
-        return 1;
-      case 'Listo':
-        return 2;
-      case 'Entregado':
-        return 3;
-      case 'Cancelado':
-        return -1;
-      default:
-        return 0;
-    }
+    const norm = (estado || '').toLowerCase().trim();
+    if (norm.includes('cancelad')) return -1;
+    if (norm.includes('entregad') || norm.includes('completad') || norm.includes('finalizad')) return 4;
+    if (norm.includes('despachad') || norm.includes('camino') || norm.includes('ruta')) return 3;
+    if (norm === 'listo' || norm.includes('listo')) return 2;
+    if (norm.includes('prepara') || norm.includes('cocin') || norm.includes('fuego')) return 1;
+    if (norm.includes('pendient') || norm.includes('recibid')) return 0;
+    return 0;
   };
 
   const steps = [
@@ -146,13 +150,20 @@ export default function OrderTrackingPage() {
     },
     {
       id: 2,
-      title: 'Listo / En Camino',
-      subtitle: order?.tipo === 'domicilio' ? 'Domiciliario en ruta' : 'Saliendo a tu mesa',
+      title: 'Listo en Cocina',
+      subtitle: 'Empacado y listo para salir',
+      icon: PackageCheck,
+      color: 'indigo',
+    },
+    {
+      id: 3,
+      title: order?.tipo === 'domicilio' ? 'En Camino / Despachado' : 'Saliendo a tu Mesa',
+      subtitle: order?.tipo === 'domicilio' ? 'Domiciliario en ruta a tu dirección' : 'Mesero llevándolo a tu mesa',
       icon: order?.tipo === 'domicilio' ? Bike : UtensilsCrossed,
       color: 'purple',
     },
     {
-      id: 3,
+      id: 4,
       title: '¡Entregado!',
       subtitle: '¡A disfrutar tu Punto G!',
       icon: CheckCircle2,
@@ -206,7 +217,7 @@ export default function OrderTrackingPage() {
   }
 
   const currentStep = getStepIndex(order.estado);
-  const isCancelled = order.estado === 'Cancelado';
+  const isCancelled = order.estado.toLowerCase().includes('cancelad');
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8">
@@ -288,7 +299,7 @@ export default function OrderTrackingPage() {
             </div>
           </div>
 
-          {/* Stepper Timeline */}
+          {/* Stepper Timeline (5 Steps: 0 to 4) */}
           {isCancelled ? (
             <div className="my-8 p-6 rounded-2xl bg-red-950/40 border border-red-500/50 text-center space-y-2">
               <div className="w-12 h-12 rounded-full bg-red-900/60 text-red-400 flex items-center justify-center mx-auto">
@@ -314,8 +325,8 @@ export default function OrderTrackingPage() {
                   />
                 </div>
 
-                {/* Steps Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
+                {/* Steps Grid (5 Columns on Desktop) */}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-2 relative z-10">
                   {steps.map((step) => {
                     const isDone = currentStep >= step.id;
                     const isCurrent = currentStep === step.id;
@@ -324,13 +335,13 @@ export default function OrderTrackingPage() {
                     return (
                       <div
                         key={step.id}
-                        className={`flex md:flex-col items-center md:items-center gap-4 md:gap-3 transition-all ${
+                        className={`flex md:flex-col items-center md:items-center gap-3.5 md:gap-2 transition-all ${
                           isDone ? 'opacity-100' : 'opacity-40'
                         }`}
                       >
                         {/* Circle Indicator */}
                         <div
-                          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                          className={`w-11 h-11 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all ${
                             isCurrent
                               ? 'bg-brand-yellow text-black scale-110 shadow-glow font-black ring-4 ring-brand-yellow/30'
                               : isDone
@@ -338,13 +349,13 @@ export default function OrderTrackingPage() {
                               : 'bg-[#181818] border border-[#2e2e2e] text-gray-500'
                           }`}
                         >
-                          <StepIcon className="w-6 h-6" />
+                          <StepIcon className="w-5 h-5 md:w-6 md:h-6" />
                         </div>
 
                         {/* Step Text */}
                         <div className="text-left md:text-center">
                           <h4
-                            className={`text-sm font-black uppercase ${
+                            className={`text-xs md:text-xs font-black uppercase leading-tight ${
                               isCurrent
                                 ? 'text-brand-yellow'
                                 : isDone
@@ -354,7 +365,7 @@ export default function OrderTrackingPage() {
                           >
                             {step.title}
                           </h4>
-                          <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
+                          <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
                             {step.subtitle}
                           </p>
                         </div>
@@ -369,21 +380,24 @@ export default function OrderTrackingPage() {
                 <div className="p-2.5 rounded-xl bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 flex-shrink-0">
                   {currentStep === 0 && <ClipboardCheck className="w-5 h-5" />}
                   {currentStep === 1 && <Flame className="w-5 h-5 animate-bounce" />}
-                  {currentStep === 2 && <Bike className="w-5 h-5 animate-pulse" />}
-                  {currentStep === 3 && <Star className="w-5 h-5 text-brand-yellow fill-brand-yellow" />}
+                  {currentStep === 2 && <PackageCheck className="w-5 h-5 animate-pulse" />}
+                  {currentStep === 3 && <Bike className="w-5 h-5 animate-pulse" />}
+                  {currentStep === 4 && <Star className="w-5 h-5 text-brand-yellow fill-brand-yellow" />}
                 </div>
                 <div className="flex-1">
                   <h4 className="text-sm font-bold text-white">
                     {currentStep === 0 && '¡Orden en fila de cocina!'}
                     {currentStep === 1 && '¡En el fuego! Preparando tus platos'}
-                    {currentStep === 2 && '¡Platos listos y saliendo!'}
-                    {currentStep === 3 && '¡Tu pedido fue entregado!'}
+                    {currentStep === 2 && '¡Platos listos en cocina!'}
+                    {currentStep === 3 && (order.tipo === 'domicilio' ? '¡Tu comida va en camino con domiciliario!' : '¡Tu pedido va saliendo a tu mesa!')}
+                    {currentStep === 4 && '¡Tu pedido fue entregado!'}
                   </h4>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {currentStep === 0 && 'Tu pedido fue recibido en cocina. En breve comenzará su cocción artesanal.'}
                     {currentStep === 1 && 'Nuestros parrilleros están preparando tus hamburguesas y acompañamientos con los mejores ingredientes.'}
-                    {currentStep === 2 && (order.tipo === 'domicilio' ? 'Tu comida va caliente en camino hacia tu dirección con nuestro domiciliario.' : 'Tu comida está saliendo a tu mesa en el restaurante.')}
-                    {currentStep === 3 && '¡Esperamos que lo disfrutes al máximo! No olvides dejarnos tu calificación.'}
+                    {currentStep === 2 && 'Tu pedido está recién empacado y verificado, esperando salida de despacho.'}
+                    {currentStep === 3 && (order.tipo === 'domicilio' ? 'Tu comida va caliente en camino hacia tu dirección con nuestro domiciliario.' : order.tipo === 'mesa' ? `El mesero lleva tu pedido caliente a la Mesa ${order.numeroMesa || ''}.` : 'Tu orden está lista para entrega en mostrador.')}
+                    {currentStep === 4 && '¡Esperamos que lo disfrutes al máximo! No olvides dejarnos tu calificación.'}
                   </p>
                 </div>
               </div>
@@ -392,7 +406,7 @@ export default function OrderTrackingPage() {
           )}
 
           {/* Calificar CTA if Entregado */}
-          {order.estado === 'Entregado' && (
+          {currentStep === 4 && (
             <div className="mt-4 p-5 rounded-2xl bg-gradient-to-r from-brand-yellow/20 via-[#181818] to-transparent border border-brand-yellow/40 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-brand-yellow text-black rounded-xl font-bold shadow-glow">

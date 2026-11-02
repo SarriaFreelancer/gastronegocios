@@ -48,7 +48,7 @@ interface Order {
 export default function CocinaKDSPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterEstado, setFilterEstado] = useState<'todos' | 'Pendiente' | 'En Preparación' | 'Listo'>('todos');
+  const [filterEstado, setFilterEstado] = useState<'todos' | 'Pendiente' | 'En Preparación' | 'Listo' | 'Despachado'>('todos');
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -539,15 +539,36 @@ export default function CocinaKDSPage() {
                       </button>
                     )}
 
-                    {/* State: Listo -> Despachado / Entregado */}
+                    {/* State: Listo -> Despachado / En Camino */}
                     {order.estado === 'Listo' && (
+                      <div className="space-y-1.5">
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'Despachado')}
+                          disabled={isUpdating}
+                          className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                        >
+                          <Bike className="w-4 h-4" />
+                          <span>{isUpdating ? 'Actualizando...' : order.tipo === 'domicilio' ? 'Despachar (En Camino 🛵)' : 'Saliendo a Mesa 🍽️'}</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'Entregado')}
+                          disabled={isUpdating}
+                          className="w-full py-2 px-3 rounded-lg bg-[#222] hover:bg-emerald-600/80 text-gray-300 hover:text-white font-bold text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                        >
+                          Directo a Entregado ✅
+                        </button>
+                      </div>
+                    )}
+
+                    {/* State: Despachado -> Entregado */}
+                    {order.estado === 'Despachado' && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'Entregado')}
                         disabled={isUpdating}
                         className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 disabled:opacity-50"
                       >
-                        <ArrowRight className="w-5 h-5" />
-                        <span>{isUpdating ? 'Actualizando...' : 'Despachar / Entregado 🚀'}</span>
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>{isUpdating ? 'Actualizando...' : '¡Marcar como Entregado! ✅'}</span>
                       </button>
                     )}
 

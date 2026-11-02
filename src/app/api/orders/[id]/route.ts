@@ -3,12 +3,22 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    const isNum = !isNaN(Number(params.id));
+    const rawId = decodeURIComponent(params.id || '').trim();
+    const cleanId = rawId.replace(/^#+/, '').trim();
+    const isNum = !isNaN(Number(cleanId));
+    const normalizedPg = cleanId.startsWith('PG-')
+      ? cleanId
+      : cleanId.startsWith('PG')
+      ? `PG-${cleanId.slice(2)}`
+      : `PG-${cleanId}`;
+
     const order = await prisma.order.findFirst({
       where: {
         OR: [
-          ...(isNum ? [{ id: Number(params.id) }] : []),
-          { codigo: params.id },
+          ...(isNum ? [{ id: Number(cleanId) }] : []),
+          { codigo: rawId },
+          { codigo: cleanId },
+          { codigo: normalizedPg },
         ],
       },
       include: {
