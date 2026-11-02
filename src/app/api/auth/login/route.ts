@@ -12,8 +12,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
+    const input = email.trim().toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: input },
+          { email: input.includes('@') ? input : `${input}@puntog.com` },
+        ],
+      },
     });
 
     if (!user || user.password !== password) {

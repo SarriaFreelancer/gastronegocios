@@ -27,7 +27,14 @@ async function main() {
   // 2. Seed Users
   const users = [
     {
-      nombre: 'David Sarria',
+      nombre: 'Super Administrador',
+      email: 'superadmin@puntog.com',
+      password: 'admin123',
+      rol: 'Superadmin',
+      estado: 'Activo',
+    },
+    {
+      nombre: 'Administrador',
       email: 'admin@puntog.com',
       password: 'admin123',
       rol: 'Administrador',
@@ -41,9 +48,9 @@ async function main() {
       estado: 'Activo',
     },
     {
-      nombre: 'María Rodríguez',
-      email: 'maria.cocina@puntog.com',
-      password: 'admin123',
+      nombre: 'Chef Cocina',
+      email: 'cocina@puntog.com',
+      password: 'cocina123',
       rol: 'Cocinero',
       estado: 'Activo',
     },

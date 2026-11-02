@@ -5007,6 +5007,7 @@ export default function AdminPage() {
                     onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value })}
                     className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
                   >
+                    <option value="Superadmin">Superadmin</option>
                     <option value="Administrador">Administrador</option>
                     <option value="Cajero">Cajero</option>
                     <option value="Cocinero">Cocinero</option>

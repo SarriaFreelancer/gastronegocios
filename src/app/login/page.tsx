@@ -23,7 +23,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/admin';
 
-  const [email, setEmail] = useState('admin@puntog.com');
+  const [email, setEmail] = useState('superadmin@puntog.com');
   const [password, setPassword] = useState('admin123');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -278,20 +278,30 @@ function LoginForm() {
             <div className="bg-[#161616] border border-[#242424] rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                  Acceso de Prueba Rápido (1 Clic):
+                  Acceso Rápido (1 Clic):
                 </span>
                 <span className="text-[10px] text-brand-yellow font-bold">Auto-completar</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('superadmin@puntog.com');
+                    setPassword('admin123');
+                  }}
+                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
+                >
+                  <span>👑 Superadmin</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setEmail('admin@puntog.com');
                     setPassword('admin123');
                   }}
-                  className="py-1.5 px-2.5 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
                 >
-                  <span>⚡ Super Admin</span>
+                  <span>🛡️ Admin</span>
                 </button>
                 <button
                   type="button"
@@ -299,9 +309,9 @@ function LoginForm() {
                     setEmail('cocina@puntog.com');
                     setPassword('cocina123');
                   }}
-                  className="py-1.5 px-2.5 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
                 >
-                  <span>👨‍🍳 Chef / Cocina</span>
+                  <span>👨‍🍳 Cocina</span>
                 </button>
               </div>
             </div>

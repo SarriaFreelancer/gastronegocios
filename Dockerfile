@@ -39,6 +39,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/standalone/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 # Copy Prisma CLI and binaries for automated migrations on startup
@@ -50,5 +51,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Automatically run pending database migrations, then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# Automatically run pending database migrations and seed default users, then start the server
+CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/seed-default-users.js && node server.js"]
