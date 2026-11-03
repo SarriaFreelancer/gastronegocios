@@ -10,7 +10,7 @@ import { restaurantInfo } from '@/data/restaurant-info';
 export const Footer: React.FC = () => {
   const pathname = usePathname();
 
-  if (pathname.startsWith('/cocina') || pathname.startsWith('/login')) {
+  if (pathname.startsWith('/cocina') || pathname.startsWith('/login') || pathname.startsWith('/pedidos-listos')) {
     return null;
   }
   return (
@@ -125,6 +125,13 @@ export const Footer: React.FC = () => {
             >
               <ChefHat className="w-3.5 h-3.5" />
               <span>Pantalla Cocina (KDS)</span>
+            </Link>
+            <span className="text-gray-700">•</span>
+            <Link 
+              href="/pedidos-listos" 
+              className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+            >
+              <span>Turnero Listos 🔔</span>
             </Link>
             <span className="text-gray-700">•</span>
             <Link 

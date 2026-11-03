@@ -51,5 +51,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Automatically run pending database migrations and seed default users, then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/seed-default-users.js && node server.js"]
+# Automatically run pending database migrations and seed full database, then start the server
+CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/seed-db.js && node server.js"]

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { categories } from '@/data/categories';
-import { products } from '@/data/products';
+import { categories as initialCategories } from '@/data/categories';
+import { products as initialProducts } from '@/data/products';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
@@ -11,22 +11,45 @@ import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { Search, Sparkles, Filter } from 'lucide-react';
 
 export default function MenuGeneralPage() {
+  const [allCategories, setAllCategories] = useState<any[]>(initialCategories);
+  const [allProducts, setAllProducts] = useState<any[]>(initialProducts);
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Fetch from database API
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAllCategories(data);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/products')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAllProducts(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Main categories (parentId == null)
-  const mainCategories = useMemo(() => categories.filter((c) => !c.parentId), []);
+  const mainCategories = useMemo(() => allCategories.filter((c) => !c.parentId), [allCategories]);
 
   // Subcategories of currently selected category
   const activeSubcategories = useMemo(() => {
     if (selectedCategory === 'todos') return [];
-    const currentMain = categories.find((c) => c.slug === selectedCategory);
+    const currentMain = allCategories.find((c) => c.slug === selectedCategory);
     if (!currentMain) return [];
-    return categories.filter(
+    return allCategories.filter(
       (c) => c.parentId === currentMain.id || c.parentId === currentMain.slug
     );
-  }, [selectedCategory]);
+  }, [selectedCategory, allCategories]);
 
   const handleSelectCategory = (catSlug: string, subSlug?: string) => {
     setSelectedCategory(catSlug);
@@ -34,7 +57,7 @@ export default function MenuGeneralPage() {
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return allProducts.filter((p) => {
       let matchesCategory = true;
 
       if (selectedCategory !== 'todos') {
@@ -54,24 +77,24 @@ export default function MenuGeneralPage() {
         p.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.descripcion.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.ingredientes &&
-          p.ingredientes.some((i) =>
+          p.ingredientes.some((i: string) =>
             i.toLowerCase().includes(searchQuery.toLowerCase())
           ));
 
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, selectedSubcategory, searchQuery]);
+  }, [allProducts, selectedCategory, selectedSubcategory, searchQuery]);
 
   // Current category metadata
   const currentCategoryObj = useMemo(() => {
     if (selectedSubcategory) {
-      return categories.find((c) => c.slug === selectedSubcategory);
+      return allCategories.find((c) => c.slug === selectedSubcategory);
     }
     if (selectedCategory !== 'todos') {
-      return categories.find((c) => c.slug === selectedCategory);
+      return allCategories.find((c) => c.slug === selectedCategory);
     }
     return null;
-  }, [selectedCategory, selectedSubcategory]);
+  }, [allCategories, selectedCategory, selectedSubcategory]);
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16">
@@ -119,7 +142,7 @@ export default function MenuGeneralPage() {
                   : 'bg-[#1a1a1a] text-gray-300 hover:bg-[#252525] hover:text-white'
               }`}
             >
-              <span>Todos los Platos ({products.length})</span>
+              <span>Todos los Platos ({allProducts.length})</span>
             </button>
 
             {mainCategories.map((cat) => (

@@ -47,7 +47,97 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
   const formatCOP = (num: number) => '$' + (num || 0).toLocaleString('es-CO');
 
   const handlePrint = () => {
-    window.print();
+    const printArea = document.getElementById('thermal-receipt-print-area');
+    if (!printArea) {
+      window.print();
+      return;
+    }
+
+    // Create an isolated hidden iframe for crisp, reliable POS printing
+    const existingIframe = document.getElementById('receipt-print-iframe');
+    if (existingIframe) existingIframe.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'receipt-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.zIndex = '-9999';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${isComanda ? 'Comanda' : 'Ticket'} - ${order.codigo}</title>
+          <meta charset="utf-8" />
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            @media print {
+              html, body {
+                width: 80mm !important;
+                margin: 0 !important;
+                padding: 4px 6px !important;
+                background: #fff !important;
+                color: #000 !important;
+              }
+            }
+            body {
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 11px;
+              line-height: 1.35;
+              color: #000;
+              background: #fff;
+              width: 74mm;
+              margin: 0 auto;
+              padding: 6px;
+              box-sizing: border-box;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .font-black { font-weight: 900; }
+            .uppercase { text-transform: uppercase; }
+            .border-dashed { border-top: 1px dashed #000; margin: 6px 0; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .items-center { align-items: center; }
+            .badge { background: #000; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+            table { width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 11px; }
+            th, td { text-align: left; padding: 2px 0; vertical-align: top; }
+            th.right, td.right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          ${printArea.innerHTML}
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Iframe print error, falling back to window.print', e);
+        window.print();
+      }
+    }, 250);
   };
 
   const parseAddons = (raw: string | null | undefined) => {
@@ -99,7 +189,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
 
         {/* Printable Ticket Content (monochrome, high-contrast monospace) */}
         <div className="overflow-y-auto p-4 bg-white text-black font-mono text-xs leading-relaxed print:p-0 print:m-0 print:w-[80mm] print:overflow-visible">
-          <div className="receipt-paper max-w-[320px] mx-auto">
+          <div id="thermal-receipt-print-area" className="receipt-paper max-w-[320px] mx-auto">
             {/* Header */}
             <div className="text-center mb-2">
               <h1 className="text-base font-extrabold tracking-wider uppercase">PUNTO G</h1>

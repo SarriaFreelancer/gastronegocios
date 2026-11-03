@@ -23,21 +23,21 @@ export const HeroSection: React.FC = () => {
           {/* Left Hero Typography & Actions */}
           <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
             <div className="space-y-1">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight font-display drop-shadow-md">
-                EL ANTOJO
-              </h1>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight font-display drop-shadow-md">
-                TIENE UN SOLO
-              </h2>
-              
               {/* Giant PUNTO G with brush stroke styling */}
-              <div className="relative inline-block my-2">
+              <div className="relative inline-block mb-1 sm:mb-2">
                 <span className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black italic tracking-tighter text-brand-yellow font-display drop-shadow-[0_8px_30px_rgba(255,201,40,0.55)]">
                   PUNTO&nbsp;G
                 </span>
                 {/* Yellow swash underline */}
                 <div className="w-full h-3 sm:h-4 bg-brand-yellow rounded-full -mt-2 sm:-mt-4 opacity-95 transform -rotate-1 shadow-glow" />
               </div>
+
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight font-display drop-shadow-md">
+                TU MÁXIMO
+              </h1>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-brand-yellow uppercase tracking-tight font-display drop-shadow-md">
+                PLACER
+              </h2>
             </div>
 
             <p className="text-base sm:text-lg text-gray-200 max-w-lg mx-auto lg:mx-0 font-medium leading-relaxed">

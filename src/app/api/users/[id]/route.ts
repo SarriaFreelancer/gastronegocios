@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { nombre, email, password, rol, estado } = await req.json();
+    const { nombre, email, password, rol, estado, branchId } = await req.json();
 
     const data: any = {
       nombre,
@@ -12,6 +12,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       estado,
     };
     if (password) data.password = password;
+    if (branchId !== undefined) {
+      data.branchId = branchId ? Number(branchId) : null;
+    }
 
     const updated = await prisma.user.update({
       where: { id: Number(params.id) },
@@ -23,6 +26,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         password: true,
         rol: true,
         estado: true,
+        branchId: true,
+        branch: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true,
+          },
+        },
         createdAt: true,
       },
     });

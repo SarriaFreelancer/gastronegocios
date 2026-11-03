@@ -11,8 +11,14 @@ export async function GET(req: Request) {
     const mesaId = searchParams.get('mesaId');
     const metodoPago = searchParams.get('metodoPago');
     const search = searchParams.get('search');
+    const branchId = searchParams.get('branchId');
 
     const where: any = {};
+
+    // Branch / Sede filter
+    if (branchId && branchId !== 'todas' && branchId !== 'all') {
+      where.branchId = Number(branchId);
+    }
 
     // Date range filter
     if (desde || hasta) {
@@ -86,6 +92,9 @@ export async function GET(req: Request) {
         mesa: {
           select: { id: true, numero: true, ubicacion: true },
         },
+        branch: {
+          select: { id: true, nombre: true, slug: true },
+        },
       },
       orderBy: { createdAt: soloCocina ? 'asc' : 'desc' },
     });
@@ -130,6 +139,8 @@ export async function POST(req: Request) {
       notasCliente,
       repartidor,
       repartidorTel,
+      branchId,
+      sedeNombre,
       items = [],
     } = body;
 
@@ -177,6 +188,8 @@ export async function POST(req: Request) {
         notasCliente: notasCliente || null,
         repartidor: repartidor || null,
         repartidorTel: repartidorTel || null,
+        branchId: branchId ? Number(branchId) : null,
+        sedeNombre: sedeNombre || null,
         items: {
           create: items.map((i: any) => ({
             nombre: i.nombre,

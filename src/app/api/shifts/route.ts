@@ -5,19 +5,26 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const isCurrent = searchParams.get('current') === 'true';
+    const branchId = searchParams.get('branchId');
+
+    const branchFilter: any = {};
+    if (branchId && branchId !== 'all') {
+      branchFilter.branchId = Number(branchId);
+    }
 
     if (isCurrent) {
       // Find currently active open shift
       let shift = await prisma.cashShift.findFirst({
-        where: { estado: 'Abierto' },
-        include: { egresos: { orderBy: { createdAt: 'desc' } } },
+        where: { estado: 'Abierto', ...branchFilter },
+        include: { egresos: { orderBy: { createdAt: 'desc' } }, branch: true },
         orderBy: { createdAt: 'desc' },
       });
 
       if (!shift) {
         // Return latest closed shift if none open
         shift = await prisma.cashShift.findFirst({
-          include: { egresos: { orderBy: { createdAt: 'desc' } } },
+          where: branchFilter,
+          include: { egresos: { orderBy: { createdAt: 'desc' } }, branch: true },
           orderBy: { createdAt: 'desc' },
         });
       }
@@ -28,11 +35,16 @@ export async function GET(req: Request) {
 
       // If open, calculate real-time stats from orders since shift opening
       if (shift.estado === 'Abierto') {
+        const orderWhere: any = {
+          createdAt: { gte: shift.createdAt },
+          estado: { not: 'Cancelado' },
+        };
+        if (shift.branchId) {
+          orderWhere.branchId = shift.branchId;
+        }
+
         const orders = await prisma.order.findMany({
-          where: {
-            createdAt: { gte: shift.createdAt },
-            estado: { not: 'Cancelado' },
-          },
+          where: orderWhere,
         });
 
         let efectivo = 0;
@@ -75,8 +87,10 @@ export async function GET(req: Request) {
 
     // Return list of all shifts
     const shifts = await prisma.cashShift.findMany({
+      where: branchFilter,
       include: {
         egresos: true,
+        branch: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 30,
@@ -92,16 +106,21 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cajero = 'Admin', baseInicial = 0, notas = '' } = body;
+    const { cajero = 'Admin', baseInicial = 0, notas = '', branchId } = body;
 
-    // Check if an open shift already exists
+    // Check if an open shift already exists for this branch (or globally)
+    const openShiftWhere: any = { estado: 'Abierto' };
+    if (branchId && branchId !== 'all') {
+      openShiftWhere.branchId = Number(branchId);
+    }
+
     const openShift = await prisma.cashShift.findFirst({
-      where: { estado: 'Abierto' },
+      where: openShiftWhere,
     });
 
     if (openShift) {
       return NextResponse.json(
-        { error: 'Ya existe un turno de caja abierto. Ciérralo antes de abrir uno nuevo.' },
+        { error: 'Ya existe un turno de caja abierto para esta sede. Ciérralo antes de abrir uno nuevo.' },
         { status: 400 }
       );
     }
@@ -112,8 +131,9 @@ export async function POST(req: Request) {
         baseInicial: Number(baseInicial) || 0,
         estado: 'Abierto',
         notas,
+        branchId: branchId && branchId !== 'all' ? Number(branchId) : null,
       },
-      include: { egresos: true },
+      include: { egresos: true, branch: true },
     });
 
     return NextResponse.json(newShift, { status: 201 });

@@ -12,12 +12,32 @@ model User {
   nombre    String
   email     String   @unique
   password  String   @default("admin123")
-  rol       String   @default("Cajero") // Administrador, Supervisor, Cajero, Cocinero, Mesero
+  rol       String   @default("Cajero") // Superadmin, Administrador, Supervisor, Cajero, Cocinero, Mesero
   estado    String   @default("Activo") // Activo, Inactivo
+  branchId  Int?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+model Branch {
+  id        Int               @id @default(autoincrement())
+  nombre    String            // e.g. "Sede Granada (Principal)", "Sede Ciudad Jardín"
+  slug      String            @unique // e.g. "granada", "ciudad-jardin"
+  direccion String?           @db.Text
+  telefono  String?
+  ciudad    String            @default("Cali")
+  activo    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  users     User[]
+  orders    Order[]
+  tables    RestaurantTable[]
+  shifts    CashShift[]
+
+  @@map("branches")
 }
 
 model Category {
@@ -68,6 +88,8 @@ model RestaurantTable {
   estado      String   @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
   ubicacion   String?  // Salon Principal, Terraza, Barra, VIP
   notas       String?  @db.Text
+  branchId    Int?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   orders      Order[]
@@ -95,6 +117,9 @@ model Order {
   notasCliente String?          @db.Text // Comentarios del pedido ("sin cebolla, salsas aparte", etc.)
   repartidor   String?          // Nombre del domiciliario asignado e.g. "Carlos Moto 1"
   repartidorTel String?         // Teléfono del domiciliario
+  branchId     Int?
+  branch       Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  sedeNombre   String?          // Snapshot nombre sede e.g. "Sede Granada"
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   items        OrderItem[]
@@ -103,6 +128,7 @@ model Order {
   @@index([createdAt])
   @@index([tipo])
   @@index([estado])
+  @@index([branchId])
   @@map("orders")
 }
 
@@ -150,6 +176,8 @@ model CashShift {
   notas          String?       @db.Text
   estado         String        @default("Abierto") // Abierto, Cerrado
   cerradoEn      DateTime?
+  branchId       Int?
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   egresos        CashExpense[]

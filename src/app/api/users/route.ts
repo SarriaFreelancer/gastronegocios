@@ -11,6 +11,14 @@ export async function GET() {
         password: true,
         rol: true,
         estado: true,
+        branchId: true,
+        branch: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true,
+          },
+        },
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -23,7 +31,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { nombre, email, password, rol, estado } = await req.json();
+    const { nombre, email, password, rol, estado, branchId } = await req.json();
 
     if (!nombre || !email || !password) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
@@ -44,6 +52,7 @@ export async function POST(req: Request) {
         password,
         rol: rol || 'Cajero',
         estado: estado || 'Activo',
+        branchId: branchId ? Number(branchId) : null,
       },
       select: {
         id: true,
@@ -52,6 +61,14 @@ export async function POST(req: Request) {
         password: true,
         rol: true,
         estado: true,
+        branchId: true,
+        branch: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true,
+          },
+        },
         createdAt: true,
       },
     });

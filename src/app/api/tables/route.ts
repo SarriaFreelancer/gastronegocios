@@ -2,10 +2,26 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateTableQRCode } from '@/lib/qrcode';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const branchId = searchParams.get('branchId');
+
+    const where: any = {};
+    if (branchId && branchId !== 'all') {
+      where.branchId = Number(branchId);
+    }
+
     const tables = await prisma.restaurantTable.findMany({
+      where,
       include: {
+        branch: {
+          select: {
+            id: true,
+            nombre: true,
+            slug: true,
+          },
+        },
         orders: {
           where: {
             estado: {
@@ -30,7 +46,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { numero, capacidad, ubicacion, notas } = await req.json();
+    const { numero, capacidad, ubicacion, notas, branchId } = await req.json();
 
     if (!numero) {
       return NextResponse.json({ error: 'El número de mesa es obligatorio' }, { status: 400 });
@@ -51,6 +67,10 @@ export async function POST(req: Request) {
         ubicacion: ubicacion || 'Salón Principal',
         notas: notas || null,
         estado: 'Libre',
+        branchId: branchId ? Number(branchId) : null,
+      },
+      include: {
+        branch: true,
       },
     });
 

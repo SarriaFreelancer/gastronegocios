@@ -68,3 +68,26 @@ body {
 .animate-spin-slow {
   animation: spinSlow 12s linear infinite;
 }
+
+/* POS Thermal Receipt Print Styles */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body > *:not(#receipt-print-iframe) {
+    display: none !important;
+  }
+
+  #thermal-receipt-print-area {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 6px !important;
+  }
+}

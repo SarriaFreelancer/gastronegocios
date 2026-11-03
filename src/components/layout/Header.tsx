@@ -13,7 +13,7 @@ export const Header: React.FC = () => {
   const { totalItems, setIsCartOpen } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  if (pathname.startsWith('/cocina') || pathname.startsWith('/login')) {
+  if (pathname.startsWith('/cocina') || pathname.startsWith('/login') || pathname.startsWith('/pedidos-listos')) {
     return null;
   }
 

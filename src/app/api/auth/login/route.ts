@@ -20,6 +20,9 @@ export async function POST(req: Request) {
           { email: input.includes('@') ? input : `${input}@puntog.com` },
         ],
       },
+      include: {
+        branch: true,
+      },
     });
 
     if (!user || user.password !== password) {

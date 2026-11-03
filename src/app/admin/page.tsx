@@ -58,6 +58,8 @@ import {
   Send,
   FolderTree,
   GitFork,
+  Building2,
+  BellRing,
   X
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
@@ -92,6 +94,8 @@ interface Order {
   notasCliente?: string | null;
   repartidor?: string | null;
   repartidorTel?: string | null;
+  branchId?: number | null;
+  sedeNombre?: string | null;
   createdAt: string;
   items: OrderItem[];
 }
@@ -103,6 +107,8 @@ interface RestaurantTable {
   estado: 'Libre' | 'Ocupada' | 'Cuenta_Pedida' | 'Reservada';
   ubicacion?: string | null;
   notas?: string | null;
+  branchId?: number | null;
+  branch?: { id: number; nombre: string; slug: string } | null;
   orders?: Order[];
 }
 
@@ -150,6 +156,16 @@ interface Review {
   createdAt: string;
 }
 
+interface Branch {
+  id: number;
+  nombre: string;
+  slug: string;
+  direccion?: string | null;
+  telefono?: string | null;
+  ciudad: string;
+  activo: boolean;
+}
+
 interface AdminUser {
   id: number | string;
   nombre: string;
@@ -157,6 +173,8 @@ interface AdminUser {
   password?: string;
   rol: string;
   estado: string;
+  branchId?: number | null;
+  branch?: { id: number; nombre: string; slug: string } | null;
   createdAt?: string;
 }
 
@@ -188,6 +206,10 @@ export default function AdminPage() {
 
   // Loading States
   const [isLoading, setIsLoading] = useState(false);
+
+  // ==================== 0. MULTI-SEDE STATE ====================
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
 
   // ==================== 1. PEDIDOS STATE & FILTERS ====================
   const [orders, setOrders] = useState<Order[]>([]);
@@ -350,12 +372,20 @@ export default function AdminPage() {
   const [userList, setUserList] = useState<AdminUser[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [userFormData, setUserFormData] = useState({
+  const [userFormData, setUserFormData] = useState<{
+    nombre: string;
+    email: string;
+    password: string;
+    rol: string;
+    estado: string;
+    branchId: number | null;
+  }>({
     nombre: '',
     email: '',
     password: '',
     rol: 'Cajero',
     estado: 'Activo',
+    branchId: null,
   });
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string | number, boolean>>({});
   const [showUserModalPassword, setShowUserModalPassword] = useState(false);
@@ -432,8 +462,12 @@ export default function AdminPage() {
     try {
       const auth = localStorage.getItem(LOCAL_STORAGE_AUTH);
       if (auth) {
+        const userObj = JSON.parse(auth);
         setIsAuthenticated(true);
-        setCurrentUser(JSON.parse(auth));
+        setCurrentUser(userObj);
+        if (userObj.branchId) {
+          setSelectedBranchId(String(userObj.branchId));
+        }
       } else {
         router.replace('/login');
       }
@@ -453,6 +487,7 @@ export default function AdminPage() {
   const loadAllData = async () => {
     setIsLoading(true);
     await Promise.all([
+      fetchBranches(),
       fetchOrders(),
       fetchTables(),
       fetchCategories(),
@@ -467,9 +502,25 @@ export default function AdminPage() {
     setIsLoading(false);
   };
 
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch('/api/branches');
+      if (res.ok) {
+        const data = await res.json();
+        setBranches(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchCurrentShift = async () => {
     try {
-      const res = await fetch('/api/shifts?current=true');
+      let url = '/api/shifts?current=true';
+      if (selectedBranchId && selectedBranchId !== 'all') {
+        url += `&branchId=${selectedBranchId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setActiveShift(data.shift);
@@ -481,7 +532,11 @@ export default function AdminPage() {
 
   const fetchShiftHistory = async () => {
     try {
-      const res = await fetch('/api/shifts');
+      let url = '/api/shifts';
+      if (selectedBranchId && selectedBranchId !== 'all') {
+        url += `?branchId=${selectedBranchId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setShiftHistory(Array.isArray(data) ? data : []);
@@ -503,6 +558,16 @@ export default function AdminPage() {
     }
   };
 
+  // Re-fetch orders, tables, and shifts whenever selected branch changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchOrders();
+      fetchTables();
+      fetchCurrentShift();
+      fetchShiftHistory();
+    }
+  }, [selectedBranchId]);
+
   // ==================== API FETCHERS ====================
   const fetchOrders = async () => {
     try {
@@ -514,6 +579,9 @@ export default function AdminPage() {
       if (filterMetodoPago !== 'todos') params.append('metodoPago', filterMetodoPago);
       if (filterMesa !== 'todas') params.append('mesaId', filterMesa);
       if (searchOrder) params.append('search', searchOrder);
+      if (selectedBranchId && selectedBranchId !== 'all') {
+        params.append('branchId', selectedBranchId);
+      }
 
       const res = await fetch(`/api/orders?${params.toString()}`);
       if (res.ok) {
@@ -528,7 +596,11 @@ export default function AdminPage() {
 
   const fetchTables = async () => {
     try {
-      const res = await fetch('/api/tables');
+      let url = '/api/tables';
+      if (selectedBranchId && selectedBranchId !== 'all') {
+        url += `?branchId=${selectedBranchId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setTables(data || []);
@@ -1080,6 +1152,7 @@ export default function AdminPage() {
       password: '',
       rol: 'Cajero',
       estado: 'Activo',
+      branchId: selectedBranchId !== 'all' ? Number(selectedBranchId) : null,
     });
     setShowUserModalPassword(false);
     setIsUserModalOpen(true);
@@ -1093,6 +1166,7 @@ export default function AdminPage() {
       password: user.password || '',
       rol: user.rol,
       estado: user.estado,
+      branchId: user.branchId || null,
     });
     setShowUserModalPassword(false);
     setIsUserModalOpen(true);
@@ -1395,6 +1469,43 @@ export default function AdminPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Sede Switcher */}
+            <div className="flex items-center gap-2 bg-[#181818] border border-[#2a2a2a] px-3 py-1.5 rounded-xl">
+              <Building2 className="w-4 h-4 text-brand-yellow" />
+              <div className="flex flex-col text-left">
+                <span className="text-[9px] uppercase tracking-wider text-gray-400 font-bold leading-none">
+                  Sede:
+                </span>
+                {currentUser?.rol === 'Superadmin' || !currentUser?.branchId ? (
+                  <select
+                    value={selectedBranchId}
+                    onChange={(e) => setSelectedBranchId(e.target.value)}
+                    className="bg-transparent text-white font-black text-xs focus:outline-none cursor-pointer"
+                  >
+                    <option value="all" className="bg-[#181818] text-white">Todas las Sedes (Consolidado)</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={String(b.id)} className="bg-[#181818] text-white">
+                        {b.nombre}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs font-black text-brand-yellow leading-tight">
+                    {currentUser?.branch?.nombre || branches.find(b => b.id === currentUser.branchId)?.nombre || `Sede #${currentUser.branchId}`}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <Link
+              href="/pedidos-listos"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
+            >
+              <BellRing className="w-4 h-4" />
+              <span>Turnero Listos 🔔</span>
+            </Link>
+
             <Link
               href="/cocina"
               target="_blank"
@@ -2622,6 +2733,52 @@ export default function AdminPage() {
                 <span className="text-[10px] text-gray-500">Unidades despachadas</span>
               </div>
             </div>
+
+            {/* Multi-Sede Breakdown Card */}
+            {branches.length > 0 && (
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-5 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#222] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-brand-yellow" />
+                    <h4 className="text-xs font-black uppercase text-white tracking-wider">
+                      Ventas y Rendimiento por Sede
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-bold text-gray-400">
+                    {branches.length} sedes registradas
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {branches.map((branch) => {
+                    const branchOrders = orders.filter((o) => o.branchId === branch.id || (o.sedeNombre && o.sedeNombre.toLowerCase().includes(branch.slug)));
+                    const totalBranch = branchOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+                    const pct = orderMetrics.totalVentas > 0 ? ((totalBranch / orderMetrics.totalVentas) * 100).toFixed(1) : '0';
+
+                    return (
+                      <div key={branch.id} className="bg-[#171717] border border-[#262626] rounded-xl p-4 space-y-2 hover:border-brand-yellow/40 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white uppercase flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-brand-yellow"></span>
+                            {branch.nombre}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-yellow/10 text-brand-yellow font-black">
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="text-2xl font-black text-brand-yellow font-display">
+                          {formatPrice(totalBranch)}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-[#222] pt-2">
+                          <span>{branchOrders.length} órdenes</span>
+                          <span>{branch.ciudad}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Breakdowns Grid: Métodos de Pago & Tipos de Entrega */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -4091,6 +4248,7 @@ export default function AdminPage() {
                       <th className="p-4">Email</th>
                       <th className="p-4">Contraseña</th>
                       <th className="p-4">Rol</th>
+                      <th className="p-4">Sede Asignada</th>
                       <th className="p-4">Estado</th>
                       <th className="p-4 text-right">Acciones</th>
                     </tr>
@@ -4136,6 +4294,12 @@ export default function AdminPage() {
                           <td className="p-4">
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#1e1e1e] text-brand-yellow border border-[#2d2d2d]">
                               {u.rol}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#1e1e1e] text-gray-300 border border-[#2d2d2d] flex items-center gap-1 w-fit">
+                              <Building2 className="w-3 h-3 text-brand-yellow" />
+                              <span>{u.branch?.nombre || 'Global (Todas las Sedes)'}</span>
                             </span>
                           </td>
                           <td className="p-4">
@@ -5027,6 +5191,27 @@ export default function AdminPage() {
                     <option value="Inactivo">Inactivo</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Sede de Asignación</label>
+                <select
+                  value={userFormData.branchId ? String(userFormData.branchId) : ''}
+                  onChange={(e) =>
+                    setUserFormData({
+                      ...userFormData,
+                      branchId: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                >
+                  <option value="">Acceso Global / Todas las Sedes (Superadmin)</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={String(b.id)}>
+                      {b.nombre} ({b.ciudad})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-2 pt-2">

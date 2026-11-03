@@ -370,6 +370,15 @@ export default function CocinaKDSPage() {
               </button>
 
               <Link
+                href="/pedidos-listos"
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition inline-flex items-center gap-1.5"
+                title="Pantalla de Pedidos Listos"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="hidden md:inline">Turnero Listos</span>
+              </Link>
+
+              <Link
                 href="/admin"
                 className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#181818] border border-[#2b2b2b] text-xs font-semibold text-gray-300 hover:text-brand-yellow transition inline-flex items-center gap-1.5"
                 title="Panel de Administración"
