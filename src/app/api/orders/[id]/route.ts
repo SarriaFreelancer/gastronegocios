@@ -102,3 +102,5 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'Error al actualizar pedido' }, { status: 500 });
   }
 }
+
+export const PUT = PATCH;

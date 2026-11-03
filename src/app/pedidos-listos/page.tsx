@@ -121,7 +121,7 @@ export default function PedidosListosPage() {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        const readyOrders = Array.isArray(data) ? data : [];
+        const readyOrders: Order[] = Array.isArray(data) ? data : (data.orders || []);
         
         // Detect newly arrived ready orders
         const currentIds = new Set(readyOrders.map((o: Order) => o.id));
@@ -190,7 +190,7 @@ export default function PedidosListosPage() {
     setDeliveringId(orderId);
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'Entregado' }),
       });
@@ -216,9 +216,7 @@ export default function PedidosListosPage() {
       {/* Top Header Bar */}
       <header className="bg-[#101010] border-b border-[#222] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-2xl">
         <div className="flex items-center gap-3">
-          <Link href="/" className="hover:opacity-80 transition-opacity">
-            <Logo />
-          </Link>
+          <Logo />
           <div className="h-6 w-px bg-white/10 hidden sm:block" />
           <div className="flex items-center gap-2">
             <span className="relative flex h-3 w-3">
@@ -254,9 +252,9 @@ export default function PedidosListosPage() {
           </div>
 
           {/* Clock */}
-          <div className="bg-[#181818] border border-[#2c2c2c] px-3 py-1 rounded-xl font-mono text-xs sm:text-sm text-brand-yellow font-bold flex items-center gap-1.5">
+          <div suppressHydrationWarning className="bg-[#181818] border border-[#2c2c2c] px-3 py-1 rounded-xl font-mono text-xs sm:text-sm text-brand-yellow font-bold flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            <span>{currentTime || '--:--'}</span>
+            <span suppressHydrationWarning>{currentTime || '--:--'}</span>
           </div>
 
           {/* Audio Chime Toggle */}
