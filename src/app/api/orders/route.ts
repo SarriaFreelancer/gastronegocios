@@ -159,6 +159,8 @@ export async function POST(req: Request) {
     let resolvedMesaId: number | null = mesaId && !isNaN(Number(mesaId)) ? Number(mesaId) : null;
     let resolvedNumeroMesa = numeroMesa || null;
 
+    let explicitBranchId = branchId ? Number(branchId) : null;
+
     if (tipo === 'mesa' && numeroMesa && !resolvedMesaId) {
       const foundTable = await prisma.restaurantTable.findUnique({
         where: { numero: numeroMesa },
@@ -166,7 +168,28 @@ export async function POST(req: Request) {
       if (foundTable) {
         resolvedMesaId = foundTable.id;
         resolvedNumeroMesa = foundTable.numero;
+        if (!explicitBranchId && foundTable.branchId) {
+          explicitBranchId = foundTable.branchId;
+        }
       }
+    }
+
+    // Resolver sede asociada para estadísticas y cocina
+    let finalBranchId = explicitBranchId;
+    let finalSedeNombre = sedeNombre || null;
+
+    if (!finalBranchId) {
+      const defaultBranch = await prisma.branch.findFirst({
+        where: { activo: true },
+        orderBy: { id: 'asc' },
+      });
+      if (defaultBranch) {
+        finalBranchId = defaultBranch.id;
+        finalSedeNombre = defaultBranch.nombre;
+      }
+    } else if (!finalSedeNombre) {
+      const b = await prisma.branch.findUnique({ where: { id: finalBranchId } });
+      if (b) finalSedeNombre = b.nombre;
     }
 
     const newOrder = await prisma.order.create({
@@ -188,8 +211,8 @@ export async function POST(req: Request) {
         notasCliente: notasCliente || null,
         repartidor: repartidor || null,
         repartidorTel: repartidorTel || null,
-        branchId: branchId ? Number(branchId) : null,
-        sedeNombre: sedeNombre || null,
+        branchId: finalBranchId,
+        sedeNombre: finalSedeNombre,
         items: {
           create: items.map((i: any) => ({
             nombre: i.nombre,

@@ -7,6 +7,7 @@ export async function GET(req: Request) {
     const soloPrincipales = searchParams.get('principales') === 'true';
     const soloSubcategorias = searchParams.get('subcategorias') === 'true';
     const parentIdParam = searchParams.get('parentId');
+    const includeAll = searchParams.get('all') === 'true';
 
     const where: any = {};
     if (soloPrincipales) {
@@ -15,6 +16,16 @@ export async function GET(req: Request) {
       where.parentId = { not: null };
     } else if (parentIdParam) {
       where.parentId = Number(parentIdParam);
+    }
+
+    // Si no es consulta administrativa (all=true), solo mostrar categorías activas
+    // y para subcategorías, su categoría padre también debe estar activa
+    if (!includeAll) {
+      where.activo = true;
+      where.OR = [
+        { parentId: null },
+        { parent: { activo: true } },
+      ];
     }
 
     const categories = await prisma.category.findMany({

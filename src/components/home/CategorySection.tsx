@@ -1,13 +1,29 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
-import { categories } from '@/data/categories';
+import { categories as defaultCategories } from '@/data/categories';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
 export const CategorySection: React.FC = () => {
-  // Only main categories (parentId == null)
-  const mainCategories = categories.filter((c) => !c.parentId);
+  const [categoriesList, setCategoriesList] = useState<any[]>(defaultCategories);
+
+  // Fetch real categories from database
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategoriesList(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Only active main categories (parentId == null and activo !== false)
+  const mainCategories = categoriesList.filter((c) => !c.parentId && c.activo !== false);
 
   return (
     <section className="relative py-14 sm:py-20 bg-[#080808] overflow-hidden">
@@ -44,11 +60,14 @@ export const CategorySection: React.FC = () => {
           </p>
         </div>
 
-        {/* 4 Big, Vibrant, Eye-Catching Category Cards */}
+        {/* Big, Vibrant, Eye-Catching Category Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7">
           {mainCategories.map((cat) => {
-            const subs = categories.filter(
-              (c) => c.parentId === cat.id || c.parentId === cat.slug
+            // Solo subcategorías activas vinculadas a esta categoría principal
+            const subs = categoriesList.filter(
+              (c) =>
+                (c.parentId === cat.id || c.parentId === cat.slug) &&
+                c.activo !== false
             );
             const subsPreview = subs.map((s) => s.nombre.split(' ')[0]).join(' • ');
 

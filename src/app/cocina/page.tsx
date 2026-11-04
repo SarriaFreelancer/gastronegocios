@@ -21,9 +21,16 @@ import {
   Layers,
   Printer,
   MessageCircle,
-  Send
+  Send,
+  Building2
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
+
+interface Branch {
+  id: number;
+  nombre: string;
+  slug: string;
+}
 
 interface OrderItem {
   id: number;
@@ -43,6 +50,8 @@ interface Order {
   tipo: string;
   numeroMesa?: string | null;
   direccion?: string | null;
+  branchId?: number | null;
+  sedeNombre?: string | null;
   barrio?: string | null;
   notasCliente?: string | null;
   notas?: string | null;
@@ -68,6 +77,8 @@ export default function CocinaKDSPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [mounted, setMounted] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'comanda' | 'factura'>('comanda');
@@ -176,11 +187,25 @@ export default function CocinaKDSPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch branches on mount
+  useEffect(() => {
+    fetch('/api/branches')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data)) setBranches(data);
+      })
+      .catch(() => {});
+  }, []);
+
   // Fetch kitchen orders
   const fetchOrders = useCallback(async (isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
-      const res = await fetch('/api/orders?cocina=true');
+      let url = '/api/orders?cocina=true';
+      if (selectedBranchId !== 'all') {
+        url += `&branchId=${selectedBranchId}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Error al obtener pedidos');
       const data = await res.json();
       const fetched: Order[] = data.orders || [];
@@ -199,7 +224,7 @@ export default function CocinaKDSPage() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [playKitchenChime, soundEnabled]);
+  }, [playKitchenChime, soundEnabled, selectedBranchId]);
 
   // Initial fetch and 3-second auto-polling
   useEffect(() => {
@@ -371,6 +396,23 @@ export default function CocinaKDSPage() {
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
 
+              {/* Sede Selector */}
+              <div className="flex items-center gap-1.5 bg-[#181818] border border-[#2b2b2b] px-2.5 py-1.5 rounded-xl text-xs">
+                <Building2 className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer max-w-[120px] sm:max-w-[150px] truncate"
+                >
+                  <option value="all" className="bg-[#181818] text-white">Todas las Sedes</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={String(b.id)} className="bg-[#181818] text-white">
+                      {b.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Link
                 href="/pedidos-listos"
                 className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition inline-flex items-center gap-1.5"
@@ -513,6 +555,13 @@ export default function CocinaKDSPage() {
                         {order.cliente}
                       </span>
                     </div>
+
+                    {order.sedeNombre && (
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-brand-yellow/90 mt-1">
+                        <Building2 className="w-3 h-3 text-brand-yellow" />
+                        <span className="truncate">{order.sedeNombre}</span>
+                      </div>
+                    )}
 
                     {order.tipo === 'domicilio' && order.direccion && (
                       <p className="text-[11px] text-gray-400 truncate mt-1">

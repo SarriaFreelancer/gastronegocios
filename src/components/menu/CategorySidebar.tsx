@@ -13,6 +13,7 @@ interface CategorySidebarProps {
   currentSubSlug?: string;
   onSelectCategory?: (categorySlug: string, subcategorySlug?: string) => void;
   showAllOption?: boolean;
+  categoriesList?: any[];
 }
 
 export const CategorySidebar: React.FC<CategorySidebarProps> = ({
@@ -20,11 +21,15 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
   currentSubSlug,
   onSelectCategory,
   showAllOption = false,
+  categoriesList,
 }) => {
   const pathname = usePathname();
 
-  // Main categories (parentId == null)
-  const mainCategories = categories.filter((c) => !c.parentId);
+  // Active categories only
+  const activeList = (categoriesList || categories).filter((c) => c.activo !== false);
+
+  // Main categories (parentId == null and activo !== false)
+  const mainCategories = activeList.filter((c) => !c.parentId);
 
   const isMainCategoryActive = (slug: string) => {
     if (currentSlug) return currentSlug === slug;
@@ -75,7 +80,7 @@ export const CategorySidebar: React.FC<CategorySidebarProps> = ({
 
         {/* Grouped by Main Category and its Subcategories */}
         {mainCategories.map((mainCat) => {
-          const subcategories = categories.filter(
+          const subcategories = activeList.filter(
             (c) => c.parentId === mainCat.id || c.parentId === mainCat.slug
           );
           const isMainActive = isMainCategoryActive(mainCat.slug);

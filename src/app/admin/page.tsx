@@ -29,6 +29,8 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  AlertTriangle,
+  Power,
   QrCode,
   UtensilsCrossed,
   Heart,
@@ -320,6 +322,8 @@ export default function AdminPage() {
   const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false);
+  const [categoryToDeactivate, setCategoryToDeactivate] = useState<Category | null>(null);
   const [catFormData, setCatFormData] = useState({
     nombre: '',
     slug: '',
@@ -624,7 +628,7 @@ export default function AdminPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories');
+      const res = await fetch('/api/categories?all=true');
       if (res.ok) {
         const data = await res.json();
         setCategoryList(data || []);
@@ -979,6 +983,45 @@ export default function AdminPage() {
       fetchCategories();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleToggleCategoryActive = (cat: Category) => {
+    // Si la categoría está activa y es principal, advertir al usuario con SweetAlert
+    if (cat.activo && !cat.parentId) {
+      setCategoryToDeactivate(cat);
+      setIsConfirmDeactivateOpen(true);
+      return;
+    }
+    // Si ya está inactiva o es una subcategoría, activar/desactivar directamente
+    executeToggleCategory(cat.id, !cat.activo);
+  };
+
+  const executeToggleCategory = async (id: number | string, nuevoEstado: boolean) => {
+    try {
+      await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: nuevoEstado }),
+      });
+      setIsConfirmDeactivateOpen(false);
+      setCategoryToDeactivate(null);
+      fetchCategories();
+    } catch (e) {
+      console.error('Error al actualizar estado de categoría:', e);
+    }
+  };
+
+  const handleToggleBranchActive = async (b: Branch) => {
+    try {
+      await fetch('/api/branches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, activo: !b.activo }),
+      });
+      fetchBranches();
+    } catch (e) {
+      console.error('Error al actualizar estado de sede:', e);
     }
   };
 
@@ -3782,13 +3825,19 @@ export default function AdminPage() {
                             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
                               ⭐ Principal
                             </span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                cat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCategoryActive(cat)}
+                              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                cat.activo
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                  : 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
                               }`}
+                              title={cat.activo ? 'Clic para desactivar categoría principal' : 'Clic para activar en el menú'}
                             >
-                              {cat.activo ? 'Activa' : 'Inactiva'}
-                            </span>
+                              <span className={`w-2 h-2 rounded-full ${cat.activo ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                              <span>{cat.activo ? 'Activa en Menú' : 'Inactiva / Oculta'}</span>
+                            </button>
                           </div>
                         </div>
 
@@ -3849,6 +3898,19 @@ export default function AdminPage() {
                         </button>
 
                         <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCategoryActive(cat)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 border ${
+                              cat.activo
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                                : 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25'
+                            }`}
+                            title={cat.activo ? 'Desactivar esta categoría principal' : 'Activar en el menú'}
+                          >
+                            <Power className="w-3.5 h-3.5" />
+                            <span>{cat.activo ? 'Visible' : 'Oculta'}</span>
+                          </button>
                           <button
                             onClick={() => handleOpenEditCategory(cat)}
                             className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
@@ -4004,13 +4066,19 @@ export default function AdminPage() {
                             <span className="text-[10px] font-mono text-gray-500 uppercase">
                               Orden #{subcat.orden || 0}
                             </span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                subcat.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                            <button
+                              type="button"
+                              onClick={() => executeToggleCategory(subcat.id, !subcat.activo)}
+                              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                subcat.activo
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                  : 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
                               }`}
+                              title={subcat.activo ? 'Clic para desactivar del submenú' : 'Clic para activar en el submenú'}
                             >
-                              {subcat.activo ? '✓ Activa' : '✕ Inactiva'}
-                            </span>
+                              <span className={`w-2 h-2 rounded-full ${subcat.activo ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                              <span>{subcat.activo ? '✓ Activa en Submenú' : '✕ Inactiva / Oculta'}</span>
+                            </button>
                           </div>
 
                           {/* Parent Category Badge */}
@@ -4035,23 +4103,39 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
+                        <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
                           <button
                             type="button"
-                            onClick={() => handleOpenEditSubcategory(subcat)}
-                            className="p-2 bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
-                            title="Editar Subcategoría"
+                            onClick={() => executeToggleCategory(subcat.id, !subcat.activo)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 border ${
+                              subcat.activo
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                                : 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25'
+                            }`}
+                            title={subcat.activo ? 'Ocultar esta subcategoría del menú' : 'Mostrar esta subcategoría en el menú'}
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Power className="w-3.5 h-3.5" />
+                            <span>{subcat.activo ? 'Visible' : 'Oculta'}</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSubcategory(subcat.id)}
-                            className="p-2 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
-                            title="Eliminar Subcategoría"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditSubcategory(subcat)}
+                              className="p-2 bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                              title="Editar Subcategoría"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubcategory(subcat.id)}
+                              className="p-2 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                              title="Eliminar Subcategoría"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -4488,20 +4572,35 @@ export default function AdminPage() {
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30">
                         SEDE ID #{b.id}
                       </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBranchActive(b)}
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                           b.activo
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                            : 'bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30'
                         }`}
+                        title={b.activo ? 'Clic para desactivar sede' : 'Clic para activar sede'}
                       >
-                        {b.activo ? '● Activa' : '○ Inactiva'}
-                      </span>
+                        {b.activo ? '● Sede Activa' : '○ Sede Inactiva'}
+                      </button>
                     </div>
 
                     <div>
                       <h4 className="text-base font-black text-white uppercase">{b.nombre}</h4>
                       <p className="text-[11px] font-mono text-gray-400">slug: {b.slug}</p>
+                    </div>
+
+                    {/* Branch Quick Stats */}
+                    <div className="grid grid-cols-2 gap-2 text-[11px] bg-[#181818] p-2.5 rounded-xl border border-[#262626]">
+                      <div>
+                        <span className="text-gray-400 block text-[9px] uppercase font-bold">Personal Asignado:</span>
+                        <span className="text-white font-black">{userList.filter(u => u.branchId === b.id).length} Usuarios</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block text-[9px] uppercase font-bold">Mesas / Zonas:</span>
+                        <span className="text-white font-black">{tables.filter(t => t.branchId === b.id).length} Mesas</span>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 text-xs text-gray-300 border-t border-[#1e1e1e] pt-3">
@@ -4524,21 +4623,36 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 border-t border-[#1e1e1e] pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#1e1e1e] pt-3">
                     <button
-                      onClick={() => handleOpenEditBranch(b)}
-                      className="px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#282828] text-gray-300 hover:text-brand-yellow rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-[#2d2d2d]"
+                      type="button"
+                      onClick={() => {
+                        setSelectedBranchId(String(b.id));
+                        setActiveTab('pedidos');
+                      }}
+                      className="px-2.5 py-1.5 bg-brand-yellow/15 hover:bg-brand-yellow/25 text-brand-yellow border border-brand-yellow/30 rounded-xl text-xs font-black transition flex items-center gap-1"
+                      title="Gestionar pedidos de esta sede"
                     >
-                      <Edit className="w-3.5 h-3.5" />
-                      <span>Editar Sede</span>
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>Gestionar Sede 👉</span>
                     </button>
-                    <button
-                      onClick={() => handleDeleteBranch(b.id)}
-                      className="p-1.5 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-xl transition border border-[#2d2d2d]"
-                      title="Eliminar sede"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEditBranch(b)}
+                        className="px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#282828] text-gray-300 hover:text-brand-yellow rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-[#2d2d2d]"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Editar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBranch(b.id)}
+                        className="p-1.5 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-xl transition border border-[#2d2d2d]"
+                        title="Eliminar sede"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -4809,6 +4923,72 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* SWEET ALERT: CONFIRMAR INACTIVACIÓN DE CATEGORÍA          */}
+      {/* ======================================================== */}
+      {isConfirmDeactivateOpen && categoryToDeactivate && (
+        <div 
+          onClick={() => {
+            setIsConfirmDeactivateOpen(false);
+            setCategoryToDeactivate(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#0e0e0e] border-2 border-brand-yellow/80 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 text-center shadow-[0_0_50px_rgba(255,201,40,0.3)] relative"
+          >
+            {/* Warning Circle Glow Icon */}
+            <div className="w-20 h-20 mx-auto rounded-full bg-brand-yellow/15 border-2 border-brand-yellow flex items-center justify-center text-brand-yellow shadow-[0_0_25px_rgba(255,201,40,0.4)]">
+              <AlertTriangle className="w-10 h-10 text-brand-yellow stroke-[2.5]" />
+            </div>
+
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black uppercase text-white font-display tracking-tight">
+                ¿Desactivar Categoría Principal?
+              </h3>
+              <p className="text-sm font-black text-brand-yellow mt-1 uppercase tracking-wide">
+                {categoryToDeactivate.nombre}
+              </p>
+            </div>
+
+            <div className="bg-[#161616] border border-[#2b2b2b] rounded-2xl p-4 text-xs text-gray-300 leading-relaxed text-left space-y-2.5">
+              <div className="flex items-center gap-1.5 text-yellow-400 font-black text-xs uppercase tracking-wider">
+                <AlertCircle className="w-4 h-4 shrink-0 text-brand-yellow" />
+                <span>Impacto en la Carta y Menú</span>
+              </div>
+              <p>
+                Si inactivas esta categoría principal, <strong>van a dejar de aparecer sus subcategorías vinculadas y todos sus platos</strong> en el menú de navegación y en el menú de entrada de la página principal.
+              </p>
+              <p className="text-[11px] text-gray-400">
+                Podrás reactivarla en cualquier momento desde este panel con un solo clic.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmDeactivateOpen(false);
+                  setCategoryToDeactivate(null);
+                }}
+                className="flex-1 py-3 px-4 bg-[#202020] hover:bg-[#2b2b2b] text-gray-300 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition border border-[#333]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => executeToggleCategory(categoryToDeactivate.id, false)}
+                className="flex-1 py-3 px-4 bg-brand-yellow hover:bg-yellow-400 text-black rounded-xl text-xs font-black uppercase tracking-wider transition shadow-[0_0_20px_rgba(255,201,40,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>Sí, Desactivar</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

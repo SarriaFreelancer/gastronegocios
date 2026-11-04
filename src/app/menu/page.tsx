@@ -38,16 +38,23 @@ export default function MenuGeneralPage() {
       .catch(() => {});
   }, []);
 
-  // Main categories (parentId == null)
-  const mainCategories = useMemo(() => allCategories.filter((c) => !c.parentId), [allCategories]);
+  // Main categories (parentId == null and activo !== false)
+  const mainCategories = useMemo(
+    () => allCategories.filter((c) => !c.parentId && c.activo !== false),
+    [allCategories]
+  );
 
-  // Subcategories of currently selected category
+  // Subcategories of currently selected category (only active ones)
   const activeSubcategories = useMemo(() => {
     if (selectedCategory === 'todos') return [];
-    const currentMain = allCategories.find((c) => c.slug === selectedCategory);
+    const currentMain = allCategories.find(
+      (c) => c.slug === selectedCategory && c.activo !== false
+    );
     if (!currentMain) return [];
     return allCategories.filter(
-      (c) => c.parentId === currentMain.id || c.parentId === currentMain.slug
+      (c) =>
+        (c.parentId === currentMain.id || c.parentId === currentMain.slug) &&
+        c.activo !== false
     );
   }, [selectedCategory, allCategories]);
 
@@ -65,6 +72,16 @@ export default function MenuGeneralPage() {
     return allProducts.filter((p) => {
       // Si el plato fue apagado por el administrador, no se muestra a los clientes
       if (p.disponibilidad === false) return false;
+
+      // Si la categoría padre del producto está inactiva, ocultarlo
+      const prodCat = allCategories.find((c) => c.slug === p.categoria || c.id === p.categoriaId);
+      if (prodCat && prodCat.activo === false) return false;
+
+      // Si la subcategoría del producto está inactiva, ocultarlo
+      if (p.subcategoria || p.subcategoriaId) {
+        const prodSub = allCategories.find((c) => c.slug === p.subcategoria || c.id === p.subcategoriaId);
+        if (prodSub && prodSub.activo === false) return false;
+      }
 
       let matchesCategory = true;
 
@@ -223,6 +240,7 @@ export default function MenuGeneralPage() {
           
           {/* Lateral Category Menu (Sidebar) */}
           <CategorySidebar
+            categoriesList={allCategories}
             currentSlug={selectedCategory}
             currentSubSlug={selectedSubcategory || undefined}
             onSelectCategory={handleSelectCategory}

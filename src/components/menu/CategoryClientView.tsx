@@ -61,7 +61,9 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
   // Subcategories belonging to the active main category
   const availableSubcategories = useMemo(() => {
     return categories.filter(
-      (c) => c.parentId === activeMainCategory.id || c.parentId === activeMainCategory.slug
+      (c) =>
+        (c.parentId === activeMainCategory.id || c.parentId === activeMainCategory.slug) &&
+        c.activo !== false
     );
   }, [activeMainCategory]);
 
@@ -81,6 +83,9 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
   // Filter & Sort products from the whole catalog
   const filteredAndSortedProducts = useMemo(() => {
     let result = allProducts.filter((p) => {
+      // Si el plato está inactivo / apagado, no mostrar en la carta
+      if (p.disponibilidad === false) return false;
+
       // 1. Category / Subcategory Matching
       let matchesCategory = false;
       if (activeSubSlug) {
