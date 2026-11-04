@@ -7,55 +7,99 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Restaurant {
+  id                 Int               @id @default(autoincrement())
+  nombre             String
+  slug               String            @unique // e.g. "punto-g", "la-parrilla", "burger-king"
+  subdominio         String?           @unique // e.g. "puntog"
+  dominio            String?           @unique // custom domain
+  eslogan            String?           @default("Antojos Que Conectan")
+  descripcion        String?           @db.Text
+  logo               String?           @db.Text
+  favicon            String?           @db.Text
+  bannerHero         String?           @db.Text
+  colorPrimario      String            @default("#ffc928")
+  colorSecundario    String            @default("#E94B24")
+  colorFondo         String            @default("#080808")
+  telefonoWhatsapp   String?           @default("3229088736")
+  instagram          String?
+  direccionCentral   String?           @default("Calle 9 # 45-12, Granada, Cali")
+  ciudad             String            @default("Cali")
+  costoDomicilioBase Float             @default(5000)
+  propinaSugeridaPct Float             @default(10)
+  plan               String            @default("Pro") // "Basico", "Pro", "Enterprise"
+  activo             Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  users              User[]
+  branches           Branch[]
+  categories         Category[]
+  products           Product[]
+  tables             RestaurantTable[]
+  orders             Order[]
+  addons             ProductAddon[]
+  shifts             CashShift[]
+  reviews            Review[]
+
+  @@map("restaurants")
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  email     String   @unique
-  password  String   @default("admin123")
-  rol       String   @default("Cajero") // Superadmin, Administrador, Supervisor, Cajero, Cocinero, Mesero
-  estado    String   @default("Activo") // Activo, Inactivo
-  branchId  Int?
-  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int         @id @default(autoincrement())
+  nombre       String
+  email        String      @unique
+  password     String      @default("admin123")
+  rol          String      @default("Cajero") // Superadmin, Administrador, Supervisor, Cajero, Cocinero, Mesero
+  estado       String      @default("Activo") // Activo, Inactivo
+  branchId     Int?
+  branch       Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  restaurantId Int?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@map("users")
 }
 
 model Branch {
-  id        Int               @id @default(autoincrement())
-  nombre    String            // e.g. "Sede Granada (Principal)", "Sede Ciudad Jardín"
-  slug      String            @unique // e.g. "granada", "ciudad-jardin"
-  direccion String?           @db.Text
-  telefono  String?
-  ciudad    String            @default("Cali")
-  activo    Boolean           @default(true)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  users     User[]
-  orders    Order[]
-  tables    RestaurantTable[]
-  shifts    CashShift[]
+  id           Int               @id @default(autoincrement())
+  nombre       String            // e.g. "Sede Granada (Principal)", "Sede Ciudad Jardín"
+  slug         String            @unique // e.g. "granada", "ciudad-jardin"
+  direccion    String?           @db.Text
+  telefono     String?
+  ciudad       String            @default("Cali")
+  activo       Boolean           @default(true)
+  restaurantId Int?
+  restaurant   Restaurant?       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  users        User[]
+  orders       Order[]
+  tables       RestaurantTable[]
+  shifts       CashShift[]
 
   @@map("branches")
 }
 
 model Category {
-  id          Int        @id @default(autoincrement())
-  nombre      String
-  slug        String     @unique
-  descripcion String?    @db.Text
-  icono       String     @default("Utensils")
-  imagen      String?    @db.Text
-  orden       Int        @default(0)
-  activo      Boolean    @default(true)
-  parentId    Int?       // null = Categoría Principal; not null = Subcategoría
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Category[] @relation("CategoryHierarchy")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  products    Product[]  @relation("ProductCategory")
-  subProducts Product[]  @relation("ProductSubcategory")
+  id           Int         @id @default(autoincrement())
+  nombre       String
+  slug         String      @unique
+  descripcion  String?     @db.Text
+  icono        String      @default("Utensils")
+  imagen       String?     @db.Text
+  orden        Int         @default(0)
+  activo       Boolean     @default(true)
+  parentId     Int?        // null = Categoría Principal; not null = Subcategoría
+  parent       Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Category[]  @relation("CategoryHierarchy")
+  restaurantId Int?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  products     Product[]   @relation("ProductCategory")
+  subProducts  Product[]   @relation("ProductSubcategory")
 
   @@map("categories")
 }
@@ -78,6 +122,8 @@ model Product {
   controlarStock Boolean     @default(false)
   costo          Float?      // Costo de insumos / Food Cost
   orden          Int         @default(0)
+  restaurantId   Int?
+  restaurant     Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   orderItems     OrderItem[]
@@ -86,58 +132,63 @@ model Product {
 }
 
 model RestaurantTable {
-  id                 Int       @id @default(autoincrement())
-  numero             String    @unique // e.g. "Mesa 1", "Mesa 2", "Barra 1"
-  capacidad          Int       @default(4)
-  estado             String    @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
-  ubicacion          String?   // Salon Principal, Terraza, Barra, VIP
-  notas              String?   @db.Text
-  branchId           Int?
-  branch             Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  llamandoMesero     Boolean   @default(false)
-  llamadoEn          DateTime?
-  solicitudCuenta    Boolean   @default(false)
-  solicitudCuentaEn  DateTime?
-  metodoPagoCuenta   String?   // Efectivo, Nequi, Datáfono
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  orders             Order[]
+  id                Int         @id @default(autoincrement())
+  numero            String      @unique // e.g. "Mesa 1", "Mesa 2", "Barra 1"
+  capacidad         Int         @default(4)
+  estado            String      @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
+  ubicacion         String?     // Salon Principal, Terraza, Barra, VIP
+  notas             String?     @db.Text
+  branchId          Int?
+  branch            Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  restaurantId      Int?
+  restaurant        Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  llamandoMesero    Boolean     @default(false)
+  llamadoEn         DateTime?
+  solicitudCuenta   Boolean     @default(false)
+  solicitudCuentaEn DateTime?
+  metodoPagoCuenta  String?     // Efectivo, Nequi, Datáfono
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  orders            Order[]
 
   @@map("restaurant_tables")
 }
 
 model Order {
-  id           Int              @id @default(autoincrement())
-  codigo       String           @unique // e.g. "PG-1045"
-  cliente      String
-  telefono     String
-  tipo         String           @default("domicilio") // domicilio, recoger, mesa
-  mesaId       Int?
-  mesa         RestaurantTable? @relation(fields: [mesaId], references: [id], onDelete: SetNull)
-  numeroMesa   String?          // Direct snapshot if mesaId deleted or manual
-  direccion    String?          @db.Text
-  barrio       String?
-  subtotal     Float            @default(0)
-  propina      Float            @default(0) // Propinas voluntarias
-  costoEnvio   Float            @default(0)
-  total        Float            @default(0)
-  estado       String           @default("Pendiente") // Pendiente, En Preparación, Listo, Despachado, Entregado, Cancelado
-  metodoPago   String           @default("Efectivo") // Efectivo, Nequi, Daviplata, Datáfono, Transferencia
-  notasCliente String?          @db.Text // Comentarios del pedido ("sin cebolla, salsas aparte", etc.)
-  repartidor   String?          // Nombre del domiciliario asignado e.g. "Carlos Moto 1"
-  repartidorTel String?         // Teléfono del domiciliario
-  branchId     Int?
-  branch       Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  sedeNombre   String?          // Snapshot nombre sede e.g. "Sede Granada"
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  items        OrderItem[]
-  reviews      Review[]
+  id            Int              @id @default(autoincrement())
+  codigo        String           @unique // e.g. "PG-1045"
+  cliente       String
+  telefono      String
+  tipo          String           @default("domicilio") // domicilio, recoger, mesa
+  mesaId        Int?
+  mesa          RestaurantTable? @relation(fields: [mesaId], references: [id], onDelete: SetNull)
+  numeroMesa    String?          // Direct snapshot if mesaId deleted or manual
+  direccion     String?          @db.Text
+  barrio        String?
+  subtotal      Float            @default(0)
+  propina       Float            @default(0) // Propinas voluntarias
+  costoEnvio    Float            @default(0)
+  total         Float            @default(0)
+  estado        String           @default("Pendiente") // Pendiente, En Preparación, Listo, Despachado, Entregado, Cancelado
+  metodoPago    String           @default("Efectivo") // Efectivo, Nequi, Daviplata, Datáfono, Transferencia
+  notasCliente  String?          @db.Text // Comentarios del pedido ("sin cebolla, salsas aparte", etc.)
+  repartidor    String?          // Nombre del domiciliario asignado e.g. "Carlos Moto 1"
+  repartidorTel String?          // Teléfono del domiciliario
+  branchId      Int?
+  branch        Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  sedeNombre    String?          // Snapshot nombre sede e.g. "Sede Granada"
+  restaurantId  Int?
+  restaurant    Restaurant?      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  items         OrderItem[]
+  reviews       Review[]
 
   @@index([createdAt])
   @@index([tipo])
   @@index([estado])
   @@index([branchId])
+  @@index([restaurantId])
   @@map("orders")
 }
 
@@ -158,13 +209,15 @@ model OrderItem {
 }
 
 model ProductAddon {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  precio    Float    @default(0)
-  categoria String   @default("Toppings") // Toppings, Salsas, Adiciones, Acompañamientos
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int         @id @default(autoincrement())
+  nombre       String
+  precio       Float       @default(0)
+  categoria    String      @default("Toppings") // Toppings, Salsas, Adiciones, Acompañamientos
+  activo       Boolean     @default(true)
+  restaurantId Int?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@map("product_addons")
 }
@@ -187,6 +240,8 @@ model CashShift {
   cerradoEn      DateTime?
   branchId       Int?
   branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  restaurantId   Int?
+  restaurant     Restaurant?   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   egresos        CashExpense[]
@@ -208,33 +263,35 @@ model CashExpense {
 }
 
 model Review {
-  id            Int      @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   orderId       Int?
-  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  mesaNumero    String?  // e.g. "Mesa 4"
+  order         Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  mesaNumero    String?     // e.g. "Mesa 4"
   clienteNombre String
-  calificacion  Int      @default(5) // 1 a 5 estrellas
-  tipoVisita    String   @default("En Sitio / Mesa") // En Sitio / Mesa, Domicilio, Para Llevar
-  comentario    String   @db.Text
-  respuesta     String?  @db.Text
-  publicado     Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  calificacion  Int         @default(5) // 1 a 5 estrellas
+  tipoVisita    String      @default("En Sitio / Mesa") // En Sitio / Mesa, Domicilio, Para Llevar
+  comentario    String      @db.Text
+  respuesta     String?     @db.Text
+  publicado     Boolean     @default(true)
+  restaurantId  Int?
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@map("reviews")
 }
 
 model RestaurantConfig {
-  id                   Int      @id @default(autoincrement())
-  nombre               String   @default("PUNTO G")
-  eslogan              String   @default("ANTOJOS QUE CONECTAN")
-  telefonoWhatsapp     String   @default("3229088736")
-  direccion            String   @default("Calle 9 # 45-12, Barrio Granada, Cali")
-  horario              String   @default("Lunes a Domingo: 12:00 m. a 11:30 p.m.")
-  costoDomicilioBase   Float    @default(5000)
-  propinaSugeridaPct   Float    @default(10)
-  urlBaseSitio         String   @default("http://localhost:3005")
-  updatedAt            DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  nombre             String   @default("PUNTO G")
+  eslogan            String   @default("ANTOJOS QUE CONECTAN")
+  telefonoWhatsapp   String   @default("3229088736")
+  direccion          String   @default("Calle 9 # 45-12, Barrio Granada, Cali")
+  horario            String   @default("Lunes a Domingo: 12:00 m. a 11:30 p.m.")
+  costoDomicilioBase Float    @default(5000)
+  propinaSugeridaPct Float    @default(10)
+  urlBaseSitio       String   @default("http://localhost:3005")
+  updatedAt          DateTime @updatedAt
 
   @@map("restaurant_config")
 }

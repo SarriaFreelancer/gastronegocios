@@ -5,10 +5,23 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const soloActivas = searchParams.get('activo') === 'true';
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
+
+    const where: any = {};
+    if (soloActivas) where.activo = true;
+    if (restaurantId && restaurantId !== 'all') {
+      where.restaurantId = Number(restaurantId);
+    } else if (restaurantSlug) {
+      where.restaurant = { slug: restaurantSlug };
+    }
 
     const branches = await prisma.branch.findMany({
-      where: soloActivas ? { activo: true } : {},
+      where,
       include: {
+        restaurant: {
+          select: { id: true, nombre: true, slug: true },
+        },
         _count: {
           select: {
             users: true,
@@ -31,7 +44,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { nombre, slug, direccion, telefono, ciudad = 'Cali', activo = true } = body;
+    const { nombre, slug, direccion, telefono, ciudad = 'Cali', activo = true, restaurantId = 1 } = body;
 
     if (!nombre) {
       return NextResponse.json({ error: 'El nombre de la sede es obligatorio' }, { status: 400 });
@@ -51,6 +64,7 @@ export async function POST(req: Request) {
         telefono: telefono || null,
         ciudad,
         activo: Boolean(activo),
+        restaurantId: restaurantId ? Number(restaurantId) : 1,
       },
     });
 

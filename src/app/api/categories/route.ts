@@ -8,8 +8,16 @@ export async function GET(req: Request) {
     const soloSubcategorias = searchParams.get('subcategorias') === 'true';
     const parentIdParam = searchParams.get('parentId');
     const includeAll = searchParams.get('all') === 'true';
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
 
     const where: any = {};
+
+    if (restaurantId && restaurantId !== 'all') {
+      where.restaurantId = Number(restaurantId);
+    } else if (restaurantSlug) {
+      where.restaurant = { slug: restaurantSlug };
+    }
     if (soloPrincipales) {
       where.parentId = null;
     } else if (soloSubcategorias) {
@@ -56,7 +64,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { nombre, slug, descripcion, icono, imagen, orden, activo, parentId } = await req.json();
+    const { nombre, slug, descripcion, icono, imagen, orden, activo, parentId, restaurantId = 1 } = await req.json();
 
     if (!nombre || !nombre.trim()) {
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 });
@@ -98,6 +106,7 @@ export async function POST(req: Request) {
         orden: Number(orden) || 0,
         activo: activo !== undefined ? Boolean(activo) : true,
         parentId: validParentId,
+        restaurantId: restaurantId ? Number(restaurantId) : 1,
       },
       include: {
         parent: true,

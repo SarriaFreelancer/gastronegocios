@@ -6,10 +6,17 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const branchId = searchParams.get('branchId');
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
 
     const where: any = {};
     if (branchId && branchId !== 'all') {
       where.branchId = Number(branchId);
+    }
+    if (restaurantId && restaurantId !== 'all') {
+      where.restaurantId = Number(restaurantId);
+    } else if (restaurantSlug) {
+      where.restaurant = { slug: restaurantSlug };
     }
 
     const tables = await prisma.restaurantTable.findMany({
@@ -46,7 +53,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { numero, capacidad, ubicacion, notas, branchId } = await req.json();
+    const { numero, capacidad, ubicacion, notas, branchId, restaurantId = 1 } = await req.json();
 
     if (!numero) {
       return NextResponse.json({ error: 'El número de mesa es obligatorio' }, { status: 400 });
@@ -68,6 +75,7 @@ export async function POST(req: Request) {
         notas: notas || null,
         estado: 'Libre',
         branchId: branchId ? Number(branchId) : null,
+        restaurantId: restaurantId ? Number(restaurantId) : 1,
       },
       include: {
         branch: true,

@@ -7,8 +7,16 @@ export async function GET(req: Request) {
     const categorySlug = searchParams.get('categoria');
     const subcategorySlug = searchParams.get('subcategoria');
     const search = searchParams.get('search');
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
 
     const where: any = {};
+
+    if (restaurantId && restaurantId !== 'all') {
+      where.restaurantId = Number(restaurantId);
+    } else if (restaurantSlug) {
+      where.restaurant = { slug: restaurantSlug };
+    }
 
     if (subcategorySlug && subcategorySlug !== 'todas') {
       where.OR = [
@@ -87,6 +95,7 @@ export async function POST(req: Request) {
       stockMinimo,
       controlarStock,
       costo,
+      restaurantId = 1,
     } = await req.json();
 
     if (!nombre || !precio) {
@@ -130,6 +139,7 @@ export async function POST(req: Request) {
         stockMinimo: stockMinimo !== undefined && stockMinimo !== null ? Number(stockMinimo) : 5,
         controlarStock: Boolean(controlarStock),
         costo: costo !== undefined && costo !== null ? Number(costo) : null,
+        restaurantId: restaurantId ? Number(restaurantId) : 1,
       },
       include: {
         categoria: true,

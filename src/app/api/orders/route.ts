@@ -12,8 +12,17 @@ export async function GET(req: Request) {
     const metodoPago = searchParams.get('metodoPago');
     const search = searchParams.get('search');
     const branchId = searchParams.get('branchId');
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
 
     const where: any = {};
+
+    // Restaurant / Tenant filter
+    if (restaurantId && restaurantId !== 'all' && restaurantId !== 'todas') {
+      where.restaurantId = Number(restaurantId);
+    } else if (restaurantSlug) {
+      where.restaurant = { slug: restaurantSlug };
+    }
 
     // Branch / Sede filter
     if (branchId && branchId !== 'todas' && branchId !== 'all') {
@@ -141,6 +150,8 @@ export async function POST(req: Request) {
       repartidorTel,
       branchId,
       sedeNombre,
+      restaurantId,
+      restaurantSlug,
       items = [],
     } = body;
 
@@ -192,6 +203,19 @@ export async function POST(req: Request) {
       if (b) finalSedeNombre = b.nombre;
     }
 
+    let finalRestaurantId = restaurantId ? Number(restaurantId) : null;
+    if (!finalRestaurantId && restaurantSlug) {
+      const rest = await prisma.restaurant.findUnique({ where: { slug: restaurantSlug } });
+      if (rest) finalRestaurantId = rest.id;
+    }
+    if (!finalRestaurantId && finalBranchId) {
+      const b = await prisma.branch.findUnique({ where: { id: finalBranchId } });
+      if (b?.restaurantId) finalRestaurantId = b.restaurantId;
+    }
+    if (!finalRestaurantId) {
+      finalRestaurantId = 1;
+    }
+
     const newOrder = await prisma.order.create({
       data: {
         codigo,
@@ -213,6 +237,7 @@ export async function POST(req: Request) {
         repartidorTel: repartidorTel || null,
         branchId: finalBranchId,
         sedeNombre: finalSedeNombre,
+        restaurantId: finalRestaurantId,
         items: {
           create: items.map((i: any) => ({
             nombre: i.nombre,

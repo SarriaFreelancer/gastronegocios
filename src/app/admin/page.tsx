@@ -1860,6 +1860,14 @@ export default function AdminPage() {
               <span>📱 Mesero POS (Tablet)</span>
             </Link>
 
+            <Link
+              href="/superadmin"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>🏢 Panel SaaS Superadmin</span>
+            </Link>
+
             <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl">
               <div className="w-7 h-7 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xs">
                 {currentUser?.nombre ? currentUser.nombre.charAt(0) : 'A'}
