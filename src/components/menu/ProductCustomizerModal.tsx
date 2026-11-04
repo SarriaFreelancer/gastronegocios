@@ -13,13 +13,22 @@ interface ProductCustomizerModalProps {
   product: Product | null;
 }
 
-const QUICK_CHIPS = [
+const FOOD_QUICK_CHIPS = [
   'Sin cebolla',
   'Salsa de la casa aparte',
   'Carne 3/4',
   'Carne bien asada',
   'Sin ripio',
   'Extra servilletas',
+];
+
+const BEVERAGE_QUICK_CHIPS = [
+  'Bien fría',
+  'Con hielo',
+  'Sin hielo',
+  'Vaso con limón',
+  'Con pitillo',
+  'Sin azúcar',
 ];
 
 export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
@@ -40,6 +49,32 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
     setMounted(true);
   }, []);
 
+  // Determinar si el producto es una bebida o coctel para no mostrar toppings
+  const isBeverage = useMemo(() => {
+    if (!product) return false;
+    const cat = (product.categoria || '').toLowerCase();
+    const subcat = (product.subcategoria || '').toLowerCase();
+    const catName = ((product as any).categoriaNombre || '').toLowerCase();
+    const subcatName = ((product as any).subcategoriaNombre || '').toLowerCase();
+
+    const beverageKeywords = [
+      'bebida', 'bebidas', 'coctel', 'cóctel', 'cocteles', 'cócteles',
+      'gaseosa', 'gaseosas', 'jugo', 'jugos', 'limonada', 'limonadas',
+      'cerveza', 'cervezas', 'michelada', 'micheladas', 'soda', 'sodas',
+      'agua', 'aguas', 'licor', 'licores', 'trago', 'tragos'
+    ];
+
+    if (beverageKeywords.some(k => cat.includes(k) || subcat.includes(k) || catName.includes(k) || subcatName.includes(k))) {
+      return true;
+    }
+
+    if ((product as any).categoriaId === 6 || (product as any).subcategoriaId === 6) {
+      return true;
+    }
+
+    return false;
+  }, [product]);
+
   // Lock body scroll on mobile when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -52,9 +87,12 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
     };
   }, [isOpen]);
 
-  // Load available addons from API
+  // Load available addons from API (solo si NO es bebida)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isBeverage) {
+      setAddonsList([]);
+      return;
+    }
     setLoadingAddons(true);
     fetch('/api/addons?activo=true')
       .then((res) => res.json())
@@ -65,7 +103,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
       })
       .catch((err) => console.error('Error fetching addons:', err))
       .finally(() => setLoadingAddons(false));
-  }, [isOpen]);
+  }, [isOpen, isBeverage]);
 
   // Reset local state when opened
   useEffect(() => {
@@ -185,77 +223,79 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
             </span>
           </div>
 
-          {/* Addons / Toppings Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand-yellow" />
-              <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
-                Adicionales & Toppings
-              </h3>
-            </div>
-
-            {loadingAddons ? (
-              <div className="text-xs text-neutral-500 py-3 text-center animate-pulse">
-                Cargando adicionales disponibles...
+          {/* Addons / Toppings Section (Solo visible para comidas, NO para Bebidas) */}
+          {!isBeverage && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brand-yellow" />
+                <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
+                  Adicionales & Toppings
+                </h3>
               </div>
-            ) : Object.keys(groupedAddons).length === 0 ? (
-              <p className="text-xs text-neutral-500 italic">No hay adicionales configurados para este plato.</p>
-            ) : (
-              Object.entries(groupedAddons).map(([categoria, items]) => (
-                <div key={categoria} className="space-y-2">
-                  <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                    {categoria}
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {items.map((addon) => {
-                      const isSelected = selectedAddons.some((a) => a.id === addon.id);
-                      return (
-                        <button
-                          key={addon.id}
-                          type="button"
-                          onClick={() => toggleAddon(addon)}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
-                            isSelected
-                              ? 'bg-brand-yellow/15 border-brand-yellow text-white shadow-sm'
-                              : 'bg-[#181818] border-[#262626] text-neutral-300 hover:border-neutral-600'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] transition-colors ${
-                                isSelected
-                                  ? 'bg-brand-yellow border-brand-yellow text-black'
-                                  : 'border-neutral-500 bg-neutral-900'
-                              }`}
-                            >
-                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                            </div>
-                            <span className="text-xs font-semibold">{addon.nombre}</span>
-                          </div>
-                          <span className="text-xs font-bold text-brand-yellow font-display">
-                            +{formatCOP(addon.precio)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
 
-          {/* Cooking Notes / Customizations */}
+              {loadingAddons ? (
+                <div className="text-xs text-neutral-500 py-3 text-center animate-pulse">
+                  Cargando adicionales disponibles...
+                </div>
+              ) : Object.keys(groupedAddons).length === 0 ? (
+                <p className="text-xs text-neutral-500 italic">No hay adicionales configurados para este plato.</p>
+              ) : (
+                Object.entries(groupedAddons).map(([categoria, items]) => (
+                  <div key={categoria} className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      {categoria}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {items.map((addon) => {
+                        const isSelected = selectedAddons.some((a) => a.id === addon.id);
+                        return (
+                          <button
+                            key={addon.id}
+                            type="button"
+                            onClick={() => toggleAddon(addon)}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                              isSelected
+                                ? 'bg-brand-yellow/15 border-brand-yellow text-white shadow-sm'
+                                : 'bg-[#181818] border-[#262626] text-neutral-300 hover:border-neutral-600'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] transition-colors ${
+                                  isSelected
+                                    ? 'bg-brand-yellow border-brand-yellow text-black'
+                                    : 'border-neutral-500 bg-neutral-900'
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
+                              <span className="text-xs font-semibold">{addon.nombre}</span>
+                            </div>
+                            <span className="text-xs font-bold text-brand-yellow font-display">
+                              +{formatCOP(addon.precio)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Cooking / Beverage Notes */}
           <div className="space-y-3 pt-2 border-t border-[#222]">
             <div className="flex items-center gap-2">
               <ChefHat className="w-4 h-4 text-brand-yellow" />
               <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
-                Instrucciones para Cocina
+                {isBeverage ? 'Instrucciones para Barman / Servicio' : 'Instrucciones para Cocina'}
               </h3>
             </div>
 
             {/* Quick chips */}
             <div className="flex flex-wrap gap-1.5">
-              {QUICK_CHIPS.map((chip) => {
+              {(isBeverage ? BEVERAGE_QUICK_CHIPS : FOOD_QUICK_CHIPS).map((chip) => {
                 const isActive = notes.includes(chip);
                 return (
                   <button
@@ -278,7 +318,11 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej: Salsa tártara aparte, carne término medio, bien caliente..."
+              placeholder={
+                isBeverage
+                  ? 'Ej: Bien fría, vaso con hielo y limón, sin pitillo...'
+                  : 'Ej: Salsa tártara aparte, carne término medio, bien caliente...'
+              }
               className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl p-3 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-yellow transition"
             />
           </div>

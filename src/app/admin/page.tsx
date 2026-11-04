@@ -4562,6 +4562,31 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* Banner Informativo de Promociones */}
+            <div className="bg-gradient-to-r from-amber-500/10 via-[#161616] to-[#121212] border border-brand-yellow/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-brand-yellow/15 border border-brand-yellow/40 flex items-center justify-center text-brand-yellow shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase flex items-center gap-1.5">
+                    <span>Configuración de Promociones y Combos</span>
+                    <span className="text-[10px] bg-brand-yellow text-black font-black px-1.5 py-0.2 rounded">Página /promociones</span>
+                  </h4>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Los platos que asignes a la categoría <strong className="text-brand-yellow">"Combos y Promociones"</strong> o que tengan la etiqueta <strong className="text-brand-yellow">PROMO</strong>, <strong className="text-brand-yellow">COMBO</strong> u <strong className="text-brand-yellow">OFERTA</strong> aparecerán automáticamente en la página de Promociones de la web.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedProductCat('combos')}
+                className="px-3 py-1.5 bg-[#202020] hover:bg-[#2c2c2c] text-brand-yellow border border-brand-yellow/30 font-bold text-[11px] rounded-xl whitespace-nowrap transition"
+              >
+                Ver Combos y Promos ({productList.filter(p => (p.categoria || '').includes('combo') || (p.etiqueta || '').includes('PROMO') || (p.etiqueta || '').includes('COMBO')).length})
+              </button>
+            </div>
+
             {/* Filter Bar */}
             <div className="flex flex-col gap-3 bg-[#111] border border-[#222] p-4 rounded-2xl">
               <div className="flex flex-col md:flex-row gap-3">
@@ -5262,6 +5287,61 @@ export default function AdminPage() {
                 GUARDAR CAMBIOS EN BD
               </button>
             </form>
+
+            {/* Módulo Preparado: Pasarela de Pagos en Línea (Superadmin) */}
+            <div className="pt-6 border-t border-[#222] space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-brand-yellow/15 border border-brand-yellow/30 flex items-center justify-center text-brand-yellow">
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black uppercase text-white font-display">
+                      Pasarela de Pagos en Línea (Wompi / Bold / PSE)
+                    </h4>
+                    <p className="text-[11px] text-gray-400">
+                      Módulo para cobro automático con Tarjeta de Crédito, PSE, Nequi y Bancolombia.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-[#202020] text-gray-400 border border-[#333]">
+                  🔒 Próximamente (Control Superadmin)
+                </span>
+              </div>
+
+              <div className="bg-[#181818] border border-[#2b2b2b] rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Estado de Pagos en Línea</span>
+                    <span className="text-[11px] text-gray-400">
+                      Actualmente los clientes pagan contra entrega (Efectivo, Nequi, Daviplata o Datáfono físico).
+                    </span>
+                  </div>
+                  <span className="px-3 py-1 rounded-xl bg-red-500/15 text-red-400 border border-red-500/30 font-black text-[10px] uppercase">
+                    Inactivo
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#252525] text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-[#131313] border border-[#262626]">
+                    <strong className="text-brand-yellow block mb-0.5">Wompi / Bancolombia</strong>
+                    <span className="text-gray-400 text-[10px]">Tarjetas, Nequi QR y Botón Bancolombia automático.</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#131313] border border-[#262626]">
+                    <strong className="text-brand-yellow block mb-0.5">Bold Datafono & Link</strong>
+                    <span className="text-gray-400 text-[10px]">Links PSE y cobro directo desde datáfonos Bold.</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#131313] border border-[#262626]">
+                    <strong className="text-brand-yellow block mb-0.5">Mercado Pago / ePayco</strong>
+                    <span className="text-gray-400 text-[10px]">Cobros con checkout seguro y webhook instantáneo.</span>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-gray-500 italic">
+                  ℹ️ Cuando desees activar los pagos en línea, el Superadmin podrá habilitar la pasarela con su Llave Pública y Secreta sin necesidad de modificar el código de la aplicación.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -5872,14 +5952,30 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-300 font-bold uppercase mb-1">Etiqueta</label>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Etiqueta (Badge)</label>
                   <input
                     type="text"
-                    placeholder="MÁS VENDIDO, NUEVO..."
+                    placeholder="PROMO, COMBO, MÁS VENDIDO..."
                     value={productFormData.etiqueta}
                     onChange={(e) => setProductFormData({ ...productFormData, etiqueta: e.target.value })}
                     className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
                   />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {['PROMO', 'COMBO', 'MÁS VENDIDO', 'NUEVO', 'RECOMENDADO'].map((badge) => (
+                      <button
+                        key={badge}
+                        type="button"
+                        onClick={() => setProductFormData({ ...productFormData, etiqueta: badge })}
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition ${
+                          productFormData.etiqueta === badge
+                            ? 'bg-brand-yellow text-black'
+                            : 'bg-[#222] text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        +{badge}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-gray-300 font-bold uppercase mb-1">Disponibilidad</label>

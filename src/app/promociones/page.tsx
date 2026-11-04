@@ -1,28 +1,122 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { promotions } from '@/data/products';
+import { promotions as initialPromotions } from '@/data/products';
 import { useCart } from '@/context/CartContext';
-import { Check, ShoppingCart, Sparkles, Tag } from 'lucide-react';
+import { Check, ShoppingCart, Sparkles, Tag, Utensils } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
+
+interface PromoDisplayItem {
+  id: string | number;
+  nombre: string;
+  slug?: string;
+  descripcion: string;
+  precio: number;
+  precioAntes?: number;
+  imagen: string;
+  etiqueta?: string;
+  incluye: string[];
+  originalProduct?: any;
+}
 
 export default function PromocionesPage() {
   const { addToCart, setIsCartOpen } = useCart();
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleOrderPromo = (promo: (typeof promotions)[0]) => {
-    const promoProduct = {
+  // Consultar productos reales de la base de datos
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+      })
+      .catch((err) => console.error('Error fetching promo products:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Construir la lista de promociones unificando los combos de la base de datos y promociones base
+  const allPromos = useMemo<PromoDisplayItem[]>(() => {
+    // 1. Filtrar productos de la base de datos que sean de categoría 'combos' o tengan etiqueta de promoción
+    const promoKeywords = ['PROMO', 'COMBO', 'OFERTA', '2X1', 'DESCUENTO', 'ESPECIAL'];
+    const dbPromos = dbProducts
+      .filter((p) => {
+        if (p.disponibilidad === false) return false;
+        const catSlug = (p.categoria || '').toLowerCase();
+        const subcatSlug = (p.subcategoria || '').toLowerCase();
+        const catName = ((p.categoriaNombre || '') as string).toLowerCase();
+        const subcatName = ((p.subcategoriaNombre || '') as string).toLowerCase();
+        const tag = (p.etiqueta || '').toUpperCase();
+
+        const isComboCat =
+          catSlug.includes('combo') ||
+          subcatSlug.includes('combo') ||
+          catName.includes('combo') ||
+          subcatName.includes('combo');
+
+        const hasPromoTag = promoKeywords.some((k) => tag.includes(k));
+
+        return isComboCat || hasPromoTag;
+      })
+      .map((p) => {
+        // Desglosar qué incluye a partir de ingredientes o descripción
+        let incluyeList: string[] = [];
+        if (Array.isArray(p.ingredientes) && p.ingredientes.length > 0) {
+          incluyeList = p.ingredientes;
+        } else if (p.descripcion) {
+          // Dividir por líneas o por comas si tiene formato de lista
+          const parts = p.descripcion.split(/[\n,•+]/).map((s: string) => s.trim()).filter((s: string) => s.length > 2);
+          incluyeList = parts.length > 1 ? parts.slice(0, 4) : [p.descripcion];
+        } else {
+          incluyeList = ['Preparación artesanal fresca Punto G', 'Bebida y acompañamiento'];
+        }
+
+        return {
+          id: p.id,
+          nombre: p.nombre,
+          slug: p.slug,
+          descripcion: p.descripcion || 'Combo especial preparado con los mejores ingredientes.',
+          precio: p.precio,
+          precioAntes: Math.round((p.precio * 1.2) / 1000) * 1000, // Precio de referencia antes del descuento
+          imagen: p.imagen,
+          etiqueta: p.etiqueta || 'COMBO RECOMENDADO',
+          incluye: incluyeList,
+          originalProduct: p,
+        };
+      });
+
+    // 2. Si hay promociones en la base de datos, las priorizamos; si faltan, añadimos las de respaldo iniciales
+    if (dbPromos.length > 0) {
+      // Evitar duplicados por nombre
+      const combined = [...dbPromos];
+      for (const initial of initialPromotions) {
+        if (!combined.some((c) => c.nombre.toLowerCase().trim() === initial.nombre.toLowerCase().trim())) {
+          combined.push(initial as any);
+        }
+      }
+      return combined;
+    }
+
+    return initialPromotions as PromoDisplayItem[];
+  }, [dbProducts]);
+
+  const handleOrderPromo = (promo: PromoDisplayItem) => {
+    const promoProduct = promo.originalProduct || {
       id: promo.id,
       nombre: promo.nombre,
-      slug: promo.id,
+      slug: promo.slug || String(promo.id),
       descripcion: promo.descripcion,
       precio: promo.precio,
       imagen: promo.imagen,
-      categoria: 'hamburguesas',
-      etiqueta: 'MÁS VENDIDO' as const,
+      categoria: 'combos',
+      etiqueta: promo.etiqueta || ('COMBO' as any),
       disponibilidad: true,
       destacado: true,
     };
+
     addToCart(promoProduct, 1);
     setIsCartOpen(true);
   };
@@ -50,7 +144,7 @@ export default function PromocionesPage() {
         
         {/* Promos Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {promotions.map((promo) => (
+          {allPromos.map((promo) => (
             <div
               key={promo.id}
               className="bg-[#121212] border-2 border-[#242424] hover:border-brand-yellow/60 rounded-3xl overflow-hidden flex flex-col justify-between shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
