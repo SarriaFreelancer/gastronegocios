@@ -66,6 +66,7 @@ export default function CocinaKDSPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -158,6 +159,7 @@ export default function CocinaKDSPage() {
 
   // Clock timer
   useEffect(() => {
+    setMounted(true);
     const updateClock = () => {
       const now = new Date();
       setCurrentTime(
@@ -332,10 +334,10 @@ export default function CocinaKDSPage() {
 
             {/* Action Tools & Clock (Available on phones, tablets & desktop) */}
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#181818] border border-[#2b2b2b] rounded-xl font-mono text-xs font-bold text-brand-yellow">
+              <div suppressHydrationWarning className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#181818] border border-[#2b2b2b] rounded-xl font-mono text-xs font-bold text-brand-yellow">
                 <Clock className="w-3.5 h-3.5 text-gray-400" />
-                <span className="hidden sm:inline">{currentTime || '--:--:--'}</span>
-                <span className="sm:hidden">{currentTime ? currentTime.slice(0, 5) : '--:--'}</span>
+                <span suppressHydrationWarning className="hidden sm:inline">{mounted ? (currentTime || '--:--:--') : '--:--:--'}</span>
+                <span suppressHydrationWarning className="sm:hidden">{mounted && currentTime ? currentTime.slice(0, 5) : '--:--'}</span>
               </div>
 
               <button
@@ -705,7 +707,9 @@ export default function CocinaKDSPage() {
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <span>Auto-actualización cada 3.5 segundos</span>
           <span className="text-gray-700">•</span>
-          <span>Último sync: {lastUpdated.toLocaleTimeString()}</span>
+          <span suppressHydrationWarning>
+            Último sync: {mounted ? lastUpdated.toLocaleTimeString('es-CO') : '--:--'}
+          </span>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/rastreo" className="hover:text-brand-yellow transition-colors">

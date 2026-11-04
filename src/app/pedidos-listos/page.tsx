@@ -65,6 +65,7 @@ export default function PedidosListosPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
   const [deliveringId, setDeliveringId] = useState<number | null>(null);
 
   // Track previous order IDs to detect when a new order becomes ready
@@ -156,6 +157,7 @@ export default function PedidosListosPage() {
 
   // Live Clock
   useEffect(() => {
+    setMounted(true);
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(
@@ -316,7 +318,9 @@ export default function PedidosListosPage() {
             </p>
             <div className="flex items-center gap-2 text-xs text-gray-500 font-mono">
               <Clock className="w-4 h-4 text-brand-yellow" />
-              <span>Última comprobación: {lastUpdated.toLocaleTimeString('es-CO')}</span>
+              <span suppressHydrationWarning>
+                Última comprobación: {mounted ? lastUpdated.toLocaleTimeString('es-CO') : '--:--'}
+              </span>
             </div>
           </div>
         ) : (

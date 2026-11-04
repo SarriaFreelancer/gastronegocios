@@ -201,7 +201,7 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'configuracion'
+    'pedidos' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion'
   >('pedidos');
 
   // Loading States
@@ -389,6 +389,18 @@ export default function AdminPage() {
   });
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string | number, boolean>>({});
   const [showUserModalPassword, setShowUserModalPassword] = useState(false);
+
+  // ==================== 6.1 SEDES / SUCURSALES STATE ====================
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [branchFormData, setBranchFormData] = useState({
+    nombre: '',
+    slug: '',
+    direccion: '',
+    telefono: '',
+    ciudad: 'Cali',
+    activo: true,
+  });
 
   // ==================== 7. CONFIGURACIÓN STATE ====================
   const [config, setConfig] = useState({
@@ -1205,6 +1217,70 @@ export default function AdminPage() {
     }
   };
 
+  // ==================== BRANCH ACTIONS ====================
+  const handleOpenNewBranch = () => {
+    setEditingBranch(null);
+    setBranchFormData({
+      nombre: '',
+      slug: '',
+      direccion: '',
+      telefono: '',
+      ciudad: 'Cali',
+      activo: true,
+    });
+    setIsBranchModalOpen(true);
+  };
+
+  const handleOpenEditBranch = (branch: Branch) => {
+    setEditingBranch(branch);
+    setBranchFormData({
+      nombre: branch.nombre,
+      slug: branch.slug,
+      direccion: branch.direccion || '',
+      telefono: branch.telefono || '',
+      ciudad: branch.ciudad || 'Cali',
+      activo: branch.activo,
+    });
+    setIsBranchModalOpen(true);
+  };
+
+  const handleSaveBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingBranch) {
+        await fetch('/api/branches', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingBranch.id, ...branchFormData }),
+        });
+      } else {
+        await fetch('/api/branches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(branchFormData),
+        });
+      }
+      setIsBranchModalOpen(false);
+      fetchBranches();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteBranch = async (id: number) => {
+    if (!confirm('¿Eliminar esta sede?')) return;
+    try {
+      await fetch('/api/branches', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      fetchBranches();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Save Settings
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1552,6 +1628,7 @@ export default function AdminPage() {
             { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length },
             { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length },
             { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
+            { id: 'sedes', label: 'Sedes / Sucursales', icon: Building2, count: branches.length },
             { id: 'configuracion', label: 'Configuración', icon: Settings },
           ].map((tab: any) => {
             const Icon = tab.icon;
@@ -4340,6 +4417,103 @@ export default function AdminPage() {
         )}
 
         {/* ======================================================== */}
+        {/* TAB: SEDES / SUCURSALES (MULTI-SEDE)                     */}
+        {/* ======================================================== */}
+        {activeTab === 'sedes' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#121212] border border-[#222] rounded-2xl p-5 shadow-xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-brand-yellow" />
+                  <h3 className="text-lg font-black uppercase text-white font-display">
+                    SEDES Y SUCURSALES DEL NEGOCIO ({branches.length})
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Crea nuevas sedes, edita sus datos de contacto y administra los accesos para cada punto de venta en MySQL.
+                </p>
+              </div>
+
+              <button
+                onClick={handleOpenNewBranch}
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Crear Nueva Sede</span>
+              </button>
+            </div>
+
+            {/* Branches Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {branches.map((b) => (
+                <div
+                  key={b.id}
+                  className="bg-[#121212] border border-[#242424] hover:border-brand-yellow/50 rounded-2xl p-5 space-y-4 shadow-xl transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30">
+                        SEDE ID #{b.id}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          b.activo
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                        }`}
+                      >
+                        {b.activo ? '● Activa' : '○ Inactiva'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-base font-black text-white uppercase">{b.nombre}</h4>
+                      <p className="text-[11px] font-mono text-gray-400">slug: {b.slug}</p>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-gray-300 border-t border-[#1e1e1e] pt-3">
+                      {b.direccion && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-brand-yellow flex-shrink-0 mt-0.5" />
+                          <span>{b.direccion}</span>
+                        </div>
+                      )}
+                      {b.telefono && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                          <span>{b.telefono}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold text-gray-500">Ciudad:</span>
+                        <span className="text-white font-bold">{b.ciudad}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 border-t border-[#1e1e1e] pt-3">
+                    <button
+                      onClick={() => handleOpenEditBranch(b)}
+                      className="px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#282828] text-gray-300 hover:text-brand-yellow rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-[#2d2d2d]"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Editar Sede</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBranch(b.id)}
+                      className="p-1.5 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-xl transition border border-[#2d2d2d]"
+                      title="Eliminar sede"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
         {/* TAB 7: CONFIGURACIÓN                                     */}
         {/* ======================================================== */}
         {activeTab === 'configuracion' && (
@@ -5227,6 +5401,138 @@ export default function AdminPage() {
                   className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
                 >
                   Guardar Usuario
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: CREAR / EDITAR SEDE                                */}
+      {/* ======================================================== */}
+      {isBranchModalOpen && (
+        <div 
+          onClick={() => setIsBranchModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative shadow-2xl"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-brand-yellow" />
+                <h3 className="text-lg font-black uppercase text-white font-display">
+                  {editingBranch ? 'EDITAR SEDE / SUCURSAL' : 'CREAR NUEVA SEDE'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBranchModalOpen(false)}
+                className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-white rounded-full bg-[#1c1c1c] hover:bg-[#252525] transition border border-[#333]"
+              >
+                <X className="w-4 h-4 stroke-[2.5]" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBranch} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre de la Sede *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Sede Granada (Principal)"
+                  value={branchFormData.nombre}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    const autoSlug = name
+                      .toLowerCase()
+                      .trim()
+                      .replace(/[^a-z0-9]+/g, '-')
+                      .replace(/(^-|-$)+/g, '');
+                    setBranchFormData({
+                      ...branchFormData,
+                      nombre: name,
+                      slug: editingBranch ? branchFormData.slug : autoSlug,
+                    });
+                  }}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs focus:border-brand-yellow focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Slug / Identificador Único *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="ej: granada, ciudad-jardin, norte"
+                  value={branchFormData.slug}
+                  onChange={(e) => setBranchFormData({ ...branchFormData, slug: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs font-mono focus:border-brand-yellow focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Dirección Física</label>
+                <input
+                  type="text"
+                  placeholder="Calle 9 # 45-12, Barrio Granada"
+                  value={branchFormData.direccion}
+                  onChange={(e) => setBranchFormData({ ...branchFormData, direccion: e.target.value })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs focus:border-brand-yellow focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Teléfono / WhatsApp</label>
+                  <input
+                    type="text"
+                    placeholder="3229088736"
+                    value={branchFormData.telefono}
+                    onChange={(e) => setBranchFormData({ ...branchFormData, telefono: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs focus:border-brand-yellow focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Ciudad</label>
+                  <input
+                    type="text"
+                    required
+                    value={branchFormData.ciudad}
+                    onChange={(e) => setBranchFormData({ ...branchFormData, ciudad: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs focus:border-brand-yellow focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-bold uppercase mb-1">Estado</label>
+                <select
+                  value={branchFormData.activo ? 'true' : 'false'}
+                  onChange={(e) => setBranchFormData({ ...branchFormData, activo: e.target.value === 'true' })}
+                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
+                >
+                  <option value="true">Activa (Disponible para asignación y pedidos)</option>
+                  <option value="false">Inactiva (Temporalmente cerrada)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsBranchModalOpen(false)}
+                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl shadow-glow hover:bg-brand-yellowHover transition"
+                >
+                  {editingBranch ? 'Guardar Cambios' : 'Crear Sede'}
                 </button>
               </div>
             </form>
