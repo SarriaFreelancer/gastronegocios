@@ -20,7 +20,7 @@ export interface Product {
   subcategoria?: string | null; // e.g. 'hamburguesas', 'gaseosas', 'cocteles'
   subcategoriaId?: number | null;
   subcategoriaNombre?: string | null;
-  etiqueta?: ProductBadge;
+  etiqueta?: ProductBadge | string | null;
   disponibilidad: boolean;
   destacado?: boolean;
   ingredientes?: string[];

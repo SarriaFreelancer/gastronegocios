@@ -1128,6 +1128,20 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleDisponibilidad = async (p: Product) => {
+    try {
+      const nextStatus = p.disponibilidad === false ? true : false;
+      await fetch(`/api/products/${p.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disponibilidad: nextStatus }),
+      });
+      fetchProducts();
+    } catch (e) {
+      console.error('Error al actualizar disponibilidad', e);
+    }
+  };
+
   // Review Actions
   const handleSaveReply = async (reviewId: number | string) => {
     if (!replyText.trim()) return;
@@ -4133,13 +4147,16 @@ export default function AdminPage() {
                             {p.etiqueta}
                           </span>
                         )}
-                        <span
-                          className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded ${
-                            p.disponibilidad ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDisponibilidad(p)}
+                          className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded shadow cursor-pointer transition-all hover:scale-105 ${
+                            p.disponibilidad !== false ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'
                           }`}
+                          title={p.disponibilidad !== false ? 'Clic para apagar plato' : 'Clic para activar plato'}
                         >
-                          {p.disponibilidad ? 'Disponible' : 'Agotado'}
-                        </span>
+                          {p.disponibilidad !== false ? 'Disponible' : 'Agotado'}
+                        </button>
                       </div>
 
                       <div>
@@ -4162,21 +4179,37 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-end gap-2">
+                    <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
                       <button
-                        onClick={() => handleOpenEditProduct(p)}
-                        className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
-                        title="Editar"
+                        onClick={() => handleToggleDisponibilidad(p)}
+                        type="button"
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-black transition-all ${
+                          p.disponibilidad !== false
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25'
+                            : 'bg-red-500/15 text-red-400 border border-red-500/40 hover:bg-red-500/25'
+                        }`}
+                        title={p.disponibilidad !== false ? 'Clic para apagar este plato del menú' : 'Clic para activar este plato en el menú'}
                       >
-                        <Edit className="w-3.5 h-3.5" />
+                        <span className={`w-2 h-2 rounded-full ${p.disponibilidad !== false ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                        <span>{p.disponibilidad !== false ? 'Activo en Menú' : 'Apagado / Oculto'}</span>
                       </button>
-                      <button
-                        onClick={() => handleDeleteProduct(p.id)}
-                        className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditProduct(p)}
+                          className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(p.id)}
+                          className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

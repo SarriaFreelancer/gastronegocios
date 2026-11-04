@@ -56,8 +56,16 @@ export default function MenuGeneralPage() {
     setSelectedSubcategory(subSlug || null);
   };
 
+  const activeProductsCount = useMemo(
+    () => allProducts.filter((p) => p.disponibilidad !== false).length,
+    [allProducts]
+  );
+
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
+      // Si el plato fue apagado por el administrador, no se muestra a los clientes
+      if (p.disponibilidad === false) return false;
+
       let matchesCategory = true;
 
       if (selectedCategory !== 'todos') {
@@ -142,7 +150,7 @@ export default function MenuGeneralPage() {
                   : 'bg-[#1a1a1a] text-gray-300 hover:bg-[#252525] hover:text-white'
               }`}
             >
-              <span>Todos los Platos ({allProducts.length})</span>
+              <span>Todos los Platos ({activeProductsCount})</span>
             </button>
 
             {mainCategories.map((cat) => (
@@ -247,15 +255,26 @@ export default function MenuGeneralPage() {
             {/* Products Grid */}
             {filteredProducts.length === 0 ? (
               <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center space-y-4">
-                <p className="text-lg font-bold text-white">No encontramos productos en esta sección.</p>
-                <p className="text-xs text-gray-400">Intenta con otra subcategoría o término de búsqueda.</p>
+                <div className="w-14 h-14 mx-auto rounded-full bg-brand-yellow/10 border border-brand-yellow/30 flex items-center justify-center text-brand-yellow">
+                  <Sparkles className="w-7 h-7" />
+                </div>
+                <p className="text-lg font-bold text-white">
+                  {selectedSubcategory || selectedCategory !== 'todos'
+                    ? `No hay platos activos en ${currentCategoryObj ? currentCategoryObj.nombre : 'esta sección'} en este momento.`
+                    : 'No encontramos productos con ese término de búsqueda.'}
+                </p>
+                <p className="text-xs text-gray-400 max-w-md mx-auto">
+                  {selectedSubcategory || selectedCategory !== 'todos'
+                    ? 'Esta subcategoría existe normalmente en nuestra carta, pero los platos están temporalmente pausados o agotados. ¡Te invitamos a explorar las demás opciones!'
+                    : 'Intenta con otra palabra clave o explora las categorías de nuestro menú.'}
+                </p>
                 <button
                   onClick={() => {
                     setSelectedCategory('todos');
                     setSelectedSubcategory(null);
                     setSearchQuery('');
                   }}
-                  className="bg-brand-yellow text-black text-xs font-black px-5 py-2.5 rounded-full uppercase tracking-wider"
+                  className="bg-brand-yellow text-black text-xs font-black px-6 py-2.5 rounded-full uppercase tracking-wider hover:bg-yellow-400 transition-colors shadow-glow"
                 >
                   Ver todo el menú
                 </button>
