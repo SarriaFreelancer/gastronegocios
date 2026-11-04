@@ -67,6 +67,7 @@ import {
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
 import { exportSalesReportToExcel, exportSalesReportToPDF } from '@/lib/reports';
+import { showConfirm, showAlert, showSuccess, showError, showWarning } from '@/lib/swal';
 
 interface OrderItem {
   id?: number | string;
@@ -324,8 +325,6 @@ export default function AdminPage() {
   const [filterCategoryStatus, setFilterCategoryStatus] = useState<'todas' | 'activas' | 'inactivas'>('todas');
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
-  const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false);
-  const [categoryToDeactivate, setCategoryToDeactivate] = useState<Category | null>(null);
   const [catFormData, setCatFormData] = useState({
     nombre: '',
     slug: '',
@@ -830,8 +829,16 @@ export default function AdminPage() {
   };
 
   // Release Table
-  const handleReleaseTable = async (tableId: number | string) => {
-    if (!confirm('¿Deseas liberar esta mesa y marcarla como libre?')) return;
+  const handleReleaseTable = async (tableId: number | string, tableNum?: string | number) => {
+    const ok = await showConfirm({
+      title: '¿Liberar Mesa?',
+      text: tableNum ? `¿Deseas liberar la Mesa #${tableNum} y marcarla como libre?` : '¿Deseas liberar esta mesa y desocuparla?',
+      confirmButtonText: 'Sí, liberar mesa',
+      cancelButtonText: 'Cancelar',
+      icon: 'question',
+    });
+    if (!ok) return;
+
     try {
       const res = await fetch(`/api/tables/${tableId}`, {
         method: 'PUT',
@@ -840,9 +847,13 @@ export default function AdminPage() {
       });
       if (res.ok) {
         await Promise.all([fetchTables(), fetchOrders()]);
+        showSuccess('Mesa Liberada', 'La mesa ha sido desocupada y marcada como libre.');
+      } else {
+        showError('Error', 'No se pudo liberar la mesa');
       }
     } catch (e) {
       console.error(e);
+      showError('Error de conexión', 'No se pudo conectar con el servidor');
     }
   };
 
@@ -869,10 +880,17 @@ export default function AdminPage() {
   const handleReleaseAllTables = async () => {
     const occupied = tables.filter((t) => t.estado !== 'Libre' || (t.orders && t.orders.length > 0));
     if (occupied.length === 0) {
-      alert('Todas las mesas ya se encuentran libres.');
+      showWarning('Mesas Libres', 'Todas las mesas ya se encuentran libres.');
       return;
     }
-    if (!confirm(`¿Deseas liberar todas las ${occupied.length} mesas ocupadas? Se marcarán como libres.`)) return;
+    const ok = await showConfirm({
+      title: '¿Liberar Todas las Mesas?',
+      text: `¿Deseas liberar todas las ${occupied.length} mesas ocupadas? Se marcarán inmediatamente como libres.`,
+      confirmButtonText: 'Sí, liberar todas',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
 
     try {
       await Promise.all(
@@ -885,8 +903,10 @@ export default function AdminPage() {
         )
       );
       await Promise.all([fetchTables(), fetchOrders()]);
+      showSuccess('Mesas Liberadas', `Se liberaron ${occupied.length} mesas exitosamente.`);
     } catch (e) {
       console.error(e);
+      showError('Error', 'Ocurrió un error al liberar las mesas');
     }
   };
 
@@ -978,37 +998,52 @@ export default function AdminPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(`No se pudo guardar la categoría: ${err.error || 'Error en el servidor'}`);
+        showError('No se pudo guardar la categoría', err.error || 'Error en el servidor');
         return;
       }
 
       setIsCatModalOpen(false);
       await fetchCategories();
+      showSuccess('Categoría Guardada', 'La categoría se guardó correctamente.');
     } catch (e) {
       console.error(e);
-      alert('Error de conexión al guardar la categoría');
+      showError('Error de conexión', 'No se pudo conectar con el servidor al guardar la categoría');
     }
   };
 
   const handleDeleteCategory = async (id: number | string) => {
-    if (!confirm('¿Eliminar esta categoría? Los productos asociados podrían verse afectados.')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Categoría?',
+      text: 'Los productos y subcategorías asociadas podrían verse afectados. ¿Deseas continuar?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/categories/${id}`, { method: 'DELETE' });
       fetchCategories();
+      showSuccess('Categoría Eliminada', 'La categoría fue eliminada con éxito.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar la categoría');
     }
   };
 
-  const handleToggleCategoryActive = (cat: Category) => {
+  const handleToggleCategoryActive = async (cat: Category) => {
     // Si la categoría está activa y es principal, advertir al usuario con SweetAlert
     if (cat.activo && !cat.parentId) {
-      setCategoryToDeactivate(cat);
-      setIsConfirmDeactivateOpen(true);
-      return;
+      const ok = await showConfirm({
+        title: '¿Desactivar Categoría Principal?',
+        text: `Al inactivar "${cat.nombre}", sus subcategorías y platos dejarán de aparecer en el menú principal y público. ¿Deseas continuar?`,
+        confirmButtonText: 'Sí, ocultar categoría',
+        cancelButtonText: 'Cancelar',
+        icon: 'warning',
+      });
+      if (!ok) return;
     }
     // Si ya está inactiva o es una subcategoría, activar/desactivar directamente
-    executeToggleCategory(cat.id, !cat.activo);
+    await executeToggleCategory(cat.id, !cat.activo);
   };
 
   const executeToggleCategory = async (id: number | string, nuevoEstado: boolean) => {
@@ -1018,8 +1053,6 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ activo: nuevoEstado }),
       });
-      setIsConfirmDeactivateOpen(false);
-      setCategoryToDeactivate(null);
       fetchCategories();
     } catch (e) {
       console.error('Error al actualizar estado de categoría:', e);
@@ -1080,7 +1113,7 @@ export default function AdminPage() {
   const handleSaveSubcategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subcatFormData.parentId) {
-      alert('Debes seleccionar la Categoría Principal obligatoriamente');
+      showWarning('Campo obligatorio', 'Debes seleccionar la Categoría Principal obligatoriamente');
       return;
     }
     try {
@@ -1107,25 +1140,35 @@ export default function AdminPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(`No se pudo guardar la subcategoría: ${err.error || 'Error en el servidor'}`);
+        showError('No se pudo guardar la subcategoría', err.error || 'Error en el servidor');
         return;
       }
 
       setIsSubcatModalOpen(false);
       await fetchCategories();
+      showSuccess('Subcategoría Guardada', 'La subcategoría se guardó correctamente.');
     } catch (e) {
       console.error(e);
-      alert('Error de conexión al guardar la subcategoría');
+      showError('Error de conexión', 'No se pudo conectar con el servidor al guardar la subcategoría');
     }
   };
 
   const handleDeleteSubcategory = async (id: number | string) => {
-    if (!confirm('¿Eliminar esta subcategoría?')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Subcategoría?',
+      text: '¿Seguro que deseas eliminar esta subcategoría?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/categories/${id}`, { method: 'DELETE' });
       fetchCategories();
+      showSuccess('Subcategoría Eliminada', 'La subcategoría fue eliminada con éxito.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar la subcategoría');
     }
   };
 
@@ -1181,25 +1224,35 @@ export default function AdminPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(`No se pudo guardar el producto: ${err.error || 'Error en el servidor'}`);
+        showError('No se pudo guardar el producto', err.error || 'Error en el servidor');
         return;
       }
 
       setIsProductModalOpen(false);
       await fetchProducts();
+      showSuccess('Producto Guardado', 'El plato se guardó exitosamente.');
     } catch (e) {
       console.error(e);
-      alert('Error de conexión al guardar el producto');
+      showError('Error de conexión', 'No se pudo conectar con el servidor al guardar el producto');
     }
   };
 
   const handleDeleteProduct = async (id: number | string) => {
-    if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Producto?',
+      text: '¿Seguro que deseas eliminar este producto del menú?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
       fetchProducts();
+      showSuccess('Producto Eliminado', 'El producto ha sido eliminado correctamente.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar el producto');
     }
   };
 
@@ -1235,12 +1288,21 @@ export default function AdminPage() {
   };
 
   const handleDeleteReview = async (reviewId: number | string) => {
-    if (!confirm('¿Eliminar este comentario?')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Comentario?',
+      text: '¿Deseas eliminar permanentemente esta reseña?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
       fetchReviews();
+      showSuccess('Comentario Eliminado', 'La reseña fue eliminada.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar la reseña');
     }
   };
 
@@ -1276,33 +1338,50 @@ export default function AdminPage() {
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let res: Response;
       if (editingUser) {
-        await fetch(`/api/users/${editingUser.id}`, {
+        res = await fetch(`/api/users/${editingUser.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(userFormData),
         });
       } else {
-        await fetch('/api/users', {
+        res = await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(userFormData),
         });
       }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError('No se pudo guardar usuario', err.error || 'Error en el servidor');
+        return;
+      }
       setIsUserModalOpen(false);
       fetchUsers();
+      showSuccess('Usuario Guardado', 'Los datos del usuario fueron actualizados.');
     } catch (e) {
       console.error(e);
+      showError('Error de conexión', 'No se pudo guardar el usuario');
     }
   };
 
   const handleDeleteUser = async (id: number | string) => {
-    if (!confirm('¿Eliminar este usuario?')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Usuario?',
+      text: '¿Seguro que deseas eliminar este usuario del sistema?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/users/${id}`, { method: 'DELETE' });
       fetchUsers();
+      showSuccess('Usuario Eliminado', 'El usuario ha sido eliminado.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar el usuario');
     }
   };
 
@@ -1336,28 +1415,43 @@ export default function AdminPage() {
   const handleSaveBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let res: Response;
       if (editingBranch) {
-        await fetch('/api/branches', {
+        res = await fetch('/api/branches', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingBranch.id, ...branchFormData }),
         });
       } else {
-        await fetch('/api/branches', {
+        res = await fetch('/api/branches', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(branchFormData),
         });
       }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError('No se pudo guardar la sede', err.error || 'Error en el servidor');
+        return;
+      }
       setIsBranchModalOpen(false);
       fetchBranches();
+      showSuccess('Sede Guardada', 'La información de la sede fue guardada correctamente.');
     } catch (e) {
       console.error(e);
+      showError('Error de conexión', 'No se pudo guardar la sede');
     }
   };
 
   const handleDeleteBranch = async (id: number) => {
-    if (!confirm('¿Eliminar esta sede?')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Sede?',
+      text: '¿Seguro que deseas eliminar esta sede del restaurante?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch('/api/branches', {
         method: 'DELETE',
@@ -1365,8 +1459,10 @@ export default function AdminPage() {
         body: JSON.stringify({ id }),
       });
       fetchBranches();
+      showSuccess('Sede Eliminada', 'La sede fue eliminada.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar la sede');
     }
   };
 
@@ -1381,8 +1477,10 @@ export default function AdminPage() {
       });
       setSavedSettings(true);
       setTimeout(() => setSavedSettings(false), 2500);
+      showSuccess('Configuración Guardada', 'Los ajustes del restaurante se actualizaron exitosamente.');
     } catch (e) {
       console.error(e);
+      showError('Error de conexión', 'No se pudo guardar la configuración');
     }
   };
 
@@ -1404,12 +1502,14 @@ export default function AdminPage() {
         setOpenShiftData({ cajero: 'Admin', baseInicial: 100000, notas: '' });
         fetchCurrentShift();
         fetchShiftHistory();
+        showSuccess('Turno Abierto', 'El turno de caja se abrió correctamente.');
       } else {
         const data = await res.json();
-        alert(data.error || 'Error al abrir turno');
+        showError('Error de Caja', data.error || 'Error al abrir turno');
       }
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo conectar con el servidor para abrir el turno');
     }
   };
 
@@ -1431,9 +1531,14 @@ export default function AdminPage() {
         setCloseShiftData({ efectivoReal: '', notas: '' });
         fetchCurrentShift();
         fetchShiftHistory();
+        showSuccess('Turno Cerrado', 'El turno de caja ha sido cerrado.');
+      } else {
+        const data = await res.json();
+        showError('Error al cerrar turno', data.error || 'No se pudo cerrar el turno');
       }
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo cerrar el turno');
     }
   };
 
@@ -1455,23 +1560,40 @@ export default function AdminPage() {
         setIsExpenseModalOpen(false);
         setExpenseFormData({ descripcion: '', monto: '', categoria: 'Insumos' });
         fetchCurrentShift();
+        showSuccess('Egreso Registrado', 'El egreso de caja se registró exitosamente.');
+      } else {
+        const data = await res.json();
+        showError('Error', data.error || 'No se pudo registrar el egreso');
       }
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo registrar el egreso');
     }
   };
 
   const handleDeleteExpense = async (expenseId: number) => {
-    if (!activeShift || !confirm('¿Eliminar este egreso de caja?')) return;
+    if (!activeShift) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Egreso?',
+      text: '¿Seguro que deseas eliminar este registro de egreso de caja?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/shifts/${activeShift.id}/expenses?id=${expenseId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
         fetchCurrentShift();
+        showSuccess('Egreso Eliminado', 'El egreso fue eliminado con éxito.');
+      } else {
+        showError('Error', 'No se pudo eliminar el egreso');
       }
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar el egreso');
     }
   };
 
@@ -1501,8 +1623,9 @@ export default function AdminPage() {
   const handleSaveAddon = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let res: Response;
       if (editingAddon) {
-        await fetch('/api/addons', {
+        res = await fetch('/api/addons', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1514,7 +1637,7 @@ export default function AdminPage() {
           }),
         });
       } else {
-        await fetch('/api/addons', {
+        res = await fetch('/api/addons', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1524,10 +1647,17 @@ export default function AdminPage() {
           }),
         });
       }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError('No se pudo guardar el adicional', err.error || 'Error en el servidor');
+        return;
+      }
       setIsAddonModalOpen(false);
       fetchAddons();
+      showSuccess('Adicional Guardado', 'El topping/adicional fue guardado con éxito.');
     } catch (e) {
       console.error(e);
+      showError('Error de conexión', 'No se pudo guardar el adicional');
     }
   };
 
@@ -1548,12 +1678,21 @@ export default function AdminPage() {
   };
 
   const handleDeleteAddon = async (id: number) => {
-    if (!confirm('¿Eliminar este adicional?')) return;
+    const ok = await showConfirm({
+      title: '¿Eliminar Adicional?',
+      text: '¿Deseas eliminar este adicional o topping del catálogo?',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/addons?id=${id}`, { method: 'DELETE' });
       fetchAddons();
+      showSuccess('Adicional Eliminado', 'El adicional ha sido eliminado.');
     } catch (e) {
       console.error(e);
+      showError('Error', 'No se pudo eliminar el adicional');
     }
   };
 
@@ -2338,9 +2477,9 @@ export default function AdminPage() {
                                     onClick={() => {
                                       const found = tables.find(t => t.numero === o.numeroMesa || t.id === o.mesaId);
                                       if (found) {
-                                        handleReleaseTable(found.id);
+                                        handleReleaseTable(found.id, found.numero);
                                       } else {
-                                        alert(`No se encontró mesa registrada con el número ${o.numeroMesa}`);
+                                        showWarning('Mesa no encontrada', `No se encontró mesa registrada con el número ${o.numeroMesa}`);
                                       }
                                     }}
                                     className="p-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 transition"
@@ -2565,9 +2704,9 @@ export default function AdminPage() {
                             onClick={() => {
                               const found = tables.find(t => t.numero === o.numeroMesa || t.id === o.mesaId);
                               if (found) {
-                                handleReleaseTable(found.id);
+                                handleReleaseTable(found.id, found.numero);
                               } else {
-                                alert(`No se encontró mesa registrada con el número ${o.numeroMesa}`);
+                                showWarning('Mesa no encontrada', `No se encontró mesa registrada con el número ${o.numeroMesa}`);
                               }
                             }}
                             className="py-1.5 px-3 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 font-bold text-[11px] flex items-center gap-1.5 transition"
@@ -3710,7 +3849,7 @@ export default function AdminPage() {
                         )}
                         <button
                           type="button"
-                          onClick={() => handleReleaseTable(t.id)}
+                          onClick={() => handleReleaseTable(t.id, t.numero)}
                           className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -3727,7 +3866,7 @@ export default function AdminPage() {
                         </p>
                         <button
                           type="button"
-                          onClick={() => handleReleaseTable(t.id)}
+                          onClick={() => handleReleaseTable(t.id, t.numero)}
                           className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -5295,72 +5434,6 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* SWEET ALERT: CONFIRMAR INACTIVACIÓN DE CATEGORÍA          */}
-      {/* ======================================================== */}
-      {isConfirmDeactivateOpen && categoryToDeactivate && (
-        <div 
-          onClick={() => {
-            setIsConfirmDeactivateOpen(false);
-            setCategoryToDeactivate(null);
-          }}
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#0e0e0e] border-2 border-brand-yellow/80 rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 text-center shadow-[0_0_50px_rgba(255,201,40,0.3)] relative"
-          >
-            {/* Warning Circle Glow Icon */}
-            <div className="w-20 h-20 mx-auto rounded-full bg-brand-yellow/15 border-2 border-brand-yellow flex items-center justify-center text-brand-yellow shadow-[0_0_25px_rgba(255,201,40,0.4)]">
-              <AlertTriangle className="w-10 h-10 text-brand-yellow stroke-[2.5]" />
-            </div>
-
-            <div>
-              <h3 className="text-xl sm:text-2xl font-black uppercase text-white font-display tracking-tight">
-                ¿Desactivar Categoría Principal?
-              </h3>
-              <p className="text-sm font-black text-brand-yellow mt-1 uppercase tracking-wide">
-                {categoryToDeactivate.nombre}
-              </p>
-            </div>
-
-            <div className="bg-[#161616] border border-[#2b2b2b] rounded-2xl p-4 text-xs text-gray-300 leading-relaxed text-left space-y-2.5">
-              <div className="flex items-center gap-1.5 text-yellow-400 font-black text-xs uppercase tracking-wider">
-                <AlertCircle className="w-4 h-4 shrink-0 text-brand-yellow" />
-                <span>Impacto en la Carta y Menú</span>
-              </div>
-              <p>
-                Si inactivas esta categoría principal, <strong>van a dejar de aparecer sus subcategorías vinculadas y todos sus platos</strong> en el menú de navegación y en el menú de entrada de la página principal.
-              </p>
-              <p className="text-[11px] text-gray-400">
-                Podrás reactivarla en cualquier momento desde este panel con un solo clic.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsConfirmDeactivateOpen(false);
-                  setCategoryToDeactivate(null);
-                }}
-                className="flex-1 py-3 px-4 bg-[#202020] hover:bg-[#2b2b2b] text-gray-300 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition border border-[#333]"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => executeToggleCategory(categoryToDeactivate.id, false)}
-                className="flex-1 py-3 px-4 bg-brand-yellow hover:bg-yellow-400 text-black rounded-xl text-xs font-black uppercase tracking-wider transition shadow-[0_0_20px_rgba(255,201,40,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
-              >
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>Sí, Desactivar</span>
-              </button>
-            </div>
           </div>
         </div>
       )}

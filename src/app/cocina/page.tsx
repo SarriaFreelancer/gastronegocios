@@ -25,6 +25,7 @@ import {
   Building2
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
+import { showError } from '@/lib/swal';
 
 interface Branch {
   id: number;
@@ -257,7 +258,7 @@ export default function CocinaKDSPage() {
         );
       }
     } catch (err) {
-      alert('Error al actualizar el estado del pedido');
+      showError('Error en KDS Cocina', 'Error al actualizar el estado del pedido');
     } finally {
       setUpdatingId(null);
     }
