@@ -344,7 +344,7 @@ export default function MeseroPage() {
     setCurrentView('dividir');
   };
 
-  // Agregar ítem al comandero
+  // Agregar ítem al comandero (Totalmente inmutable para evitar incrementos dobles)
   const handleAddItemToComanda = (prod: ProductItem) => {
     if (prod.disponibilidad === false || (prod.controlarStock && (prod.stock ?? 0) <= 0)) {
       showError('Producto Agotado', `El producto "${prod.nombre}" no tiene inventario disponible.`);
@@ -352,16 +352,16 @@ export default function MeseroPage() {
     }
 
     setComandaItems((prev) => {
-      const idx = prev.findIndex((i) => i.product.id === prod.id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        const newQty = updated[idx].cantidad + 1;
+      const existing = prev.find((i) => i.product.id === prod.id);
+      if (existing) {
+        const newQty = existing.cantidad + 1;
         if (prod.controlarStock && prod.stock !== null && prod.stock !== undefined && newQty > prod.stock) {
           showError('Stock Insuficiente', `Solo quedan ${prod.stock} unidades disponibles.`);
           return prev;
         }
-        updated[idx].cantidad = newQty;
-        return updated;
+        return prev.map((item) =>
+          item.product.id === prod.id ? { ...item, cantidad: newQty } : item
+        );
       } else {
         return [...prev, { product: prod, cantidad: 1, notas: '' }];
       }
@@ -370,19 +370,22 @@ export default function MeseroPage() {
 
   const handleUpdateItemQty = (prodId: number, delta: number) => {
     setComandaItems((prev) => {
-      return prev
-        .map((item) => {
-          if (item.product.id === prodId) {
-            const newQty = item.cantidad + delta;
-            if (delta > 0 && item.product.controlarStock && item.product.stock !== null && item.product.stock !== undefined && newQty > item.product.stock) {
-              showError('Stock Insuficiente', `Solo quedan ${item.product.stock} unidades.`);
-              return item;
-            }
-            return { ...item, cantidad: newQty };
-          }
-          return item;
-        })
-        .filter((item) => item.cantidad > 0);
+      const existing = prev.find((item) => item.product.id === prodId);
+      if (!existing) return prev;
+
+      const newQty = existing.cantidad + delta;
+      if (delta > 0 && existing.product.controlarStock && existing.product.stock !== null && existing.product.stock !== undefined && newQty > existing.product.stock) {
+        showError('Stock Insuficiente', `Solo quedan ${existing.product.stock} unidades.`);
+        return prev;
+      }
+
+      if (newQty <= 0) {
+        return prev.filter((item) => item.product.id !== prodId);
+      }
+
+      return prev.map((item) =>
+        item.product.id === prodId ? { ...item, cantidad: newQty } : item
+      );
     });
   };
 
@@ -506,19 +509,65 @@ export default function MeseroPage() {
     }
   };
 
-  // Mover ítem entre comensales en Split Bill
-  const handleMoveItemToDiner = (fromDinerId: string, toDinerId: string, itemIndex: number) => {
+  // Mover ítem entre comensales en Split Bill (Permitiendo elegir cuántas unidades mover)
+  const handleMoveItemToDiner = async (fromDinerId: string, toDinerId: string, itemIndex: number) => {
+    const fromDiner = diners.find((d) => d.id === fromDinerId);
+    const toDiner = diners.find((d) => d.id === toDinerId);
+    if (!fromDiner || !toDiner) return;
+
+    const itemToMove = fromDiner.items[itemIndex];
+    if (!itemToMove) return;
+
+    let qtyToMove = 1;
+
+    // Si el plato tiene más de 1 unidad, preguntamos cuántas desea mover
+    if (itemToMove.cantidad > 1) {
+      const { value, isConfirmed } = await swalCustom.fire({
+        title: '📦 MOVER CANTIDAD',
+        html: `
+          <div class="text-xs text-gray-300 mb-2">
+            El ítem <strong class="text-brand-yellow font-bold">${itemToMove.nombre}</strong> tiene <strong>${itemToMove.cantidad} unidades</strong>.<br>
+            ¿Cuántas unidades deseas mover a <strong class="text-brand-yellow font-bold">${toDiner.nombre}</strong>?
+          </div>
+        `,
+        input: 'number',
+        inputValue: 1,
+        inputAttributes: {
+          min: '1',
+          max: String(itemToMove.cantidad),
+          step: '1',
+          style: 'text-align: center; font-size: 16px; font-weight: bold; width: 120px; margin: 10px auto;',
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Mover Platos',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        preConfirm: (inputVal) => {
+          const n = Number(inputVal);
+          if (!n || n < 1 || n > itemToMove.cantidad) {
+            swalCustom.showValidationMessage(`Por favor ingresa un número entre 1 y ${itemToMove.cantidad}`);
+            return false;
+          }
+          return n;
+        },
+      });
+
+      if (!isConfirmed || !value) return;
+      qtyToMove = Number(value);
+    }
+
     setDiners((prev) => {
-      const fromDiner = prev.find((d) => d.id === fromDinerId);
-      const toDiner = prev.find((d) => d.id === toDinerId);
-      if (!fromDiner || !toDiner) return prev;
-
-      const itemToMove = fromDiner.items[itemIndex];
-      if (!itemToMove) return prev;
-
       return prev.map((diner) => {
         if (diner.id === fromDinerId) {
-          const newItems = diner.items.filter((_, idx) => idx !== itemIndex);
+          // Descontar o remover de origen
+          let newItems: typeof diner.items = [];
+          if (qtyToMove >= itemToMove.cantidad) {
+            newItems = diner.items.filter((_, idx) => idx !== itemIndex);
+          } else {
+            newItems = diner.items.map((it, idx) =>
+              idx === itemIndex ? { ...it, cantidad: it.cantidad - qtyToMove } : it
+            );
+          }
           const newSub = newItems.reduce((s, i) => s + i.precio * i.cantidad, 0);
           return {
             ...diner,
@@ -526,8 +575,20 @@ export default function MeseroPage() {
             propina: Math.round(newSub * 0.1),
           };
         }
+
         if (diner.id === toDinerId) {
-          const newItems = [...diner.items, itemToMove];
+          // Agregar a destino (si ya existe el plato, sumar cantidad)
+          let newItems = [...diner.items];
+          const existIdx = newItems.findIndex(
+            (it) => it.nombre === itemToMove.nombre && it.precio === itemToMove.precio
+          );
+          if (existIdx >= 0) {
+            newItems = newItems.map((it, idx) =>
+              idx === existIdx ? { ...it, cantidad: it.cantidad + qtyToMove } : it
+            );
+          } else {
+            newItems.push({ ...itemToMove, cantidad: qtyToMove });
+          }
           const newSub = newItems.reduce((s, i) => s + i.precio * i.cantidad, 0);
           return {
             ...diner,
@@ -535,9 +596,133 @@ export default function MeseroPage() {
             propina: Math.round(newSub * 0.1),
           };
         }
+
         return diner;
       });
     });
+  };
+
+  // Remover / eliminar comensal (devuelve los ítems al primer comensal para no perder nada)
+  const handleRemoveDiner = async (dinerId: string) => {
+    if (diners.length <= 1) {
+      showError('Atención', 'Debe haber al menos 1 comensal en la mesa.');
+      return;
+    }
+
+    const dinerToRemove = diners.find((d) => d.id === dinerId);
+    if (!dinerToRemove) return;
+
+    const confirm = await swalCustom.fire({
+      title: `¿QUITAR ${dinerToRemove.nombre.toUpperCase()}?`,
+      html: dinerToRemove.items.length > 0
+        ? `Este comensal tiene <strong>${dinerToRemove.items.length} platos/bebidas</strong>.<br>Sus consumos se transferirán automáticamente al primer comensal para no perder datos.`
+        : `¿Deseas remover a este comensal de la cuenta?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Quitar Comensal',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setDiners((prev) => {
+      const remainingDiners = prev.filter((d) => d.id !== dinerId);
+      if (dinerToRemove.items.length === 0) return remainingDiners;
+
+      // Transferir todos los ítems al primer comensal restante
+      const target = remainingDiners[0];
+      const mergedItems = [...target.items];
+
+      dinerToRemove.items.forEach((item) => {
+        const existIdx = mergedItems.findIndex(
+          (it) => it.nombre === item.nombre && it.precio === item.precio
+        );
+        if (existIdx >= 0) {
+          mergedItems[existIdx] = {
+            ...mergedItems[existIdx],
+            cantidad: mergedItems[existIdx].cantidad + item.cantidad,
+          };
+        } else {
+          mergedItems.push({ ...item });
+        }
+      });
+
+      const newSub = mergedItems.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+      return remainingDiners.map((d, idx) =>
+        idx === 0
+          ? {
+              ...d,
+              items: mergedItems,
+              propina: Math.round(newSub * 0.1),
+            }
+          : d
+      );
+    });
+
+    showSuccess('Comensal Removido', `Los consumos quedaron centralizados correctamente.`);
+  };
+
+  // Asignar todos los platos de la mesa a un solo comensal (Unificar Cuenta / Uno solo paga todo rápido)
+  const handleAssignAllToDiner = async (targetDinerId: string) => {
+    const targetDiner = diners.find((d) => d.id === targetDinerId);
+    if (!targetDiner) return;
+
+    const confirm = await swalCustom.fire({
+      title: '⚡ UNIFICAR TODA LA CUENTA',
+      html: `¿Deseas asignar <strong>TODOS</strong> los consumos de la mesa a <strong class="text-brand-yellow">${targetDiner.nombre}</strong> para pagar la cuenta completa en una sola factura?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, Pagar Todo Junto',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    // Recolectar todos los ítems de todas las órdenes activas de la mesa
+    const allTableItems: Array<{ nombre: string; precio: number; cantidad: number; notas?: string | null }> = [];
+    if (selectedTable?.orders) {
+      selectedTable.orders.forEach((ord) => {
+        ord.items.forEach((it) => {
+          const existIdx = allTableItems.findIndex(
+            (x) => x.nombre === it.nombre && x.precio === it.precio
+          );
+          if (existIdx >= 0) {
+            allTableItems[existIdx].cantidad += it.cantidad;
+          } else {
+            allTableItems.push({
+              nombre: it.nombre,
+              precio: it.precio,
+              cantidad: it.cantidad,
+              notas: it.notas,
+            });
+          }
+        });
+      });
+    }
+
+    const newSub = allTableItems.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+    setDiners((prev) =>
+      prev.map((d) => {
+        if (d.id === targetDinerId) {
+          return {
+            ...d,
+            items: allTableItems,
+            propina: Math.round(newSub * 0.1),
+          };
+        }
+        return {
+          ...d,
+          items: [],
+          propina: 0,
+        };
+      })
+    );
+
+    showSuccess('Cuenta Unificada', `Todos los consumos quedaron asignados a ${targetDiner.nombre}.`);
   };
 
   // Agregar nuevo comensal
@@ -1328,20 +1513,46 @@ export default function MeseroPage() {
                                   prev.map((d) => (d.id === diner.id ? { ...d, nombre: newName } : d))
                                 );
                               }}
-                              className="bg-transparent text-sm font-black text-white font-display border-b border-dashed border-gray-600 focus:border-brand-yellow outline-none px-1"
+                              className="bg-transparent text-sm font-black text-white font-display border-b border-dashed border-gray-600 focus:border-brand-yellow outline-none px-1 w-28 sm:w-32"
                             />
                           </div>
 
-                          <span
-                            className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                              diner.pagado
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            }`}
-                          >
-                            {diner.pagado ? '✓ Pagado' : 'Pendiente'}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                diner.pagado
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              }`}
+                            >
+                              {diner.pagado ? '✓ Pagado' : 'Pendiente'}
+                            </span>
+
+                            {diners.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDiner(diner.id)}
+                                className="p-1 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/20 transition cursor-pointer"
+                                title="Quitar este comensal de la cuenta"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Botón Rápido: Uno solo paga la cuenta completa */}
+                        {diners.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleAssignAllToDiner(diner.id)}
+                            className="w-full py-1.5 px-2 bg-[#1a1a1a] hover:bg-[#252525] text-amber-300 hover:text-brand-yellow border border-amber-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                            title="Mueve todos los consumos de la mesa a este comensal para que pague toda la cuenta"
+                          >
+                            <Sparkles className="w-3 h-3 text-brand-yellow" />
+                            <span>⚡ Pagar toda la cuenta aquí</span>
+                          </button>
+                        )}
 
                         {/* Ítems asignados a este comensal */}
                         <div className="space-y-2 min-h-[100px] max-h-[220px] overflow-y-auto pr-1">
