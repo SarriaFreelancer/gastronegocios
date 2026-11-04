@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { CartToast } from '@/components/cart/CartToast';
+import { TableServiceBar } from '@/components/menu/TableServiceBar';
 
 export const metadata: Metadata = {
   title: 'Punto G | Antojos Que Conectan | Comidas Rápidas',
@@ -40,6 +41,7 @@ export default function RootLayout({
           <Footer />
           <CartDrawer />
           <CartToast />
+          <TableServiceBar />
         </CartProvider>
       </body>
     </html>

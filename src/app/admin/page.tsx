@@ -33,6 +33,7 @@ import {
   Power,
   QrCode,
   UtensilsCrossed,
+  Bell,
   Heart,
   MessageSquare,
   Calendar,
@@ -112,6 +113,11 @@ interface RestaurantTable {
   notas?: string | null;
   branchId?: number | null;
   branch?: { id: number; nombre: string; slug: string } | null;
+  llamandoMesero?: boolean;
+  llamadoEn?: string | null;
+  solicitudCuenta?: boolean;
+  solicitudCuentaEn?: string | null;
+  metodoPagoCuenta?: string | null;
   orders?: Order[];
 }
 
@@ -145,6 +151,10 @@ interface Product {
   subcategoriaNombre?: string | null;
   etiqueta?: string | null;
   disponibilidad: boolean;
+  costo?: number | null;
+  stock?: number | null;
+  stockMinimo?: number | null;
+  controlarStock?: boolean;
 }
 
 interface Review {
@@ -365,10 +375,14 @@ export default function AdminPage() {
     categoriaSlug: 'comidas-rapidas',
     subcategoriaSlug: '',
     precio: '',
+    costo: '',
     descripcion: '',
     imagen: '',
     etiqueta: '',
     disponibilidad: true,
+    controlarStock: false,
+    stock: '',
+    stockMinimo: '5',
   });
 
   // ==================== 5. RESEÑAS STATE ====================
@@ -860,12 +874,13 @@ export default function AdminPage() {
   // Change Table Status directly
   const handleUpdateTableStatus = async (tableId: number | string, newStatus: string) => {
     try {
+      const isAction = ['atender_llamado', 'atender_cuenta', 'liberar'].includes(newStatus);
       const res = await fetch(`/api/tables/${tableId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          estado: newStatus,
-          action: newStatus === 'Libre' ? 'liberar' : undefined,
+          estado: isAction ? undefined : newStatus,
+          action: isAction ? newStatus : newStatus === 'Libre' ? 'liberar' : undefined,
         }),
       });
       if (res.ok) {
@@ -1181,10 +1196,14 @@ export default function AdminPage() {
       categoriaSlug: defaultMain,
       subcategoriaSlug: '',
       precio: '',
+      costo: '',
       descripcion: '',
       imagen: '',
       etiqueta: '',
       disponibilidad: true,
+      controlarStock: false,
+      stock: '',
+      stockMinimo: '5',
     });
     setIsProductModalOpen(true);
   };
@@ -1196,10 +1215,14 @@ export default function AdminPage() {
       categoriaSlug: p.categoria,
       subcategoriaSlug: p.subcategoria || '',
       precio: String(p.precio),
+      costo: p.costo !== null && p.costo !== undefined ? String(p.costo) : '',
       descripcion: p.descripcion,
       imagen: p.imagen,
       etiqueta: p.etiqueta || '',
       disponibilidad: p.disponibilidad,
+      controlarStock: Boolean(p.controlarStock),
+      stock: p.stock !== null && p.stock !== undefined ? String(p.stock) : '',
+      stockMinimo: p.stockMinimo !== null && p.stockMinimo !== undefined ? String(p.stockMinimo) : '5',
     });
     setIsProductModalOpen(true);
   };
@@ -1207,18 +1230,27 @@ export default function AdminPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...productFormData,
+        precio: Number(productFormData.precio),
+        costo: productFormData.costo ? Number(productFormData.costo) : null,
+        stock: productFormData.controlarStock && productFormData.stock !== '' ? Number(productFormData.stock) : null,
+        stockMinimo: productFormData.controlarStock && productFormData.stockMinimo !== '' ? Number(productFormData.stockMinimo) : 5,
+        controlarStock: Boolean(productFormData.controlarStock),
+      };
+
       let res: Response;
       if (editingProduct) {
         res = await fetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(productFormData),
+          body: JSON.stringify(payload),
         });
       } else {
         res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(productFormData),
+          body: JSON.stringify(payload),
         });
       }
 
@@ -1819,6 +1851,15 @@ export default function AdminPage() {
               <span>Pantalla Cocina (KDS) 👨‍🍳</span>
             </Link>
 
+            <Link
+              href="/mesero"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-500 to-brand-yellow hover:opacity-90 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
+            >
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>📱 Mesero POS (Tablet)</span>
+            </Link>
+
             <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl">
               <div className="w-7 h-7 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xs">
                 {currentUser?.nombre ? currentUser.nombre.charAt(0) : 'A'}
@@ -1844,8 +1885,9 @@ export default function AdminPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
-          {[
+        {(() => {
+          const isMesero = currentUser?.rol === 'Mesero';
+          const allTabs = [
             { id: 'pedidos', label: 'Pedidos & Filtros', icon: ShoppingBag, count: orders.length },
             { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF' },
             { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
@@ -1858,37 +1900,48 @@ export default function AdminPage() {
             { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
             { id: 'sedes', label: 'Sedes / Sucursales', icon: Building2, count: branches.length },
             { id: 'configuracion', label: 'Configuración', icon: Settings },
-          ].map((tab: any) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
-                  active
-                    ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow font-black'
-                    : 'bg-[#121212] text-gray-400 border-[#222222] hover:text-white hover:bg-[#181818]'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span className="text-[10px] ml-0.5">{tab.badge}</span>
-                )}
-                {tab.count !== undefined && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                      active ? 'bg-black text-brand-yellow' : 'bg-[#222] text-gray-300'
+          ];
+
+          const allowedForMesero = ['mesas', 'productos', 'toppings'];
+          const visibleTabs = isMesero
+            ? allTabs.filter((t) => allowedForMesero.includes(t.id))
+            : allTabs;
+
+          return (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
+              {visibleTabs.map((tab: any) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
+                      active
+                        ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow font-black'
+                        : 'bg-[#121212] text-gray-400 border-[#222222] hover:text-white hover:bg-[#181818]'
                     }`}
                   >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                    {tab.badge && (
+                      <span className="text-[10px] ml-0.5">{tab.badge}</span>
+                    )}
+                    {tab.count !== undefined && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                          active ? 'bg-black text-brand-yellow' : 'bg-[#222] text-gray-300'
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ======================================================== */}
         {/* TAB 1: PEDIDOS CON FILTROS DE FECHAS, PROPINAS Y MESAS */}
@@ -3831,6 +3884,44 @@ export default function AdminPage() {
                       </span>
                     </div>
 
+                    {/* Alertas en Tiempo Real de la Mesa */}
+                    {t.llamandoMesero && (
+                      <div className="bg-red-950/60 border border-red-500/80 rounded-xl p-2.5 flex items-center justify-between gap-2 animate-pulse">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-red-200">
+                          <Bell className="w-3.5 h-3.5 text-red-400 animate-bounce" />
+                          <span>¡Cliente solicita mesero!</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateTableStatus(t.id, 'atender_llamado')}
+                          className="px-2.5 py-1 bg-red-500 hover:bg-red-400 text-white text-[10px] font-black uppercase rounded-lg shadow transition active:scale-95 cursor-pointer"
+                        >
+                          Atender
+                        </button>
+                      </div>
+                    )}
+
+                    {t.solicitudCuenta && (
+                      <div className="bg-amber-950/60 border border-brand-yellow/80 rounded-xl p-2.5 flex items-center justify-between gap-2 animate-pulse">
+                        <div className="text-xs">
+                          <div className="flex items-center gap-1 text-brand-yellow font-black">
+                            <Receipt className="w-3.5 h-3.5" />
+                            <span>¡Pidiendo la cuenta!</span>
+                          </div>
+                          <span className="text-[10px] text-gray-300 font-bold block mt-0.5">
+                            Medio: {t.metodoPagoCuenta || 'Efectivo'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateTableStatus(t.id, 'atender_cuenta')}
+                          className="px-2.5 py-1 bg-brand-yellow hover:bg-yellow-400 text-black text-[10px] font-black uppercase rounded-lg shadow transition active:scale-95 cursor-pointer"
+                        >
+                          Atender
+                        </button>
+                      </div>
+                    )}
+
                     {/* Active Order Details or Occupied Status Banner */}
                     {activeOrder ? (
                       <div className="bg-[#181818] rounded-xl p-3 space-y-2 text-xs border border-[#282828]">
@@ -3847,14 +3938,24 @@ export default function AdminPage() {
                             Propina: {formatPrice(activeOrder.propina)}
                           </p>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleReleaseTable(t.id, t.numero)}
-                          className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Cobrar y Liberar Mesa</span>
-                        </button>
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                          <Link
+                            href="/mesero"
+                            target="_blank"
+                            className="py-2 bg-[#252525] hover:bg-[#303030] text-brand-yellow border border-brand-yellow/30 text-center rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition"
+                          >
+                            <Receipt className="w-3 h-3" />
+                            <span>Dividir Cuenta</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleReleaseTable(t.id, t.numero)}
+                            className="py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Cobrar y Liberar</span>
+                          </button>
+                        </div>
                       </div>
                     ) : isOccupied ? (
                       <div className="bg-amber-950/20 border border-amber-800/40 rounded-xl p-3 text-center space-y-2">
@@ -4793,6 +4894,35 @@ export default function AdminPage() {
                               </>
                             )}
                           </div>
+                          
+                          {/* Stock e Inventario Info */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            {p.controlarStock ? (
+                              (p.stock ?? 0) <= 0 || p.disponibilidad === false ? (
+                                <span className="text-[10px] bg-red-950/60 text-red-400 border border-red-800 font-bold px-1.5 py-0.5 rounded">
+                                  🔴 AGOTADO (0 uds)
+                                </span>
+                              ) : (p.stock ?? 0) <= (p.stockMinimo ?? 5) ? (
+                                <span className="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-800 font-bold px-1.5 py-0.5 rounded">
+                                  ⚠️ Stock Bajo ({p.stock} uds)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] bg-emerald-950/60 text-emerald-300 border border-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                                  📦 Stock: {p.stock} uds
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-[10px] bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a] px-1.5 py-0.5 rounded font-bold">
+                                Stock Ilimitado
+                              </span>
+                            )}
+                            {p.costo !== null && p.costo !== undefined && (
+                              <span className="text-[10px] text-gray-400 font-bold bg-[#1a1a1a] px-1.5 py-0.5 rounded border border-[#2a2a2a]">
+                                Costo: {formatPrice(p.costo)}
+                              </span>
+                            )}
+                          </div>
+
                           <p className="text-xs text-gray-400 line-clamp-2 mt-1">{p.descripcion}</p>
                         </div>
                       </div>
@@ -5916,16 +6046,74 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">Precio (COP) *</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="25000"
-                  value={productFormData.precio}
-                  onChange={(e) => setProductFormData({ ...productFormData, precio: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Precio Venta (COP) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="25000"
+                    value={productFormData.precio}
+                    onChange={(e) => setProductFormData({ ...productFormData, precio: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Costo Unitario (COP)</label>
+                  <input
+                    type="number"
+                    placeholder="12000 (Opcional)"
+                    value={productFormData.costo}
+                    onChange={(e) => setProductFormData({ ...productFormData, costo: e.target.value })}
+                    className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* SECCIÓN INVENTARIO Y STOCK */}
+              <div className="bg-[#181818] border border-[#2c2c2c] rounded-2xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-white text-xs block">Control de Inventario / Stock</span>
+                    <span className="text-[10px] text-gray-400">Descuenta unidades al vender y apaga el plato en 0</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productFormData.controlarStock}
+                      onChange={(e) => setProductFormData({ ...productFormData, controlarStock: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-yellow"></div>
+                  </label>
+                </div>
+
+                {productFormData.controlarStock && (
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-[#262626]">
+                    <div>
+                      <label className="block text-gray-300 font-bold uppercase text-[10px] mb-1">Stock Actual (Uds) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Ej: 20"
+                        value={productFormData.stock}
+                        onChange={(e) => setProductFormData({ ...productFormData, stock: e.target.value })}
+                        className="w-full bg-[#121212] border border-[#383838] focus:border-brand-yellow rounded-xl px-3 py-1.5 text-white text-xs font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-300 font-bold uppercase text-[10px] mb-1">Stock Mínimo Alerta</label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Ej: 5"
+                        value={productFormData.stockMinimo}
+                        onChange={(e) => setProductFormData({ ...productFormData, stockMinimo: e.target.value })}
+                        className="w-full bg-[#121212] border border-[#383838] focus:border-brand-yellow rounded-xl px-3 py-1.5 text-white text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

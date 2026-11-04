@@ -25,6 +25,10 @@ export interface Product {
   destacado?: boolean;
   ingredientes?: string[];
   orden?: number;
+  costo?: number | null;
+  stock?: number | null;
+  stockMinimo?: number | null;
+  controlarStock?: boolean;
 }
 
 export interface Category {

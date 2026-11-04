@@ -73,6 +73,10 @@ model Product {
   subcategoria   Category?   @relation("ProductSubcategory", fields: [subcategoriaId], references: [id], onDelete: SetNull)
   etiqueta       String?     // MÁS VENDIDO, NUEVO, RECOMENDADO
   disponibilidad Boolean     @default(true)
+  stock          Int?        // Cantidad disponible en inventario
+  stockMinimo    Int?        @default(5) // Alerta de stock bajo
+  controlarStock Boolean     @default(false)
+  costo          Float?      // Costo de insumos / Food Cost
   orden          Int         @default(0)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -82,17 +86,22 @@ model Product {
 }
 
 model RestaurantTable {
-  id          Int      @id @default(autoincrement())
-  numero      String   @unique // e.g. "Mesa 1", "Mesa 2", "Barra 1"
-  capacidad   Int      @default(4)
-  estado      String   @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
-  ubicacion   String?  // Salon Principal, Terraza, Barra, VIP
-  notas       String?  @db.Text
-  branchId    Int?
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orders      Order[]
+  id                 Int       @id @default(autoincrement())
+  numero             String    @unique // e.g. "Mesa 1", "Mesa 2", "Barra 1"
+  capacidad          Int       @default(4)
+  estado             String    @default("Libre") // Libre, Ocupada, Cuenta_Pedida, Reservada
+  ubicacion          String?   // Salon Principal, Terraza, Barra, VIP
+  notas              String?   @db.Text
+  branchId           Int?
+  branch             Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  llamandoMesero     Boolean   @default(false)
+  llamadoEn          DateTime?
+  solicitudCuenta    Boolean   @default(false)
+  solicitudCuentaEn  DateTime?
+  metodoPagoCuenta   String?   // Efectivo, Nequi, Datáfono
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  orders             Order[]
 
   @@map("restaurant_tables")
 }

@@ -237,6 +237,40 @@ export async function POST(req: Request) {
       });
     }
 
+    // Descontar inventario/stock de los productos con control de stock activado
+    try {
+      for (const item of items) {
+        const qty = Number(item.cantidad) || 1;
+        let product = null;
+
+        if (item.productoId && !isNaN(Number(item.productoId))) {
+          product = await prisma.product.findUnique({
+            where: { id: Number(item.productoId) },
+          });
+        }
+
+        if (!product && item.nombre) {
+          product = await prisma.product.findFirst({
+            where: { nombre: item.nombre },
+          });
+        }
+
+        if (product && product.controlarStock && product.stock !== null) {
+          const newStock = Math.max(0, product.stock - qty);
+          await prisma.product.update({
+            where: { id: product.id },
+            data: {
+              stock: newStock,
+              // Si el stock llega a 0, se apaga automáticamente el plato
+              disponibilidad: newStock > 0 ? product.disponibilidad : false,
+            },
+          });
+        }
+      }
+    } catch (stockErr) {
+      console.error('Error actualizando stock de productos:', stockErr);
+    }
+
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error) {
     console.error('Error creating order:', error);

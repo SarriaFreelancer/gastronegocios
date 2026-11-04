@@ -82,7 +82,11 @@ export async function POST(req: Request) {
       subcategoriaSlug,
       subcategoriaId,
       etiqueta, 
-      disponibilidad 
+      disponibilidad,
+      stock,
+      stockMinimo,
+      controlarStock,
+      costo,
     } = await req.json();
 
     if (!nombre || !precio) {
@@ -122,6 +126,10 @@ export async function POST(req: Request) {
         subcategoriaId: finalSubcategoriaId,
         etiqueta: etiqueta || null,
         disponibilidad: disponibilidad ?? true,
+        stock: stock !== undefined && stock !== null ? Number(stock) : null,
+        stockMinimo: stockMinimo !== undefined && stockMinimo !== null ? Number(stockMinimo) : 5,
+        controlarStock: Boolean(controlarStock),
+        costo: costo !== undefined && costo !== null ? Number(costo) : null,
       },
       include: {
         categoria: true,

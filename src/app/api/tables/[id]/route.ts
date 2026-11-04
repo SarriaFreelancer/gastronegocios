@@ -4,7 +4,18 @@ import { prisma } from '@/lib/prisma';
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
     const tableId = Number(params.id);
-    const { numero, capacidad, ubicacion, estado, notas, action } = await req.json();
+    const { 
+      numero, 
+      capacidad, 
+      ubicacion, 
+      estado, 
+      notas, 
+      action,
+      llamandoMesero,
+      solicitudCuenta,
+      metodoPagoCuenta,
+      metodoPago
+    } = await req.json();
 
     const currentTable = await prisma.restaurantTable.findUnique({ where: { id: tableId } });
     if (!currentTable) {
@@ -18,8 +29,31 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (estado !== undefined) data.estado = estado;
     if (notas !== undefined) data.notas = notas;
 
-    if (action === 'liberar' || estado === 'Libre') {
+    if (llamandoMesero !== undefined) data.llamandoMesero = Boolean(llamandoMesero);
+    if (solicitudCuenta !== undefined) data.solicitudCuenta = Boolean(solicitudCuenta);
+    if (metodoPagoCuenta !== undefined) data.metodoPagoCuenta = metodoPagoCuenta;
+
+    // Handle specific table actions
+    if (action === 'llamar_mesero') {
+      data.llamandoMesero = true;
+      data.llamadoEn = new Date();
+    } else if (action === 'atender_llamado') {
+      data.llamandoMesero = false;
+      data.llamadoEn = null;
+    } else if (action === 'pedir_cuenta') {
+      data.solicitudCuenta = true;
+      data.solicitudCuentaEn = new Date();
+      data.metodoPagoCuenta = metodoPago || metodoPagoCuenta || 'Efectivo';
+    } else if (action === 'atender_cuenta') {
+      data.solicitudCuenta = false;
+      data.solicitudCuentaEn = null;
+    } else if (action === 'liberar' || estado === 'Libre') {
       data.estado = 'Libre';
+      data.llamandoMesero = false;
+      data.llamadoEn = null;
+      data.solicitudCuenta = false;
+      data.solicitudCuentaEn = null;
+      data.metodoPagoCuenta = null;
       // Mark active table orders as Entregado so table is completely clean
       await prisma.order.updateMany({
         where: {

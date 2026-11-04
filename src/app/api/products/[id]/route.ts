@@ -12,6 +12,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.imagen !== undefined) data.imagen = body.imagen;
     if (body.etiqueta !== undefined) data.etiqueta = body.etiqueta || null;
     if (body.disponibilidad !== undefined) data.disponibilidad = Boolean(body.disponibilidad);
+    if (body.stock !== undefined) data.stock = body.stock !== null ? Number(body.stock) : null;
+    if (body.stockMinimo !== undefined) data.stockMinimo = body.stockMinimo !== null ? Number(body.stockMinimo) : 5;
+    if (body.controlarStock !== undefined) data.controlarStock = Boolean(body.controlarStock);
+    if (body.costo !== undefined) data.costo = body.costo !== null ? Number(body.costo) : null;
 
     if (body.categoriaSlug) {
       const cat = await prisma.category.findUnique({
