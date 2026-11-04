@@ -58,22 +58,46 @@ export async function POST(req: Request) {
   try {
     const { nombre, slug, descripcion, icono, imagen, orden, activo, parentId } = await req.json();
 
-    if (!nombre) {
+    if (!nombre || !nombre.trim()) {
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 });
     }
 
-    const finalSlug = (slug || nombre).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    // Normalizar slug eliminando tildes y caracteres especiales
+    const rawSlug = (slug && slug.trim() ? slug : nombre)
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+
+    const baseSlug = rawSlug || 'categoria';
+
+    // Garantizar que el slug sea único en la base de datos para evitar errores 500
+    let finalSlug = baseSlug;
+    let counter = 1;
+    while (await prisma.category.findUnique({ where: { slug: finalSlug } })) {
+      finalSlug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    // Validar si parentId existe realmente
+    let validParentId: number | null = null;
+    if (parentId && !isNaN(Number(parentId))) {
+      const parentCheck = await prisma.category.findUnique({ where: { id: Number(parentId) } });
+      if (parentCheck) validParentId = Number(parentId);
+    }
 
     const newCat = await prisma.category.create({
       data: {
-        nombre,
+        nombre: nombre.trim(),
         slug: finalSlug,
-        descripcion: descripcion || null,
+        descripcion: descripcion ? descripcion.trim() : null,
         icono: icono || 'Utensils',
-        imagen: imagen || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=900&auto=format&fit=crop',
+        imagen: imagen && imagen.trim() ? imagen.trim() : 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop',
         orden: Number(orden) || 0,
-        activo: activo ?? true,
-        parentId: parentId ? Number(parentId) : null,
+        activo: activo !== undefined ? Boolean(activo) : true,
+        parentId: validParentId,
       },
       include: {
         parent: true,

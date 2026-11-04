@@ -320,6 +320,8 @@ export default function AdminPage() {
 
   // ==================== 3. CATEGORÍAS STATE ====================
   const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [searchCategory, setSearchCategory] = useState('');
+  const [filterCategoryStatus, setFilterCategoryStatus] = useState<'todas' | 'activas' | 'inactivas'>('todas');
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [isConfirmDeactivateOpen, setIsConfirmDeactivateOpen] = useState(false);
@@ -336,6 +338,8 @@ export default function AdminPage() {
   });
 
   // ==================== 3.1 SUBCATEGORÍAS STATE ====================
+  const [searchSubcat, setSearchSubcat] = useState('');
+  const [filterSubcatStatus, setFilterSubcatStatus] = useState<'todas' | 'activas' | 'inactivas'>('todas');
   const [filterSubcatParent, setFilterSubcatParent] = useState<string>('todas');
   const [isSubcatModalOpen, setIsSubcatModalOpen] = useState(false);
   const [editingSubcat, setEditingSubcat] = useState<Category | null>(null);
@@ -353,6 +357,7 @@ export default function AdminPage() {
   // ==================== 4. PRODUCTOS STATE ====================
   const [productList, setProductList] = useState<Product[]>([]);
   const [searchProduct, setSearchProduct] = useState('');
+  const [filterProductStatus, setFilterProductStatus] = useState<'todos' | 'activos' | 'inactivos'>('todos');
   const [selectedProductCat, setSelectedProductCat] = useState('todas');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -956,23 +961,32 @@ export default function AdminPage() {
         parentId: catFormData.parentId ? Number(catFormData.parentId) : null,
       };
 
+      let res: Response;
       if (editingCat) {
-        await fetch(`/api/categories/${editingCat.id}`, {
+        res = await fetch(`/api/categories/${editingCat.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        await fetch('/api/categories', {
+        res = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(`No se pudo guardar la categoría: ${err.error || 'Error en el servidor'}`);
+        return;
+      }
+
       setIsCatModalOpen(false);
-      fetchCategories();
+      await fetchCategories();
     } catch (e) {
       console.error(e);
+      alert('Error de conexión al guardar la categoría');
     }
   };
 
@@ -1076,23 +1090,32 @@ export default function AdminPage() {
         orden: Number(subcatFormData.orden) || 0,
       };
 
+      let res: Response;
       if (editingSubcat) {
-        await fetch(`/api/categories/${editingSubcat.id}`, {
+        res = await fetch(`/api/categories/${editingSubcat.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        await fetch('/api/categories', {
+        res = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(`No se pudo guardar la subcategoría: ${err.error || 'Error en el servidor'}`);
+        return;
+      }
+
       setIsSubcatModalOpen(false);
-      fetchCategories();
+      await fetchCategories();
     } catch (e) {
       console.error(e);
+      alert('Error de conexión al guardar la subcategoría');
     }
   };
 
@@ -1141,23 +1164,32 @@ export default function AdminPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let res: Response;
       if (editingProduct) {
-        await fetch(`/api/products/${editingProduct.id}`, {
+        res = await fetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(productFormData),
         });
       } else {
-        await fetch('/api/products', {
+        res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(productFormData),
         });
       }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(`No se pudo guardar el producto: ${err.error || 'Error en el servidor'}`);
+        return;
+      }
+
       setIsProductModalOpen(false);
-      fetchProducts();
+      await fetchProducts();
     } catch (e) {
       console.error(e);
+      alert('Error de conexión al guardar el producto');
     }
   };
 
@@ -3803,134 +3835,256 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categoryList
+            {/* Buscador y Filtro de Estado para Categorías Principales */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#111] border border-[#222] p-4 rounded-2xl">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar categoría por nombre, descripción, slug o subcategorías..."
+                  value={searchCategory}
+                  onChange={(e) => setSearchCategory(e.target.value)}
+                  className="w-full bg-[#181818] border border-[#2d2d2d] focus:border-brand-yellow rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition"
+                />
+                <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                {searchCategory && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchCategory('')}
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFilterCategoryStatus('todas')}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap transition ${
+                    filterCategoryStatus === 'todas'
+                      ? 'bg-brand-yellow text-black font-black'
+                      : 'bg-[#181818] text-gray-400 hover:text-white border border-[#2d2d2d]'
+                  }`}
+                >
+                  Todas ({categoryList.filter((c) => !c.parentId).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterCategoryStatus('activas')}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition ${
+                    filterCategoryStatus === 'activas'
+                      ? 'bg-emerald-500 text-black font-black'
+                      : 'bg-[#181818] text-emerald-400 hover:text-emerald-300 border border-emerald-500/30'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  Activas ({categoryList.filter((c) => !c.parentId && c.activo).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterCategoryStatus('inactivas')}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition ${
+                    filterCategoryStatus === 'inactivas'
+                      ? 'bg-red-500 text-white font-black'
+                      : 'bg-[#181818] text-red-400 hover:text-red-300 border border-red-500/30'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-red-400" />
+                  Inactivas ({categoryList.filter((c) => !c.parentId && !c.activo).length})
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const query = searchCategory.toLowerCase().trim();
+              const filteredMainCats = categoryList
                 .filter((cat) => !cat.parentId)
-                .map((cat) => {
+                .filter((cat) => {
+                  if (filterCategoryStatus === 'activas' && !cat.activo) return false;
+                  if (filterCategoryStatus === 'inactivas' && cat.activo) return false;
+
+                  if (!query) return true;
+
                   const subcategoriesOfThis = categoryList.filter(
                     (c) => c.parentId === cat.id || c.parentId === cat.slug
                   );
+                  const matchesSub = subcategoriesOfThis.some(
+                    (s) =>
+                      s.nombre.toLowerCase().includes(query) ||
+                      s.slug.toLowerCase().includes(query)
+                  );
 
                   return (
-                    <div
-                      key={cat.id}
-                      className="bg-[#121212] border border-[#2d2d2d] hover:border-brand-yellow/60 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between shadow-md"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono text-gray-500 uppercase">
-                            Orden #{cat.orden}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
-                              ⭐ Principal
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleCategoryActive(cat)}
-                              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                cat.activo
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                                  : 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
-                              }`}
-                              title={cat.activo ? 'Clic para desactivar categoría principal' : 'Clic para activar en el menú'}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${cat.activo ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
-                              <span>{cat.activo ? 'Activa en Menú' : 'Inactiva / Oculta'}</span>
-                            </button>
-                          </div>
-                        </div>
+                    cat.nombre.toLowerCase().includes(query) ||
+                    (cat.descripcion && cat.descripcion.toLowerCase().includes(query)) ||
+                    cat.slug.toLowerCase().includes(query) ||
+                    matchesSub
+                  );
+                });
 
-                        <h4 className="text-base font-black text-white uppercase font-display">
-                          {cat.nombre}
-                        </h4>
-                        <p className="text-xs text-gray-400 line-clamp-2">
-                          {cat.descripcion || 'Sin descripción'}
-                        </p>
-
-                        {/* Subcategories list pills */}
-                        <div className="pt-1 border-t border-[#1e1e1e] space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-gray-400 font-bold uppercase text-[10px]">
-                              Subcategorías vinculadas ({subcategoriesOfThis.length}):
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenNewSubcategory(cat.id)}
-                              className="text-[10px] text-brand-yellow hover:underline font-bold"
-                            >
-                              + Añadir Sub
-                            </button>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1">
-                            {subcategoriesOfThis.length === 0 ? (
-                              <span className="text-[10px] text-gray-600 italic">Sin subcategorías aún</span>
-                            ) : (
-                              subcategoriesOfThis.map((sub) => (
-                                <span
-                                  key={sub.id}
-                                  className="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded border border-neutral-700"
-                                >
-                                  {sub.nombre}
-                                </span>
-                              ))
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-brand-yellow pt-1">
-                          <span>Slug: <code>/menu/{cat.slug}</code></span>
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
+              if (filteredMainCats.length === 0) {
+                return (
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-10 text-center space-y-3">
+                    <Search className="w-10 h-10 mx-auto text-gray-600" />
+                    <h4 className="text-base font-bold text-white">No se encontraron categorías principales</h4>
+                    <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                      No hay categorías principales que coincidan con los filtros aplicados.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      {(searchCategory || filterCategoryStatus !== 'todas') && (
                         <button
                           type="button"
                           onClick={() => {
-                            setFilterSubcatParent(String(cat.id));
-                            setActiveTab('subcategorias');
+                            setSearchCategory('');
+                            setFilterCategoryStatus('todas');
                           }}
-                          className="py-1.5 px-3 bg-[#1c1c1c] hover:bg-[#282828] text-brand-yellow font-bold text-[11px] rounded-lg transition border border-[#2a2a2a] flex items-center gap-1"
+                          className="px-4 py-2 bg-[#222] hover:bg-[#333] text-gray-300 font-bold text-xs rounded-xl"
                         >
-                          <FolderTree className="w-3.5 h-3.5" />
-                          <span>Ver Subcategorías</span>
+                          Limpiar Búsqueda
                         </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleOpenNewCategory}
+                        className="px-4 py-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase rounded-xl shadow-glow"
+                      >
+                        + Crear Categoría
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
 
-                        <div className="flex items-center gap-1.5">
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredMainCats.map((cat) => {
+                    const subcategoriesOfThis = categoryList.filter(
+                      (c) => c.parentId === cat.id || c.parentId === cat.slug
+                    );
+
+                    return (
+                      <div
+                        key={cat.id}
+                        className="bg-[#121212] border border-[#2d2d2d] hover:border-brand-yellow/60 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between shadow-md"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono text-gray-500 uppercase">
+                              Orden #{cat.orden}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                                ⭐ Principal
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleCategoryActive(cat)}
+                                className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                  cat.activo
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                    : 'bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30'
+                                }`}
+                                title={cat.activo ? 'Clic para desactivar categoría principal' : 'Clic para activar en el menú'}
+                              >
+                                <span className={`w-2 h-2 rounded-full ${cat.activo ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                                <span>{cat.activo ? 'Activa en Menú' : 'Inactiva / Oculta'}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <h4 className="text-base font-black text-white uppercase font-display">
+                            {cat.nombre}
+                          </h4>
+                          <p className="text-xs text-gray-400 line-clamp-2">
+                            {cat.descripcion || 'Sin descripción'}
+                          </p>
+
+                          {/* Subcategories list pills */}
+                          <div className="pt-1 border-t border-[#1e1e1e] space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-gray-400 font-bold uppercase text-[10px]">
+                                Subcategorías vinculadas ({subcategoriesOfThis.length}):
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenNewSubcategory(cat.id)}
+                                className="text-[10px] text-brand-yellow hover:underline font-bold"
+                              >
+                                + Añadir Sub
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1">
+                              {subcategoriesOfThis.length === 0 ? (
+                                <span className="text-[10px] text-gray-600 italic">Sin subcategorías aún</span>
+                              ) : (
+                                subcategoriesOfThis.map((sub) => (
+                                  <span
+                                    key={sub.id}
+                                    className="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded border border-neutral-700"
+                                  >
+                                    {sub.nombre}
+                                  </span>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-brand-yellow pt-1">
+                            <span>Slug: <code>/menu/{cat.slug}</code></span>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
                           <button
                             type="button"
-                            onClick={() => handleToggleCategoryActive(cat)}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 border ${
-                              cat.activo
-                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
-                                : 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25'
-                            }`}
-                            title={cat.activo ? 'Desactivar esta categoría principal' : 'Activar en el menú'}
+                            onClick={() => {
+                              setFilterSubcatParent(String(cat.id));
+                              setActiveTab('subcategorias');
+                            }}
+                            className="py-1.5 px-3 bg-[#1c1c1c] hover:bg-[#282828] text-brand-yellow font-bold text-[11px] rounded-lg transition border border-[#2a2a2a] flex items-center gap-1"
                           >
-                            <Power className="w-3.5 h-3.5" />
-                            <span>{cat.activo ? 'Visible' : 'Oculta'}</span>
+                            <FolderTree className="w-3.5 h-3.5" />
+                            <span>Ver Subcategorías</span>
                           </button>
-                          <button
-                            onClick={() => handleOpenEditCategory(cat)}
-                            className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
-                            title="Editar Categoría Principal"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategory(cat.id)}
-                            className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCategoryActive(cat)}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 border ${
+                                cat.activo
+                                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                                  : 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25'
+                              }`}
+                              title={cat.activo ? 'Desactivar esta categoría principal' : 'Activar en el menú'}
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                              <span>{cat.activo ? 'Visible' : 'Oculta'}</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditCategory(cat)}
+                              className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                              title="Editar Categoría Principal"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -3969,6 +4123,67 @@ export default function AdminPage() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Crear Nueva Subcategoría</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Buscador y Filtro de Estado para Subcategorías */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#111] border border-[#222] p-4 rounded-2xl">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar subcategoría por nombre, slug o categoría padre..."
+                  value={searchSubcat}
+                  onChange={(e) => setSearchSubcat(e.target.value)}
+                  className="w-full bg-[#181818] border border-[#2d2d2d] focus:border-brand-yellow rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition"
+                />
+                <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                {searchSubcat && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchSubcat('')}
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFilterSubcatStatus('todas')}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap transition ${
+                    filterSubcatStatus === 'todas'
+                      ? 'bg-brand-yellow text-black font-black'
+                      : 'bg-[#181818] text-gray-400 hover:text-white border border-[#2d2d2d]'
+                  }`}
+                >
+                  Todas ({categoryList.filter((c) => !!c.parentId).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterSubcatStatus('activas')}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition ${
+                    filterSubcatStatus === 'activas'
+                      ? 'bg-emerald-500 text-black font-black'
+                      : 'bg-[#181818] text-emerald-400 hover:text-emerald-300 border border-emerald-500/30'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  Activas ({categoryList.filter((c) => !!c.parentId && c.activo).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterSubcatStatus('inactivas')}
+                  className={`px-3 py-2 rounded-xl font-bold whitespace-nowrap flex items-center gap-1.5 transition ${
+                    filterSubcatStatus === 'inactivas'
+                      ? 'bg-red-500 text-white font-black'
+                      : 'bg-[#181818] text-red-400 hover:text-red-300 border border-red-500/30'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-red-400" />
+                  Inactivas ({categoryList.filter((c) => !!c.parentId && !c.activo).length})
                 </button>
               </div>
             </div>
@@ -4018,39 +4233,77 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Subcategories Grid */}
-            {categoryList.filter(
-              (c) =>
-                !!c.parentId &&
-                (filterSubcatParent === 'todas' ||
-                  String(c.parentId) === filterSubcatParent ||
-                  c.parent?.slug === filterSubcatParent)
-            ).length === 0 ? (
-              <div className="bg-[#121212] border border-[#222] rounded-2xl p-10 text-center space-y-3">
-                <FolderTree className="w-12 h-12 mx-auto text-gray-600" />
-                <h4 className="text-base font-bold text-white">No hay subcategorías en esta sección</h4>
-                <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                  Crea una nueva subcategoría y asígnala a la categoría principal seleccionada para organizar tu menú.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handleOpenNewSubcategory()}
-                  className="px-4 py-2 bg-brand-yellow text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow"
-                >
-                  + Crear Subcategoría
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categoryList
-                  .filter(
-                    (cat) =>
-                      !!cat.parentId &&
-                      (filterSubcatParent === 'todas' ||
-                        String(cat.parentId) === filterSubcatParent ||
-                        cat.parent?.slug === filterSubcatParent)
-                  )
-                  .map((subcat) => {
+            {/* Subcategories Grid with Search & Status filtering */}
+            {(() => {
+              const query = searchSubcat.toLowerCase().trim();
+              const filteredSubcats = categoryList
+                .filter((c) => !!c.parentId)
+                .filter((subcat) => {
+                  // Filter by parent
+                  if (filterSubcatParent !== 'todas') {
+                    const matchParent =
+                      String(subcat.parentId) === filterSubcatParent ||
+                      subcat.parent?.slug === filterSubcatParent;
+                    if (!matchParent) return false;
+                  }
+
+                  // Filter by status
+                  if (filterSubcatStatus === 'activas' && !subcat.activo) return false;
+                  if (filterSubcatStatus === 'inactivas' && subcat.activo) return false;
+
+                  // Filter by search query
+                  if (!query) return true;
+
+                  const parentCat =
+                    categoryList.find(
+                      (c) => c.id === subcat.parentId || c.slug === subcat.parentId
+                    ) || subcat.parent;
+
+                  return (
+                    subcat.nombre.toLowerCase().includes(query) ||
+                    (subcat.descripcion && subcat.descripcion.toLowerCase().includes(query)) ||
+                    subcat.slug.toLowerCase().includes(query) ||
+                    (parentCat?.nombre && parentCat.nombre.toLowerCase().includes(query))
+                  );
+                });
+
+              if (filteredSubcats.length === 0) {
+                return (
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-10 text-center space-y-3">
+                    <FolderTree className="w-12 h-12 mx-auto text-gray-600" />
+                    <h4 className="text-base font-bold text-white">No se encontraron subcategorías</h4>
+                    <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                      No hay subcategorías que coincidan con la búsqueda o la categoría principal seleccionada.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      {(searchSubcat || filterSubcatStatus !== 'todas' || filterSubcatParent !== 'todas') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchSubcat('');
+                            setFilterSubcatStatus('todas');
+                            setFilterSubcatParent('todas');
+                          }}
+                          className="px-4 py-2 bg-[#222] hover:bg-[#333] text-gray-300 font-bold text-xs rounded-xl"
+                        >
+                          Limpiar Filtros
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenNewSubcategory()}
+                        className="px-4 py-2 bg-brand-yellow text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow"
+                      >
+                        + Crear Subcategoría
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredSubcats.map((subcat) => {
                     const parentCat =
                       categoryList.find(
                         (c) => c.id === subcat.parentId || c.slug === subcat.parentId
@@ -4140,8 +4393,9 @@ export default function AdminPage() {
                       </div>
                     );
                   })}
-              </div>
-            )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -4170,134 +4424,252 @@ export default function AdminPage() {
             </div>
 
             {/* Filter Bar */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre o ingrediente..."
-                  value={searchProduct}
-                  onChange={(e) => setSearchProduct(e.target.value)}
-                  className="w-full bg-[#141414] border border-[#252525] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow"
-                />
-                <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+            <div className="flex flex-col gap-3 bg-[#111] border border-[#222] p-4 rounded-2xl">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Buscar plato por nombre, descripción, ingredientes, etiqueta o precio..."
+                    value={searchProduct}
+                    onChange={(e) => setSearchProduct(e.target.value)}
+                    className="w-full bg-[#181818] border border-[#2d2d2d] focus:border-brand-yellow rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none transition"
+                  />
+                  <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                  {searchProduct && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchProduct('')}
+                      className="absolute right-3 top-2.5 text-gray-500 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={selectedProductCat}
+                  onChange={(e) => setSelectedProductCat(e.target.value)}
+                  className="bg-[#181818] border border-[#2d2d2d] focus:border-brand-yellow rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none"
+                >
+                  <option value="todas">Todas las categorías</option>
+                  {categoryList
+                    .filter((c) => !c.parentId)
+                    .map((main) => (
+                      <optgroup key={main.id} label={`⭐ ${main.nombre}`}>
+                        <option value={main.slug}>Toda: {main.nombre}</option>
+                        {categoryList
+                          .filter((sub) => sub.parentId === main.id || sub.parentId === main.slug)
+                          .map((sub) => (
+                            <option key={sub.id} value={sub.slug}>
+                              &nbsp;&nbsp;↳ {sub.nombre}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                </select>
               </div>
 
-              <select
-                value={selectedProductCat}
-                onChange={(e) => setSelectedProductCat(e.target.value)}
-                className="bg-[#141414] border border-[#252525] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-brand-yellow"
-              >
-                <option value="todas">Todas las categorías</option>
-                {categoryList
-                  .filter((c) => !c.parentId)
-                  .map((main) => (
-                    <optgroup key={main.id} label={`⭐ ${main.nombre}`}>
-                      <option value={main.slug}>Toda: {main.nombre}</option>
-                      {categoryList
-                        .filter((sub) => sub.parentId === main.id || sub.parentId === main.slug)
-                        .map((sub) => (
-                          <option key={sub.id} value={sub.slug}>
-                            &nbsp;&nbsp;↳ {sub.nombre}
-                          </option>
-                        ))}
-                    </optgroup>
-                  ))}
-              </select>
+              {/* Status Chips for Products */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#1e1e1e] text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-gray-400 uppercase mr-1">Estado:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilterProductStatus('todos')}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                      filterProductStatus === 'todos'
+                        ? 'bg-brand-yellow text-black font-black'
+                        : 'bg-[#181818] text-gray-400 hover:text-white border border-[#252525]'
+                    }`}
+                  >
+                    Todos ({productList.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterProductStatus('activos')}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition ${
+                      filterProductStatus === 'activos'
+                        ? 'bg-emerald-500 text-black font-black'
+                        : 'bg-[#181818] text-emerald-400 hover:text-emerald-300 border border-emerald-500/30'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    Activos ({productList.filter((p) => p.disponibilidad !== false).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterProductStatus('inactivos')}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition ${
+                      filterProductStatus === 'inactivos'
+                        ? 'bg-red-500 text-white font-black'
+                        : 'bg-[#181818] text-red-400 hover:text-red-300 border border-red-500/30'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-red-400" />
+                    Apagados / Agotados ({productList.filter((p) => p.disponibilidad === false).length})
+                  </button>
+                </div>
+
+                {(searchProduct || selectedProductCat !== 'todas' || filterProductStatus !== 'todos') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchProduct('');
+                      setSelectedProductCat('todas');
+                      setFilterProductStatus('todos');
+                    }}
+                    className="text-[11px] text-gray-400 hover:text-brand-yellow underline transition"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {productList
-                .filter((p) => {
-                  const matchesCat =
-                    selectedProductCat === 'todas' ||
-                    p.categoria === selectedProductCat ||
-                    p.subcategoria === selectedProductCat;
-                  const matchesSearch =
-                    p.nombre.toLowerCase().includes(searchProduct.toLowerCase()) ||
-                    p.descripcion.toLowerCase().includes(searchProduct.toLowerCase());
-                  return matchesCat && matchesSearch;
-                })
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    className="bg-[#121212] border border-[#222] hover:border-brand-yellow/40 rounded-2xl p-4 space-y-3 transition-colors flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      <div className="relative w-full h-40 rounded-xl overflow-hidden bg-[#1e1e1e]">
-                        <Image src={p.imagen} alt={p.nombre} fill className="object-cover" />
-                        {p.etiqueta && (
-                          <span className="absolute top-2 left-2 bg-brand-yellow text-black text-[10px] font-black uppercase px-2 py-0.5 rounded shadow">
-                            {p.etiqueta}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleDisponibilidad(p)}
-                          className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded shadow cursor-pointer transition-all hover:scale-105 ${
-                            p.disponibilidad !== false ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'
-                          }`}
-                          title={p.disponibilidad !== false ? 'Clic para apagar plato' : 'Clic para activar plato'}
-                        >
-                          {p.disponibilidad !== false ? 'Disponible' : 'Agotado'}
-                        </button>
-                      </div>
+            {/* Products Grid with Enhanced Filtering & Empty State */}
+            {(() => {
+              const query = searchProduct.toLowerCase().trim();
+              const filteredProducts = productList.filter((p) => {
+                const matchesCat =
+                  selectedProductCat === 'todas' ||
+                  p.categoria === selectedProductCat ||
+                  p.subcategoria === selectedProductCat;
+                if (!matchesCat) return false;
 
-                      <div>
-                        <div className="flex justify-between items-baseline">
-                          <h4 className="text-sm font-bold text-white truncate">{p.nombre}</h4>
-                          <span className="text-sm font-black text-brand-yellow ml-2">
-                            {formatPrice(p.precio)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase mt-0.5">
-                          <span className="text-brand-yellow">{p.categoriaNombre || p.categoria}</span>
-                          {p.subcategoria && (
-                            <>
-                              <span className="text-gray-600">➔</span>
-                              <span className="text-blue-400">{p.subcategoriaNombre || p.subcategoria}</span>
-                            </>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 line-clamp-2 mt-1">{p.descripcion}</p>
-                      </div>
-                    </div>
+                if (filterProductStatus === 'activos' && p.disponibilidad === false) return false;
+                if (filterProductStatus === 'inactivos' && p.disponibilidad !== false) return false;
 
-                    <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
+                if (!query) return true;
+
+                const nameMatch = p.nombre.toLowerCase().includes(query);
+                const descMatch = (p.descripcion || '').toLowerCase().includes(query);
+                const badgeMatch = (p.etiqueta || '').toLowerCase().includes(query);
+                const priceMatch = String(p.precio).includes(query);
+                const catMatch = (p.categoria || '').toLowerCase().includes(query) || (p.categoriaNombre || '').toLowerCase().includes(query);
+                const subcatMatch = (p.subcategoria || '').toLowerCase().includes(query) || (p.subcategoriaNombre || '').toLowerCase().includes(query);
+                const ingredMatch = Array.isArray((p as any).ingredientes)
+                  ? (p as any).ingredientes.some((ing: string) => typeof ing === 'string' && ing.toLowerCase().includes(query))
+                  : false;
+
+                return nameMatch || descMatch || badgeMatch || priceMatch || catMatch || subcatMatch || ingredMatch;
+              });
+
+              if (filteredProducts.length === 0) {
+                return (
+                  <div className="bg-[#121212] border border-[#222] rounded-2xl p-10 text-center space-y-3">
+                    <Search className="w-10 h-10 mx-auto text-gray-600" />
+                    <h4 className="text-base font-bold text-white">No se encontraron productos</h4>
+                    <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                      No hay platos que coincidan con los filtros o término de búsqueda seleccionado.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 pt-2">
                       <button
-                        onClick={() => handleToggleDisponibilidad(p)}
                         type="button"
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-black transition-all ${
-                          p.disponibilidad !== false
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25'
-                            : 'bg-red-500/15 text-red-400 border border-red-500/40 hover:bg-red-500/25'
-                        }`}
-                        title={p.disponibilidad !== false ? 'Clic para apagar este plato del menú' : 'Clic para activar este plato en el menú'}
+                        onClick={() => {
+                          setSearchProduct('');
+                          setSelectedProductCat('todas');
+                          setFilterProductStatus('todos');
+                        }}
+                        className="px-4 py-2 bg-[#222] hover:bg-[#333] text-gray-300 font-bold text-xs rounded-xl"
                       >
-                        <span className={`w-2 h-2 rounded-full ${p.disponibilidad !== false ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
-                        <span>{p.disponibilidad !== false ? 'Activo en Menú' : 'Apagado / Oculto'}</span>
+                        Limpiar Filtros
                       </button>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditProduct(p)}
-                          className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(p.id)}
-                          className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handleOpenNewProduct}
+                        className="px-4 py-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase rounded-xl shadow-glow"
+                      >
+                        + Agregar Producto
+                      </button>
                     </div>
                   </div>
-                ))}
-            </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredProducts.map((p) => (
+                    <div
+                      key={p.id}
+                      className="bg-[#121212] border border-[#222] hover:border-brand-yellow/40 rounded-2xl p-4 space-y-3 transition-colors flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="relative w-full h-40 rounded-xl overflow-hidden bg-[#1e1e1e]">
+                          <Image src={p.imagen} alt={p.nombre} fill className="object-cover" />
+                          {p.etiqueta && (
+                            <span className="absolute top-2 left-2 bg-brand-yellow text-black text-[10px] font-black uppercase px-2 py-0.5 rounded shadow">
+                              {p.etiqueta}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDisponibilidad(p)}
+                            className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded shadow cursor-pointer transition-all hover:scale-105 ${
+                              p.disponibilidad !== false ? 'bg-emerald-500 text-black' : 'bg-red-500 text-white'
+                            }`}
+                            title={p.disponibilidad !== false ? 'Clic para apagar plato' : 'Clic para activar plato'}
+                          >
+                            {p.disponibilidad !== false ? 'Disponible' : 'Agotado'}
+                          </button>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-baseline">
+                            <h4 className="text-sm font-bold text-white truncate">{p.nombre}</h4>
+                            <span className="text-sm font-black text-brand-yellow ml-2">
+                              {formatPrice(p.precio)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase mt-0.5">
+                            <span className="text-brand-yellow">{p.categoriaNombre || p.categoria}</span>
+                            {p.subcategoria && (
+                              <>
+                                <span className="text-gray-600">➔</span>
+                                <span className="text-blue-400">{p.subcategoriaNombre || p.subcategoria}</span>
+                              </>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 line-clamp-2 mt-1">{p.descripcion}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => handleToggleDisponibilidad(p)}
+                          type="button"
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-black transition-all ${
+                            p.disponibilidad !== false
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25'
+                              : 'bg-red-500/15 text-red-400 border border-red-500/40 hover:bg-red-500/25'
+                          }`}
+                          title={p.disponibilidad !== false ? 'Clic para apagar este plato del menú' : 'Clic para activar este plato en el menú'}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${p.disponibilidad !== false ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                          <span>{p.disponibilidad !== false ? 'Activo en Menú' : 'Apagado / Oculto'}</span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditProduct(p)}
+                            className="p-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(p.id)}
+                            className="p-2 bg-[#1a1a1a] hover:bg-red-500/20 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
