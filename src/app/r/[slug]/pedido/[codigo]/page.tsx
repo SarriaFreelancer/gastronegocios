@@ -21,7 +21,7 @@ import {
   ArrowLeft,
   Share2
 } from 'lucide-react';
-import { restaurantInfo } from '@/data/restaurant-info';
+import { useTenant } from '@/context/TenantContext';
 
 interface OrderItem {
   id: number;
@@ -51,40 +51,48 @@ interface OrderData {
   items: OrderItem[];
 }
 
+const steps = [
+  { id: 0, title: 'Recibido', subtitle: 'Confirmado por restaurante', icon: ClipboardCheck },
+  { id: 1, title: 'En Cocina', subtitle: 'En preparación', icon: Flame },
+  { id: 2, title: 'Listo', subtitle: 'Empacado y verificado', icon: PackageCheck },
+  { id: 3, title: 'En Camino', subtitle: 'En reparto / hacia mesa', icon: Bike },
+  { id: 4, title: 'Entregado', subtitle: '¡A disfrutar!', icon: CheckCircle2 },
+];
+
+const getStepIndex = (estado: string) => {
+  const norm = (estado || '').toLowerCase().trim();
+  if (norm.includes('cancelad')) return -1;
+  if (norm.includes('entregad') || norm.includes('completad') || norm.includes('finalizad')) return 4;
+  if (norm.includes('despachad') || norm.includes('camino') || norm.includes('ruta')) return 3;
+  if (norm === 'listo' || norm.includes('listo')) return 2;
+  if (norm.includes('prepara') || norm.includes('cocin') || norm.includes('fuego')) return 1;
+  if (norm.includes('pendient') || norm.includes('recibid')) return 0;
+  return 0;
+};
+
 export default function TenantOrderTrackingPage() {
   const params = useParams();
   const slug = ((params?.slug as string) || 'punto-g').toLowerCase().trim();
   const rawCode = params?.codigo as string;
-  // Clean leading '#' and trim
   const codigo = rawCode
     ? decodeURIComponent(rawCode).replace(/^#+/, '').trim()
     : '';
 
-  const [restaurantName, setRestaurantName] = useState<string>('Punto G');
-  const [whatsappNumber, setWhatsappNumber] = useState<string>(restaurantInfo.whatsappNumber);
+  const { restaurant } = useTenant();
+  const restaurantName = restaurant?.nombre || 'Restaurante';
+  const primaryColor = restaurant?.colorPrimario || '#EAA622';
+  const buttonColor = restaurant?.colorBoton || primaryColor;
+  const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
+  const whatsappNumber = restaurant?.telefonoWhatsapp || restaurant?.telefono || '3229088736';
+
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastCheck, setLastCheck] = useState<Date>(new Date());
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Fetch restaurant metadata
-  useEffect(() => {
-    fetch(`/api/restaurants?slug=${slug}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.restaurant) {
-          if (data.restaurant.nombre) setRestaurantName(data.restaurant.nombre);
-          if (data.restaurant.telefonoWhatsapp) setWhatsappNumber(data.restaurant.telefonoWhatsapp);
-        }
-      })
-      .catch(() => {});
-  }, [slug]);
-
-  // Format currency
   const formatPrice = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
 
-  // Fetch order status
   const fetchOrder = useCallback(async (isInitial = false) => {
     if (!codigo) return;
     try {
@@ -103,26 +111,21 @@ export default function TenantOrderTrackingPage() {
       setError(null);
       setLastCheck(new Date());
 
-      // Save to localStorage for quick retrieval
-      if (typeof window !== 'undefined' && data.codigo) {
-        localStorage.setItem(`order_last_${slug}`, data.codigo);
-        if (slug === 'punto-g' || slug === 'puntog') {
-          localStorage.setItem('punto_g_last_order', data.codigo);
-        }
-      }
+      try {
+        localStorage.setItem(`last_order_${slug}`, codigo);
+      } catch {}
     } catch {
-      setError('Problema de conexión con el servidor. Reintentando...');
+      setError('Error de conexión al consultar el pedido.');
     } finally {
       if (isInitial) setLoading(false);
     }
   }, [codigo, slug]);
 
-  // Polling every 4.5 seconds for live status updates
   useEffect(() => {
     fetchOrder(true);
     const interval = setInterval(() => {
       fetchOrder(false);
-    }, 4500);
+    }, 5000);
     return () => clearInterval(interval);
   }, [fetchOrder]);
 
@@ -134,63 +137,18 @@ export default function TenantOrderTrackingPage() {
     }
   };
 
-  const getStepIndex = (estado: string) => {
-    const norm = (estado || '').toLowerCase().trim();
-    if (norm.includes('cancelad')) return -1;
-    if (norm.includes('entregad') || norm.includes('completad') || norm.includes('finalizad')) return 4;
-    if (norm.includes('despachad') || norm.includes('camino') || norm.includes('ruta')) return 3;
-    if (norm === 'listo' || norm.includes('listo')) return 2;
-    if (norm.includes('prepara') || norm.includes('cocin') || norm.includes('fuego')) return 1;
-    if (norm.includes('pendient') || norm.includes('recibid')) return 0;
-    return 0;
-  };
-
-  const steps = [
-    {
-      id: 0,
-      title: 'Pedido Recibido',
-      subtitle: 'Registrado y enviado a cocina',
-      icon: ClipboardCheck,
-      color: 'amber',
-    },
-    {
-      id: 1,
-      title: 'En la Cocina / Parrilla',
-      subtitle: 'Preparando con todo el sabor',
-      icon: Flame,
-      color: 'blue',
-    },
-    {
-      id: 2,
-      title: 'Listo en Cocina',
-      subtitle: 'Empacado y listo para salir',
-      icon: PackageCheck,
-      color: 'indigo',
-    },
-    {
-      id: 3,
-      title: order?.tipo === 'domicilio' ? 'En Camino / Despachado' : 'Saliendo a tu Mesa',
-      subtitle: order?.tipo === 'domicilio' ? 'Domiciliario en ruta a tu dirección' : 'Mesero llevándolo a tu mesa',
-      icon: order?.tipo === 'domicilio' ? Bike : UtensilsCrossed,
-      color: 'purple',
-    },
-    {
-      id: 4,
-      title: '¡Entregado!',
-      subtitle: `¡A disfrutar tu ${restaurantName}!`,
-      icon: CheckCircle2,
-      color: 'emerald',
-    },
-  ];
-
-  if (loading && !order) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#080808] pt-24 pb-16 px-4 flex flex-col items-center justify-center text-center">
-        <RefreshCw className="w-12 h-12 text-brand-yellow animate-spin mb-4" />
-        <h2 className="text-xl font-black text-white uppercase font-display tracking-wider">
-          Buscando tu pedido #{codigo}...
-        </h2>
-        <p className="text-sm text-gray-400 mt-1">Conectando con el sistema en tiempo real.</p>
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white pt-24 pb-16 px-4">
+        <div className="text-center space-y-4">
+          <div 
+            className="w-14 h-14 border-4 border-t-transparent rounded-full animate-spin mx-auto"
+            style={{ borderColor: `${primaryColor}30`, borderTopColor: primaryColor }}
+          />
+          <p className="text-sm font-bold uppercase tracking-wider text-gray-400">
+            Cargando estado en vivo...
+          </p>
+        </div>
       </div>
     );
   }
@@ -206,19 +164,20 @@ export default function TenantOrderTrackingPage() {
             Pedido no Encontrado
           </h2>
           <p className="text-sm text-gray-400 leading-relaxed">
-            {error || `No encontramos ningún pedido registrado con el código #${codigo}. Verifica el código o realiza un nuevo pedido.`}
+            {error || `No encontramos ningún pedido registrado con el código #${codigo}.`}
           </p>
 
           <div className="pt-3 space-y-2.5">
             <Link
               href={`/r/${slug}/rastreo`}
-              className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-colors shadow-glow"
+              className="w-full py-3 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-lg"
+              style={{ backgroundColor: buttonColor, color: buttonTextColor }}
             >
               <span>Buscar otro código</span>
             </Link>
             <Link
               href={`/r/${slug}/menu`}
-              className="w-full py-3 bg-[#1c1c1c] hover:bg-[#252525] text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-colors border border-[#2b2b2b]"
+              className="w-full py-3 bg-[#1c1c1c] hover:bg-[#252525] text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 border border-[#2b2b2b]"
             >
               <span>Ir al Menú</span>
             </Link>
@@ -239,7 +198,7 @@ export default function TenantOrderTrackingPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href={`/r/${slug}/rastreo`}
-            className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-brand-yellow transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Volver a mis pedidos</span>
@@ -248,7 +207,7 @@ export default function TenantOrderTrackingPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={copyTrackingLink}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-[#2a2a2a] text-xs font-semibold text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-[#2a2a2a] text-xs font-semibold text-gray-300 hover:text-white hover:border-gray-500 transition-colors cursor-pointer"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>{copiedLink ? '¡Enlace copiado!' : 'Compartir seguimiento'}</span>
@@ -256,7 +215,7 @@ export default function TenantOrderTrackingPage() {
 
             <button
               onClick={() => fetchOrder(false)}
-              className="p-1.5 rounded-lg bg-[#181818] border border-[#2a2a2a] text-gray-400 hover:text-brand-yellow transition-colors"
+              className="p-1.5 rounded-lg bg-[#181818] border border-[#2a2a2a] text-gray-400 hover:text-white transition-colors cursor-pointer"
               title="Actualizar estado"
             >
               <RefreshCw className="w-4 h-4" />
@@ -268,7 +227,10 @@ export default function TenantOrderTrackingPage() {
         <div className="bg-[#121212] border border-[#222] rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
           
           {/* Subtle glow background */}
-          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+          <div 
+            className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-20"
+            style={{ backgroundColor: primaryColor }}
+          />
 
           {/* Top Status Header */}
           <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-[#202020] relative z-10">
@@ -276,21 +238,24 @@ export default function TenantOrderTrackingPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-bold">
-                  Seguimiento en Vivo
+                  Seguimiento en Vivo • {restaurantName}
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-white uppercase font-display tracking-tight flex items-center gap-2">
-                PEDIDO <span className="text-brand-yellow">#{order.codigo}</span>
+                PEDIDO <span style={{ color: primaryColor }}>#{order.codigo}</span>
               </h1>
               <p className="text-xs text-gray-400 mt-1">
-                Hola <strong className="text-white">{order.cliente}</strong>, aquí puedes seguir el progreso de tu orden en tiempo real sin recargar.
+                Hola <strong className="text-white">{order.cliente}</strong>, aquí puedes seguir el progreso de tu orden en tiempo real.
               </p>
             </div>
 
             {/* Modality Tag */}
             <div className="text-right">
               {order.tipo === 'mesa' ? (
-                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-yellow text-black font-black text-xs uppercase tracking-wider shadow-glow">
+                <div 
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-md"
+                  style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+                >
                   <UtensilsCrossed className="w-4 h-4" />
                   <span>Mesa {order.numeroMesa || 'S/N'}</span>
                 </div>
@@ -319,7 +284,7 @@ export default function TenantOrderTrackingPage() {
               </div>
               <h3 className="text-xl font-black text-white uppercase">Pedido Cancelado</h3>
               <p className="text-xs text-gray-300 max-w-md mx-auto">
-                Este pedido ha sido cancelado. Si tienes preguntas o necesitas reprogramarlo, contáctanos por WhatsApp.
+                Este pedido ha sido cancelado. Si tienes preguntas, contáctanos directamente por WhatsApp.
               </p>
             </div>
           ) : (
@@ -330,14 +295,15 @@ export default function TenantOrderTrackingPage() {
                 {/* Connecting Line */}
                 <div className="absolute top-6 left-6 right-6 h-1 bg-[#222] -z-0 hidden md:block">
                   <div
-                    className="h-full bg-brand-yellow transition-all duration-700 ease-out shadow-glow"
+                    className="h-full transition-all duration-700 ease-out"
                     style={{
                       width: `${(Math.max(0, currentStep) / (steps.length - 1)) * 100}%`,
+                      backgroundColor: primaryColor,
                     }}
                   />
                 </div>
 
-                {/* Steps Grid (5 Columns on Desktop) */}
+                {/* Steps Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-2 relative z-10">
                   {steps.map((step) => {
                     const isDone = currentStep >= step.id;
@@ -355,11 +321,18 @@ export default function TenantOrderTrackingPage() {
                         <div
                           className={`w-11 h-11 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all ${
                             isCurrent
-                              ? 'bg-brand-yellow text-black scale-110 shadow-glow font-black ring-4 ring-brand-yellow/30'
+                              ? 'scale-110 font-black shadow-lg ring-4 ring-white/10'
                               : isDone
-                              ? 'bg-[#1e1e1e] border-2 border-brand-yellow text-brand-yellow'
+                              ? 'bg-[#1e1e1e] border-2'
                               : 'bg-[#181818] border border-[#2e2e2e] text-gray-500'
                           }`}
+                          style={
+                            isCurrent
+                              ? { backgroundColor: primaryColor, color: buttonTextColor }
+                              : isDone
+                              ? { borderColor: primaryColor, color: primaryColor }
+                              : {}
+                          }
                         >
                           <StepIcon className="w-5 h-5 md:w-6 md:h-6" />
                         </div>
@@ -367,13 +340,10 @@ export default function TenantOrderTrackingPage() {
                         {/* Step Text */}
                         <div className="text-left md:text-center">
                           <h4
-                            className={`text-xs md:text-xs font-black uppercase leading-tight ${
-                              isCurrent
-                                ? 'text-brand-yellow'
-                                : isDone
-                                ? 'text-white'
-                                : 'text-gray-500'
-                            }`}
+                            className="text-xs md:text-xs font-black uppercase leading-tight"
+                            style={{
+                              color: isCurrent ? primaryColor : isDone ? '#ffffff' : '#6b7280',
+                            }}
                           >
                             {step.title}
                           </h4>
@@ -389,12 +359,19 @@ export default function TenantOrderTrackingPage() {
 
               {/* Status Banner */}
               <div className="mt-8 p-4 rounded-2xl bg-[#181818] border border-[#272727] flex items-center gap-3.5">
-                <div className="p-2.5 rounded-xl bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/30 flex-shrink-0">
+                <div 
+                  className="p-2.5 rounded-xl border flex-shrink-0"
+                  style={{
+                    backgroundColor: `${primaryColor}15`,
+                    borderColor: `${primaryColor}40`,
+                    color: primaryColor,
+                  }}
+                >
                   {currentStep === 0 && <ClipboardCheck className="w-5 h-5" />}
                   {currentStep === 1 && <Flame className="w-5 h-5 animate-bounce" />}
                   {currentStep === 2 && <PackageCheck className="w-5 h-5 animate-pulse" />}
                   {currentStep === 3 && <Bike className="w-5 h-5 animate-pulse" />}
-                  {currentStep === 4 && <Star className="w-5 h-5 text-brand-yellow fill-brand-yellow" />}
+                  {currentStep === 4 && <Star className="w-5 h-5 fill-current" />}
                 </div>
                 <div className="flex-1">
                   <h4 className="text-sm font-bold text-white">
@@ -405,10 +382,10 @@ export default function TenantOrderTrackingPage() {
                     {currentStep === 4 && '¡Tu pedido fue entregado!'}
                   </h4>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {currentStep === 0 && 'Tu pedido fue recibido en cocina. En breve comenzará su cocción artesanal.'}
-                    {currentStep === 1 && 'Nuestros parrilleros están preparando tus hamburguesas y acompañamientos con los mejores ingredientes.'}
-                    {currentStep === 2 && 'Tu pedido está recién empacado y verificado, esperando salida de despacho.'}
-                    {currentStep === 3 && (order.tipo === 'domicilio' ? 'Tu comida va caliente en camino hacia tu dirección con nuestro domiciliario.' : order.tipo === 'mesa' ? `El mesero lleva tu pedido caliente a la Mesa ${order.numeroMesa || ''}.` : 'Tu orden está lista para entrega en mostrador.')}
+                    {currentStep === 0 && `Tu pedido fue recibido en la cocina de ${restaurantName}.`}
+                    {currentStep === 1 && 'Nuestros cocineros están preparando tu orden con ingredientes frescos de primera calidad.'}
+                    {currentStep === 2 && 'Tu pedido está recién empacado y verificado, listo para salir.'}
+                    {currentStep === 3 && (order.tipo === 'domicilio' ? 'Tu comida va caliente en camino hacia tu dirección.' : order.tipo === 'mesa' ? `El mesero lleva tu pedido a la Mesa ${order.numeroMesa || ''}.` : 'Tu orden está lista para entrega.')}
                     {currentStep === 4 && '¡Esperamos que lo disfrutes al máximo! No olvides dejarnos tu calificación.'}
                   </p>
                 </div>
@@ -419,10 +396,19 @@ export default function TenantOrderTrackingPage() {
 
           {/* Calificar CTA if Entregado */}
           {currentStep === 4 && (
-            <div className="mt-4 p-5 rounded-2xl bg-gradient-to-r from-brand-yellow/20 via-[#181818] to-transparent border border-brand-yellow/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div 
+              className="mt-4 p-5 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4"
+              style={{
+                background: `linear-gradient(135deg, ${primaryColor}20 0%, #181818 50%, #121212 100%)`,
+                borderColor: `${primaryColor}40`,
+              }}
+            >
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-brand-yellow text-black rounded-xl font-bold shadow-glow">
-                  <Star className="w-6 h-6 fill-black" />
+                <div 
+                  className="p-3 rounded-xl font-bold shadow-md"
+                  style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+                >
+                  <Star className="w-6 h-6 fill-current" />
                 </div>
                 <div>
                   <h4 className="text-base font-black text-white uppercase">¿Qué tal estuvo tu experiencia?</h4>
@@ -431,7 +417,8 @@ export default function TenantOrderTrackingPage() {
               </div>
               <Link
                 href={`/r/${slug}/calificar?mesa=${encodeURIComponent(order.numeroMesa || 'Web')}&order=${order.codigo}`}
-                className="bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs px-5 py-3 rounded-xl uppercase tracking-wider transition-all shadow-glow hover:scale-105 active:scale-95 flex-shrink-0"
+                className="font-black text-xs px-5 py-3 rounded-xl uppercase tracking-wider transition-all shadow-md hover:scale-105 active:scale-95 flex-shrink-0"
+                style={{ backgroundColor: buttonColor, color: buttonTextColor }}
               >
                 Calificar ahora ⭐
               </Link>
@@ -454,7 +441,10 @@ export default function TenantOrderTrackingPage() {
             {order.items.map((item, idx) => (
               <div key={idx} className="pt-3 first:pt-0 flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-md bg-[#222] text-brand-yellow font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span 
+                    className="w-6 h-6 rounded-md font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
+                  >
                     {item.cantidad}x
                   </span>
                   <div>
@@ -462,13 +452,13 @@ export default function TenantOrderTrackingPage() {
                       {item.nombre}
                     </h4>
                     {item.notas && (
-                      <p className="text-xs text-brand-yellow/80 mt-0.5 italic">
+                      <p className="text-xs mt-0.5 italic" style={{ color: primaryColor }}>
                         Nota: {item.notas}
                       </p>
                     )}
                   </div>
                 </div>
-                <span className="text-sm font-black text-brand-yellow whitespace-nowrap">
+                <span className="text-sm font-black whitespace-nowrap" style={{ color: primaryColor }}>
                   {formatPrice(item.precio * item.cantidad)}
                 </span>
               </div>
@@ -488,14 +478,14 @@ export default function TenantOrderTrackingPage() {
               </div>
             )}
             {order.propina > 0 && (
-              <div className="flex justify-between text-brand-yellow">
+              <div className="flex justify-between" style={{ color: primaryColor }}>
                 <span>Propina voluntaria al equipo:</span>
                 <span className="font-bold">{formatPrice(order.propina)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-black text-white pt-2 border-t border-[#252525]">
               <span>TOTAL:</span>
-              <span className="text-brand-yellow text-lg font-black">{formatPrice(order.total)}</span>
+              <span className="text-lg font-black" style={{ color: primaryColor }}>{formatPrice(order.total)}</span>
             </div>
           </div>
 
@@ -506,7 +496,7 @@ export default function TenantOrderTrackingPage() {
                 Método de Pago:
               </span>
               <div className="flex items-center gap-2 text-white font-bold">
-                <CreditCard className="w-4 h-4 text-brand-yellow" />
+                <CreditCard className="w-4 h-4" style={{ color: primaryColor }} />
                 <span>{order.metodoPago || 'Efectivo'}</span>
               </div>
             </div>
@@ -516,7 +506,7 @@ export default function TenantOrderTrackingPage() {
                 {order.tipo === 'mesa' ? 'Ubicación en restaurante:' : 'Lugar de entrega:'}
               </span>
               <div className="flex items-center gap-2 text-white font-bold truncate">
-                <MapPin className="w-4 h-4 text-brand-yellow flex-shrink-0" />
+                <MapPin className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
                 <span className="truncate">
                   {order.tipo === 'mesa'
                     ? `Mesa #${order.numeroMesa}`
@@ -526,25 +516,17 @@ export default function TenantOrderTrackingPage() {
             </div>
           </div>
 
-          {/* Order Notes */}
-          {order.notas && (
-            <div className="bg-[#1c1408] border border-amber-600/30 p-3.5 rounded-xl text-xs text-amber-300">
-              <strong className="text-brand-yellow block mb-0.5">Observaciones adicionales:</strong>
-              {order.notas}
-            </div>
-          )}
-
         </div>
 
         {/* Support CTA */}
         <div className="bg-[#141414] border border-[#242424] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3 text-center sm:text-left">
-            <div className="p-3 bg-brand-whatsapp/20 text-brand-whatsapp rounded-xl flex-shrink-0">
+            <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl flex-shrink-0">
               <MessageCircle className="w-6 h-6 fill-current" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">¿Tienes alguna pregunta sobre tu pedido?</h4>
-              <p className="text-xs text-gray-400">Escríbenos directamente a nuestra línea oficial de WhatsApp.</p>
+              <h4 className="text-sm font-bold text-white">¿Tienes preguntas sobre tu pedido?</h4>
+              <p className="text-xs text-gray-400">Escríbenos directamente a la línea oficial de {restaurantName}.</p>
             </div>
           </div>
           <a
@@ -553,17 +535,11 @@ export default function TenantOrderTrackingPage() {
             )}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto px-5 py-2.5 bg-brand-whatsapp hover:bg-[#20ba59] text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 flex-shrink-0 shadow-sm"
+            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 flex-shrink-0 shadow-sm"
           >
             <MessageCircle className="w-4 h-4 fill-current" />
             <span>Chat WhatsApp</span>
           </a>
-        </div>
-
-        {/* Live sync footer indicator */}
-        <div className="text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Actualización en tiempo real sin recargar • Último chequeo: {lastCheck.toLocaleTimeString()}</span>
         </div>
 
       </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Star, MessageSquare, CheckCircle, ArrowLeft, Heart, Send } from 'lucide-react';
-import { Logo } from '@/components/ui/Logo';
+import { useTenant } from '@/context/TenantContext';
 
 function CalificarFormContent() {
   const params = useParams();
@@ -13,7 +13,12 @@ function CalificarFormContent() {
   const mesaParam = searchParams.get('mesa') || '';
   const orderParam = searchParams.get('order') || '';
 
-  const [restaurantName, setRestaurantName] = useState('Punto G');
+  const { restaurant } = useTenant();
+  const restaurantName = restaurant?.nombre || 'Restaurante';
+  const primaryColor = restaurant?.colorPrimario || '#EAA622';
+  const buttonColor = restaurant?.colorBoton || primaryColor;
+  const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
+
   const [clienteNombre, setClienteNombre] = useState('');
   const [calificacion, setCalificacion] = useState(5);
   const [tipoVisita, setTipoVisita] = useState(mesaParam ? 'En Sitio / Mesa' : 'Domicilio');
@@ -24,13 +29,6 @@ function CalificarFormContent() {
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch(`/api/restaurants?slug=${slug}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.restaurant?.nombre) setRestaurantName(data.restaurant.nombre);
-      })
-      .catch(() => {});
-
     fetchReviews();
   }, [slug]);
 
@@ -58,12 +56,13 @@ function CalificarFormContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          restaurantSlug: slug,
           clienteNombre,
           calificacion,
           tipoVisita,
           mesaNumero: tipoVisita === 'En Sitio / Mesa' ? mesaNumero : null,
           comentario,
-          restaurantSlug: slug,
+          codigoOrden: orderParam || null,
         }),
       });
 
@@ -80,30 +79,26 @@ function CalificarFormContent() {
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-xl mx-auto space-y-6">
         
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-between">
+        {/* Back Link */}
+        <div>
           <Link
             href={`/r/${slug}`}
-            className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition"
+            className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Volver a {restaurantName}</span>
-          </Link>
-
-          <Link
-            href={`/r/${slug}/rastreo`}
-            className="text-xs font-bold text-brand-yellow hover:underline"
-          >
-            Rastrear Pedido →
           </Link>
         </div>
 
         {/* Hero */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl sm:text-5xl font-black text-white uppercase font-display tracking-tight">
-            CALIFICA TU EXPERIENCIA EN <span className="text-brand-yellow">{restaurantName}</span>
+            CALIFICA TU EXPERIENCIA EN{' '}
+            <span style={{ color: primaryColor }}>
+              {restaurantName}
+            </span>
           </h1>
           <p className="text-sm text-gray-400 max-w-lg mx-auto">
             Tu opinión nos ayuda a mantener el auténtico sabor y la mejor atención en cada bocado.
@@ -124,7 +119,8 @@ function CalificarFormContent() {
               <div className="pt-2">
                 <Link
                   href={`/r/${slug}`}
-                  className="px-6 py-3 bg-brand-yellow text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow inline-block"
+                  className="px-6 py-3 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg inline-block"
+                  style={{ backgroundColor: buttonColor, color: buttonTextColor }}
                 >
                   Volver al Inicio
                 </Link>
@@ -146,16 +142,16 @@ function CalificarFormContent() {
                       className="p-1 transition-transform hover:scale-125 cursor-pointer"
                     >
                       <Star
-                        className={`w-9 h-9 sm:w-10 sm:h-10 ${
-                          star <= calificacion
-                            ? 'text-brand-yellow fill-brand-yellow drop-shadow-[0_2px_10px_rgba(255,201,40,0.5)]'
-                            : 'text-gray-600'
-                        }`}
+                        className="w-9 h-9 sm:w-10 sm:h-10 transition-colors"
+                        style={{
+                          color: star <= calificacion ? primaryColor : '#4b5563',
+                          fill: star <= calificacion ? primaryColor : 'transparent',
+                        }}
                       />
                     </button>
                   ))}
                 </div>
-                <span className="text-xs font-bold text-brand-yellow block">
+                <span className="text-xs font-bold block" style={{ color: primaryColor }}>
                   {calificacion === 5 && '⭐⭐⭐⭐⭐ ¡Excelente! Lo amé'}
                   {calificacion === 4 && '⭐⭐⭐⭐ Muy bueno'}
                   {calificacion === 3 && '⭐⭐⭐ Bueno'}
@@ -176,7 +172,8 @@ function CalificarFormContent() {
                     placeholder="Ej: Daniel Gómez"
                     value={clienteNombre}
                     onChange={(e) => setClienteNombre(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-yellow"
+                    className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition"
+                    style={{ borderColor: clienteNombre ? primaryColor : undefined }}
                   />
                 </div>
 
@@ -188,7 +185,7 @@ function CalificarFormContent() {
                     <select
                       value={tipoVisita}
                       onChange={(e) => setTipoVisita(e.target.value)}
-                      className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-yellow font-bold"
+                      className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none font-bold"
                     >
                       <option value="Domicilio">Domicilio / Pedido Online</option>
                       <option value="En Sitio / Mesa">En Restaurante / Mesa</option>
@@ -206,7 +203,7 @@ function CalificarFormContent() {
                         placeholder="Ej: Mesa 4"
                         value={mesaNumero}
                         onChange={(e) => setMesaNumero(e.target.value)}
-                        className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-yellow"
+                        className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none"
                       />
                     </div>
                   )}
@@ -219,17 +216,19 @@ function CalificarFormContent() {
                   <textarea
                     rows={4}
                     required
-                    placeholder="¿Qué plato pediste? ¿Qué tal la temperatura, las salsas y el tiempo de entrega?..."
+                    placeholder={`¿Qué tal la comida, las porciones y el servicio en ${restaurantName}?...`}
                     value={comentario}
                     onChange={(e) => setComentario(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-yellow"
+                    className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition"
+                    style={{ borderColor: comentario ? primaryColor : undefined }}
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting || !clienteNombre.trim() || !comentario.trim()}
-                  className="w-full py-4 bg-brand-yellow hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 shadow-glow transition active:scale-95 cursor-pointer disabled:opacity-50"
+                  className="w-full py-4 font-black text-xs uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer disabled:opacity-50"
+                  style={{ backgroundColor: buttonColor, color: buttonTextColor }}
                 >
                   <Send className="w-4 h-4 fill-current" />
                   <span>{isSubmitting ? 'Enviando Calificación...' : 'Publicar Calificación'}</span>
@@ -243,7 +242,7 @@ function CalificarFormContent() {
         {recentReviews.length > 0 && (
           <div className="space-y-4 pt-4">
             <h3 className="text-base font-black text-white uppercase font-display text-center">
-              Opiniones Recientes de Clientes
+              Opiniones Recientes en {restaurantName}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {recentReviews.map((rev) => (
@@ -252,7 +251,7 @@ function CalificarFormContent() {
                     <span className="text-xs font-bold text-white">{rev.clienteNombre}</span>
                     <div className="flex items-center gap-0.5">
                       {[...Array(rev.calificacion)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 text-brand-yellow fill-brand-yellow" />
+                        <Star key={i} className="w-3.5 h-3.5 fill-current" style={{ color: primaryColor }} />
                       ))}
                     </div>
                   </div>

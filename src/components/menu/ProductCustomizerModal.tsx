@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Product, ProductAddon } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useTenant } from '@/context/TenantContext';
 import { X, Plus, Minus, Check, Sparkles, ChefHat } from 'lucide-react';
 
 interface ProductCustomizerModalProps {
@@ -37,6 +38,11 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
   product,
 }) => {
   const { addToCart } = useCart();
+  const { restaurant } = useTenant();
+  const primaryColor = restaurant?.colorPrimario || '#EAA622';
+  const buttonColor = restaurant?.colorBoton || primaryColor;
+  const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
+
   const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<ProductAddon[]>([]);
@@ -227,7 +233,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
           {!isBeverage && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-brand-yellow" />
+                <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
                 <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
                   Adicionales & Toppings
                 </h3>
@@ -253,25 +259,27 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
                             key={addon.id}
                             type="button"
                             onClick={() => toggleAddon(addon)}
-                            className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                            className="flex items-center justify-between p-2.5 rounded-xl border text-left transition-all"
+                            style={
                               isSelected
-                                ? 'bg-brand-yellow/15 border-brand-yellow text-white shadow-sm'
-                                : 'bg-[#181818] border-[#262626] text-neutral-300 hover:border-neutral-600'
-                            }`}
+                                ? { backgroundColor: `${primaryColor}18`, borderColor: primaryColor, color: '#ffffff' }
+                                : { backgroundColor: '#181818', borderColor: '#262626', color: '#d4d4d4' }
+                            }
                           >
                             <div className="flex items-center gap-2">
                               <div
-                                className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] transition-colors ${
+                                className="w-4 h-4 rounded flex items-center justify-center border text-[10px] transition-colors"
+                                style={
                                   isSelected
-                                    ? 'bg-brand-yellow border-brand-yellow text-black'
-                                    : 'border-neutral-500 bg-neutral-900'
-                                }`}
+                                    ? { backgroundColor: primaryColor, borderColor: primaryColor, color: buttonTextColor }
+                                    : { borderColor: '#737373', backgroundColor: '#171717' }
+                                }
                               >
                                 {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                               </div>
                               <span className="text-xs font-semibold">{addon.nombre}</span>
                             </div>
-                            <span className="text-xs font-bold text-brand-yellow font-display">
+                            <span className="text-xs font-bold font-display" style={{ color: primaryColor }}>
                               +{formatCOP(addon.precio)}
                             </span>
                           </button>
@@ -287,7 +295,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
           {/* Cooking / Beverage Notes */}
           <div className="space-y-3 pt-2 border-t border-[#222]">
             <div className="flex items-center gap-2">
-              <ChefHat className="w-4 h-4 text-brand-yellow" />
+              <ChefHat className="w-4 h-4" style={{ color: primaryColor }} />
               <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
                 {isBeverage ? 'Instrucciones para Barman / Servicio' : 'Instrucciones para Cocina'}
               </h3>
@@ -302,11 +310,12 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
                     key={chip}
                     type="button"
                     onClick={() => handleChipClick(chip)}
-                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors"
+                    style={
                       isActive
-                        ? 'bg-amber-400 text-black border-amber-400 font-bold'
-                        : 'bg-[#1c1c1c] text-neutral-300 border-neutral-700 hover:border-neutral-500'
-                    }`}
+                        ? { backgroundColor: primaryColor, borderColor: primaryColor, color: buttonTextColor, fontWeight: 'bold' }
+                        : { backgroundColor: '#1c1c1c', borderColor: '#404040', color: '#d4d4d4' }
+                    }
                   >
                     {isActive ? `✓ ${chip}` : `+ ${chip}`}
                   </button>
@@ -323,7 +332,8 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
                   ? 'Ej: Bien fría, vaso con hielo y limón, sin pitillo...'
                   : 'Ej: Salsa tártara aparte, carne término medio, bien caliente...'
               }
-              className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl p-3 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-yellow transition"
+              className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl p-3 text-xs text-white placeholder-neutral-500 focus:outline-none transition"
+              style={{ borderColor: notes ? primaryColor : undefined }}
             />
           </div>
         </div>
@@ -335,7 +345,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+              className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
             >
               <Minus className="w-4 h-4" />
             </button>
@@ -343,7 +353,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
             <button
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
-              className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+              className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -354,11 +364,16 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
             type="button"
             onClick={handleAddToCart}
             disabled={isAdded}
-            className={`flex-1 w-full py-3 px-6 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between gap-3 transition-all duration-200 ${
+            className={`flex-1 w-full py-3 px-6 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between gap-3 transition-all duration-200 cursor-pointer ${
               isAdded
                 ? 'bg-green-500 text-black shadow-[0_0_20px_rgba(34,197,94,0.4)]'
-                : 'bg-brand-yellow hover:bg-brand-yellowHover text-black shadow-glow transform active:scale-98'
+                : 'shadow-lg transform active:scale-98'
             }`}
+            style={
+              !isAdded
+                ? { backgroundColor: buttonColor, color: buttonTextColor }
+                : undefined
+            }
           >
             <span>{isAdded ? '¡AGREGADO AL PEDIDO!' : 'AGREGAR AL PEDIDO'}</span>
             <span className="font-display text-base font-extrabold">{formatCOP(totalPrice)}</span>

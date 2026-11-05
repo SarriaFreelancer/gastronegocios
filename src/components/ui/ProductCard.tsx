@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Product } from '@/types';
 import { useCart } from '@/context/CartContext';
+import { useTenant } from '@/context/TenantContext';
 import { ShoppingCart, Plus, Minus, Check, SlidersHorizontal } from 'lucide-react';
 import { ProductCustomizerModal } from '@/components/menu/ProductCustomizerModal';
 
@@ -17,6 +18,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   variant = 'standard' 
 }) => {
   const { addToCart } = useCart();
+  const { restaurant } = useTenant();
+  const primaryColor = restaurant?.colorPrimario || '#EAA622';
+  const buttonColor = restaurant?.colorBoton || primaryColor;
+  const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
+
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
@@ -30,26 +36,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const getBadgeStyle = (badge?: string) => {
     switch (badge) {
       case 'MÁS VENDIDO':
-        return 'bg-brand-yellow text-black shadow-[0_2px_10px_rgba(255,201,40,0.5)]';
+      case 'MÁS VENDIDA':
+        return { backgroundColor: primaryColor, color: buttonTextColor };
       case 'RECOMENDADO':
-        return 'bg-[#FF9800] text-black shadow-[0_2px_10px_rgba(255,152,0,0.4)]';
+      case 'FAVORITO DE LA CASA':
+        return { backgroundColor: '#FF9800', color: '#000000' };
       case 'NUEVO':
-        return 'bg-[#00E676] text-black shadow-[0_2px_10px_rgba(0,230,118,0.4)]';
+        return { backgroundColor: '#00E676', color: '#000000' };
       case 'PICANTE':
-        return 'bg-[#FF3D00] text-white shadow-[0_2px_10px_rgba(255,61,0,0.4)]';
-      case 'VEGETARIANA':
-        return 'bg-[#76FF03] text-black shadow-[0_2px_10px_rgba(118,255,3,0.4)]';
-      case 'BBQ':
-        return 'bg-[#D84315] text-white shadow-[0_2px_10px_rgba(216,67,21,0.4)]';
-      case 'INFANTIL':
-        return 'bg-[#FFD600] text-black shadow-[0_2px_10px_rgba(255,214,0,0.4)]';
+        return { backgroundColor: '#FF3D00', color: '#ffffff' };
+      case 'ESPECIALIDAD':
+        return { backgroundColor: primaryColor, color: buttonTextColor };
       default:
-        return 'bg-brand-yellow text-black';
+        return { backgroundColor: primaryColor, color: buttonTextColor };
     }
   };
 
   return (
-    <div className="group bg-[#121212] hover:bg-[#161616] rounded-2xl border border-[#222222] hover:border-brand-yellow/50 overflow-hidden flex flex-col transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.85)] hover:-translate-y-1">
+    <div className="group bg-[#121212] hover:bg-[#161616] rounded-2xl border border-[#222222] hover:border-white/30 overflow-hidden flex flex-col transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.85)] hover:-translate-y-1">
       {/* Product Image Container */}
       <div 
         onClick={() => setIsCustomizerOpen(true)}
@@ -69,9 +73,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {product.etiqueta && (
           <div className="absolute top-3 left-3 z-10">
             <span
-              className={`text-[10px] sm:text-xs font-black tracking-wider uppercase px-2.5 py-1 rounded-md shadow-md ${getBadgeStyle(
-                product.etiqueta
-              )}`}
+              className="text-[10px] sm:text-xs font-black tracking-wider uppercase px-2.5 py-1 rounded-md shadow-md"
+              style={getBadgeStyle(product.etiqueta)}
             >
               {product.etiqueta}
             </span>
@@ -82,7 +85,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Content Container */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
         <div onClick={() => setIsCustomizerOpen(true)} className="cursor-pointer">
-          <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-brand-yellow transition-colors line-clamp-1">
+          <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-white transition-colors line-clamp-1">
             {product.nombre}
           </h3>
           <p className="text-xs sm:text-sm text-gray-400 mt-1.5 line-clamp-2 leading-relaxed">
@@ -93,7 +96,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Price & Action Section */}
         <div className="pt-2 border-t border-[#1e1e1e] space-y-2.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-lg sm:text-xl font-black text-brand-yellow tracking-tight font-display">
+            <span 
+              className="text-lg sm:text-xl font-black tracking-tight font-display"
+              style={{ color: primaryColor }}
+            >
               ${product.precio.toLocaleString('es-CO')}
             </span>
 
@@ -102,7 +108,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="text-gray-400 hover:text-white p-0.5 transition-colors"
+                className="text-gray-400 hover:text-white p-0.5 transition-colors cursor-pointer"
                 aria-label="Menos"
               >
                 <Minus className="w-3 h-3" />
@@ -113,7 +119,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <button
                 type="button"
                 onClick={() => setQuantity((q) => q + 1)}
-                className="text-gray-400 hover:text-white p-0.5 transition-colors"
+                className="text-gray-400 hover:text-white p-0.5 transition-colors cursor-pointer"
                 aria-label="Más"
               >
                 <Plus className="w-3 h-3" />
@@ -126,20 +132,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <button
               type="button"
               onClick={() => setIsCustomizerOpen(true)}
-              className="py-2.5 px-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 hover:border-neutral-500 transition-colors"
+              className="py-2.5 px-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 hover:border-neutral-500 transition-colors cursor-pointer"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-brand-yellow" />
+              <SlidersHorizontal className="w-3.5 h-3.5" style={{ color: primaryColor }} />
               <span>Toppings</span>
             </button>
 
             <button
               type="button"
               onClick={handleAdd}
-              className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-200 ${
+              className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
                 isAdded
                   ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.4)]'
-                  : 'bg-brand-yellow hover:bg-brand-yellowHover text-black shadow-glow transform active:scale-95'
+                  : 'shadow-md transform active:scale-95'
               }`}
+              style={
+                !isAdded
+                  ? { backgroundColor: buttonColor, color: buttonTextColor }
+                  : undefined
+              }
             >
               {isAdded ? (
                 <>

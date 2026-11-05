@@ -13,7 +13,6 @@ import {
   PackageCheck, 
   CheckCircle2, 
   ArrowRight, 
-  HelpCircle, 
   Sparkles, 
   ShoppingBag, 
   RefreshCw, 
@@ -21,20 +20,12 @@ import {
   MapPin, 
   Calendar 
 } from 'lucide-react';
-import { restaurantInfo } from '@/data/restaurant-info';
+import { useTenant } from '@/context/TenantContext';
 
 // Helper to sanitize any code entered:
 const normalizeOrderCode = (input: string) => {
   let clean = (input || '').trim().toUpperCase();
   clean = clean.replace(/^#+/, '').trim();
-  if (!clean) return '';
-
-  if (/^\d+$/.test(clean)) {
-    return `PG-${clean}`;
-  }
-  if (clean.startsWith('PG') && !clean.startsWith('PG-')) {
-    return `PG-${clean.slice(2)}`;
-  }
   return clean;
 };
 
@@ -50,48 +41,17 @@ const getStepIndex = (estado: string) => {
   return 0;
 };
 
-const getStatusBadge = (estado: string) => {
-  const step = getStepIndex(estado);
-  switch (step) {
-    case 0:
-      return {
-        label: '🟡 Pedido Recibido',
-        badgeClass: 'bg-amber-500/20 text-brand-yellow border-brand-yellow/40',
-      };
-    case 1:
-      return {
-        label: '🔵 En Cocina / Parrilla',
-        badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-      };
-    case 2:
-      return {
-        label: '🟣 Listo en Cocina',
-        badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-      };
-    case 3:
-      return {
-        label: '🛵 En Camino / Despachado',
-        badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40 animate-pulse',
-      };
-    case 4:
-      return {
-        label: '🟢 ¡Entregado!',
-        badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-      };
-    default:
-      return {
-        label: '🔴 Cancelado',
-        badgeClass: 'bg-red-500/20 text-red-300 border-red-500/40',
-      };
-  }
-};
-
 export default function TenantRastreoPortalPage() {
   const router = useRouter();
   const params = useParams();
   const slug = ((params?.slug as string) || 'punto-g').toLowerCase().trim();
 
-  const [restaurantName, setRestaurantName] = useState<string>('Punto G');
+  const { restaurant } = useTenant();
+  const restaurantName = restaurant?.nombre || 'Restaurante';
+  const primaryColor = restaurant?.colorPrimario || '#EAA622';
+  const buttonColor = restaurant?.colorBoton || primaryColor;
+  const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
+
   const [code, setCode] = useState('');
   const [lastOrderCode, setLastOrderCode] = useState<string | null>(null);
 
@@ -100,33 +60,19 @@ export default function TenantRastreoPortalPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchNotFound, setSearchNotFound] = useState(false);
 
-  // Fetch restaurant metadata to know custom tenant name
+  // Read last stored order code from localStorage on mount
   useEffect(() => {
-    fetch(`/api/restaurants?slug=${slug}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.restaurant?.nombre) {
-          setRestaurantName(data.restaurant.nombre);
-        }
-      })
-      .catch(() => {});
-  }, [slug]);
-
-  // Load last saved order for this specific tenant from LocalStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedTenant = localStorage.getItem(`order_last_${slug}`);
-      const savedGlobal = slug === 'punto-g' || slug === 'puntog' ? localStorage.getItem('punto_g_last_order') : null;
-      if (savedTenant || savedGlobal) {
-        setLastOrderCode(savedTenant || savedGlobal);
+    try {
+      const stored = localStorage.getItem(`last_order_${slug}`) || localStorage.getItem('last_order_code');
+      if (stored) {
+        setLastOrderCode(stored.replace(/^#+/, ''));
       }
+    } catch {
+      // Ignore storage access errors
     }
   }, [slug]);
 
-  // Format currency
-  const formatPrice = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
-
-  // Debounced Instant Live Search as the user types
+  // Live Instant Search: as the user types
   useEffect(() => {
     const raw = code.trim();
     if (!raw) {
@@ -137,8 +83,7 @@ export default function TenantRastreoPortalPage() {
     }
 
     const clean = normalizeOrderCode(raw);
-    const digitsOnly = clean.replace(/[^0-9]/g, '');
-    if (digitsOnly.length < 3 && clean.length < 5) {
+    if (clean.length < 3) {
       setLiveOrder(null);
       setSearchNotFound(false);
       return;
@@ -154,7 +99,7 @@ export default function TenantRastreoPortalPage() {
           setSearchNotFound(false);
         } else {
           setLiveOrder(null);
-          if (digitsOnly.length >= 4 || clean.startsWith('PG-')) {
+          if (clean.length >= 4) {
             setSearchNotFound(true);
           }
         }
@@ -175,35 +120,95 @@ export default function TenantRastreoPortalPage() {
     router.push(`/r/${slug}/pedido/${encodeURIComponent(finalCode)}`);
   };
 
+  const getStatusBadge = (estado: string) => {
+    const step = getStepIndex(estado);
+    switch (step) {
+      case 0:
+        return {
+          label: '🟡 Pedido Recibido',
+          style: { backgroundColor: `${primaryColor}20`, color: primaryColor, borderColor: `${primaryColor}40` },
+        };
+      case 1:
+        return {
+          label: '🔵 En Cocina',
+          style: { backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', borderColor: 'rgba(59, 130, 246, 0.4)' },
+        };
+      case 2:
+        return {
+          label: '🟣 Listo en Cocina',
+          style: { backgroundColor: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', borderColor: 'rgba(99, 102, 241, 0.4)' },
+        };
+      case 3:
+        return {
+          label: '🛵 En Camino / Despachado',
+          style: { backgroundColor: 'rgba(168, 85, 247, 0.2)', color: '#d8b4fe', borderColor: 'rgba(168, 85, 247, 0.4)' },
+        };
+      case 4:
+        return {
+          label: '🟢 ¡Entregado!',
+          style: { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.4)' },
+        };
+      default:
+        return {
+          label: '🔴 Cancelado',
+          style: { backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.4)' },
+        };
+    }
+  };
+
+  const formatPrice = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
+
   return (
     <div className="min-h-screen bg-[#080808] pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto space-y-8">
         
         {/* Header Hero */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-bold uppercase tracking-wider">
+          <div 
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider"
+            style={{ 
+              backgroundColor: `${primaryColor}15`, 
+              borderColor: `${primaryColor}40`, 
+              color: primaryColor 
+            }}
+          >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Rastreo en tiempo real sin registro</span>
+            <span>Rastreo en tiempo real • {restaurantName}</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-white uppercase font-display tracking-tight">
-            ¿DÓNDE ESTÁ MI <span className="text-brand-yellow">PEDIDO?</span>
+            ¿DÓNDE ESTÁ MI{' '}
+            <span style={{ color: primaryColor }}>
+              PEDIDO?
+            </span>
           </h1>
 
           <p className="text-sm text-gray-400 max-w-lg mx-auto leading-relaxed">
-            Ingresa tu código con o sin numeral (ej: <strong className="text-white">#1045</strong> o <strong className="text-white">PG-1045</strong>) y aparecerá en vivo de inmediato.
+            Ingresa el código de tu orden para ver en vivo el estado de tu preparación en <strong className="text-white">{restaurantName}</strong>.
           </p>
         </div>
 
         {/* Recent Order Quick Card (from LocalStorage) */}
         {lastOrderCode && !liveOrder && (
-          <div className="bg-gradient-to-r from-brand-yellow/15 via-[#141414] to-[#141414] border border-brand-yellow/40 rounded-2xl p-5 shadow-glow flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div 
+            className="rounded-2xl p-5 border flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl"
+            style={{
+              background: `linear-gradient(135deg, ${primaryColor}18 0%, #141414 50%, #101010 100%)`,
+              borderColor: `${primaryColor}40`
+            }}
+          >
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-brand-yellow text-black font-black flex items-center justify-center flex-shrink-0 shadow-md">
+              <div 
+                className="w-12 h-12 rounded-xl font-black flex items-center justify-center flex-shrink-0 shadow-md"
+                style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+              >
                 <Clock className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] uppercase font-mono font-bold text-brand-yellow tracking-wider">
+                <span 
+                  className="text-[10px] uppercase font-mono font-bold tracking-wider block"
+                  style={{ color: primaryColor }}
+                >
                   Tu último pedido en este dispositivo
                 </span>
                 <h3 className="text-lg font-black text-white">
@@ -214,7 +219,8 @@ export default function TenantRastreoPortalPage() {
 
             <Link
               href={`/r/${slug}/pedido/${encodeURIComponent(lastOrderCode)}`}
-              className="w-full sm:w-auto px-5 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-glow transition-transform hover:scale-105 active:scale-95 flex-shrink-0"
+              className="w-full sm:w-auto px-5 py-2.5 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95 flex-shrink-0"
+              style={{ backgroundColor: buttonColor, color: buttonTextColor }}
             >
               <span>Ver en vivo</span>
               <ArrowRight className="w-4 h-4" />
@@ -231,7 +237,10 @@ export default function TenantRastreoPortalPage() {
                   Código de tu orden:
                 </label>
                 {isSearching && (
-                  <span className="text-[11px] font-mono text-brand-yellow flex items-center gap-1.5 animate-pulse">
+                  <span 
+                    className="text-[11px] font-mono flex items-center gap-1.5 animate-pulse"
+                    style={{ color: primaryColor }}
+                  >
                     <RefreshCw className="w-3 h-3 animate-spin" />
                     <span>Buscando orden...</span>
                   </span>
@@ -244,32 +253,42 @@ export default function TenantRastreoPortalPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Escribe tu código, ej: #1045, 1045 o PG-1045"
+                  placeholder="Escribe tu código, ej: 1045 o SR-1045"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full bg-[#181818] border-2 border-[#2b2b2b] rounded-2xl pl-10 pr-4 py-3.5 text-base sm:text-lg font-bold text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow transition-colors font-mono uppercase"
+                  className="w-full bg-[#181818] border-2 border-[#2b2b2b] rounded-2xl pl-10 pr-4 py-3.5 text-base sm:text-lg font-bold text-white placeholder-gray-500 focus:outline-none transition-colors font-mono uppercase"
+                  style={{
+                    borderColor: code ? primaryColor : undefined,
+                  }}
                   autoFocus
                 />
               </div>
               <p className="text-[11px] text-gray-500 mt-1.5">
-                💡 Puedes escribirlo con o sin numeral (ejemplo: <strong>#1045</strong>, <strong>#PG-1045</strong> o simplemente <strong>1045</strong>).
+                💡 Puedes escribirlo con o sin numeral (ejemplo: <strong>#1045</strong> o <strong>1045</strong>).
               </p>
             </div>
 
             <button
               type="submit"
               disabled={!code.trim()}
-              className="w-full py-4 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-sm uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 transition-transform hover:scale-[1.01] active:scale-[0.99] shadow-glow disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 font-black text-sm uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 transition-transform hover:scale-[1.01] active:scale-[0.99] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              style={{
+                backgroundColor: buttonColor,
+                color: buttonTextColor,
+              }}
             >
               <Search className="w-4 h-4" />
               <span>CONSULTAR ESTADO EN VIVO</span>
             </button>
           </form>
 
-          {/* INSTANT LIVE ORDER RESULT (Appears immediately as user types!) */}
+          {/* INSTANT LIVE ORDER RESULT */}
           {liveOrder && (
             <div className="pt-4 border-t border-[#222] animate-fadeIn">
-              <div className="bg-gradient-to-br from-[#181818] to-[#111111] border-2 border-brand-yellow/60 rounded-2xl p-5 shadow-[0_0_25px_rgba(255,201,40,0.15)] space-y-4">
+              <div 
+                className="bg-gradient-to-br from-[#181818] to-[#111111] border-2 rounded-2xl p-5 shadow-2xl space-y-4"
+                style={{ borderColor: `${primaryColor}60` }}
+              >
                 
                 {/* Result Header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -281,7 +300,7 @@ export default function TenantRastreoPortalPage() {
                       </span>
                     </div>
                     <h3 className="text-2xl font-black text-white font-display uppercase tracking-tight flex items-center gap-2">
-                      PEDIDO <span className="text-brand-yellow">#{liveOrder.codigo}</span>
+                      PEDIDO <span style={{ color: primaryColor }}>#{liveOrder.codigo}</span>
                     </h3>
                     <p className="text-xs text-gray-300 mt-0.5">
                       Cliente: <strong className="text-white">{liveOrder.cliente}</strong>
@@ -291,9 +310,8 @@ export default function TenantRastreoPortalPage() {
                   {/* Status Badge */}
                   <div className="text-right">
                     <span
-                      className={`inline-block px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border shadow-sm ${
-                        getStatusBadge(liveOrder.estado).badgeClass
-                      }`}
+                      className="inline-block px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border shadow-sm"
+                      style={getStatusBadge(liveOrder.estado).style}
                     >
                       {getStatusBadge(liveOrder.estado).label}
                     </span>
@@ -325,21 +343,17 @@ export default function TenantRastreoPortalPage() {
                         <div key={s.step} className="space-y-1">
                           <div
                             className={`h-2 rounded-full transition-all ${
-                              isCurrent
-                                ? 'bg-brand-yellow shadow-glow animate-pulse'
-                                : isDone
-                                ? 'bg-brand-yellow'
-                                : 'bg-[#252525]'
+                              isCurrent ? 'animate-pulse' : ''
                             }`}
+                            style={{
+                              backgroundColor: isDone || isCurrent ? primaryColor : '#252525',
+                            }}
                           />
                           <span
-                            className={`text-[9px] font-bold uppercase block truncate ${
-                              isCurrent
-                                ? 'text-brand-yellow font-black'
-                                : isDone
-                                ? 'text-white'
-                                : 'text-gray-500'
-                            }`}
+                            className="text-[9px] font-bold uppercase block truncate"
+                            style={{
+                              color: isCurrent ? primaryColor : isDone ? '#ffffff' : '#6b7280',
+                            }}
                           >
                             {s.label}
                           </span>
@@ -365,25 +379,29 @@ export default function TenantRastreoPortalPage() {
 
                   <div className="text-right">
                     <span className="text-gray-400 block text-[10px] uppercase font-bold">Total a Pagar:</span>
-                    <span className="text-brand-yellow font-black text-base font-display">
+                    <span 
+                      className="font-black text-base font-display"
+                      style={{ color: primaryColor }}
+                    >
                       {formatPrice(liveOrder.total)}
                     </span>
                   </div>
                 </div>
 
-                {/* Primary CTA to Full Tracking Screen */}
+                {/* Primary CTA */}
                 <Link
                   href={`/r/${slug}/pedido/${encodeURIComponent(liveOrder.codigo)}`}
-                  className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-glow transition-transform hover:scale-105 active:scale-95"
+                  className="w-full py-3 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95"
+                  style={{ backgroundColor: buttonColor, color: buttonTextColor }}
                 >
-                  <span>🔴 VER SEGUIMIENTO EN VIVO COMPLETO 👉</span>
+                  <span>VER SEGUIMIENTO EN VIVO COMPLETO 👉</span>
                 </Link>
 
               </div>
             </div>
           )}
 
-          {/* Not Found hint when typing */}
+          {/* Not Found hint */}
           {searchNotFound && !liveOrder && !isSearching && (
             <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/40 text-center text-xs text-red-300 flex items-center justify-center gap-2 animate-fadeIn">
               <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -397,12 +415,19 @@ export default function TenantRastreoPortalPage() {
         {/* Explanatory cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-[#121212] border border-[#202020] rounded-2xl p-5 space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-amber-950/40 border border-brand-yellow/30 text-brand-yellow flex items-center justify-center">
+            <div 
+              className="w-10 h-10 rounded-xl border flex items-center justify-center"
+              style={{ 
+                backgroundColor: `${primaryColor}15`, 
+                borderColor: `${primaryColor}40`, 
+                color: primaryColor 
+              }}
+            >
               <ClipboardCheck className="w-5 h-5" />
             </div>
-            <h4 className="text-sm font-black text-white uppercase">¿No necesitas registrarte?</h4>
+            <h4 className="text-sm font-black text-white uppercase">¿Sin necesidad de registro?</h4>
             <p className="text-xs text-gray-400 leading-relaxed">
-              ¡Exacto! En {restaurantName} no necesitas crear cuentas ni recordar contraseñas. Cada vez que pides por la web o por WhatsApp se genera un código de orden único para ti.
+              ¡Exacto! En {restaurantName} no necesitas recordar contraseñas. Cada vez que pides por nuestra web o por WhatsApp se genera un código único de seguimiento.
             </p>
           </div>
 
@@ -412,7 +437,7 @@ export default function TenantRastreoPortalPage() {
             </div>
             <h4 className="text-sm font-black text-white uppercase">Actualización en vivo</h4>
             <p className="text-xs text-gray-400 leading-relaxed">
-              La pantalla de seguimiento se actualiza en automático sin necesidad de recargar. Sabrás con certeza cuándo tu pedido está en la parrilla o listo para servir.
+              El seguimiento se actualiza en automático sin necesidad de recargar. Sabrás con certeza cuándo tu pedido está en cocina o listo para entrega.
             </p>
           </div>
         </div>
@@ -422,10 +447,11 @@ export default function TenantRastreoPortalPage() {
           <p className="text-xs text-gray-500 mb-3">¿Aún no has ordenado?</p>
           <Link
             href={`/r/${slug}/menu`}
-            className="inline-flex items-center gap-2 text-xs font-bold text-brand-yellow hover:underline"
+            className="inline-flex items-center gap-2 text-xs font-bold hover:underline"
+            style={{ color: primaryColor }}
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Explorar nuestro menú de platos y bebidas</span>
+            <span>Explorar la carta completa de {restaurantName}</span>
           </Link>
         </div>
 

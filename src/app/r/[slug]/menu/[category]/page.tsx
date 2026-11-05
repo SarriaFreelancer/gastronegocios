@@ -25,12 +25,14 @@ export default function TenantCategoryDetailPage() {
       .finally(() => setLoading(false));
   }, [slug]);
 
+  const isPuntoG = slug === 'punto-g' || slug === 'puntog';
   const category = categoriesList.find((c) => c.slug === categoryParam);
 
   if (!category && !loading) {
-    // If not found in dynamic, try default categories
-    const fallback = defaultCategories.find((c) => c.slug === categoryParam);
-    if (fallback) return <CategoryClientView category={fallback} />;
+    if (isPuntoG) {
+      const fallback = defaultCategories.find((c) => c.slug === categoryParam);
+      if (fallback) return <CategoryClientView category={fallback} />;
+    }
     notFound();
   }
 

@@ -148,31 +148,47 @@ export const Header: React.FC = () => {
         <div className="md:hidden bg-[#0e0e0e] border-b border-[#222] px-4 pt-3 pb-5 space-y-2">
           {navLinks.map((link) => {
             const active = isLinkActive(link.href);
+            const primaryColor = tenant?.colorPrimario || '#ffc928';
+            const btnText = tenant?.colorBotonTexto || '#000000';
             return (
               <Link
                 key={link.name}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3 py-2 rounded-lg text-sm font-bold ${
-                  active ? 'bg-brand-yellow text-black' : 'text-gray-300 hover:bg-[#1a1a1a]'
-                }`}
+                className="block px-3 py-2 rounded-lg text-sm font-bold transition-colors"
+                style={
+                  active
+                    ? { backgroundColor: primaryColor, color: btnText }
+                    : { color: '#d1d5db' }
+                }
               >
                 {link.name}
               </Link>
             );
           })}
           <div className="pt-2">
-            <a
-              href={`https://api.whatsapp.com/send?phone=${restaurantInfo.whatsappNumber}&text=${encodeURIComponent(
-                '¡Hola Punto G! Quiero ordenar ahora.'
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 bg-brand-yellow text-black font-black text-xs py-3 rounded-full shadow-glow"
-            >
-              <PhoneCall className="w-4 h-4 fill-current" />
-              ORDENAR AHORA
-            </a>
+            {(() => {
+              const rawPhone = (tenant?.telefonoWhatsapp || restaurantInfo.whatsappNumber).replace(/\D/g, '');
+              const cleanPhone = rawPhone.length === 10 ? `57${rawPhone}` : rawPhone;
+              const restName = tenant?.nombre || 'Restaurante';
+              const btnBg = tenant?.colorBoton || tenant?.colorPrimario || '#ffc928';
+              const btnText = tenant?.colorBotonTexto || '#000000';
+
+              return (
+                <a
+                  href={`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
+                    `¡Hola ${restName}! Quiero ordenar ahora.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 font-black text-xs py-3 rounded-full shadow-lg"
+                  style={{ backgroundColor: btnBg, color: btnText }}
+                >
+                  <PhoneCall className="w-4 h-4 fill-current" />
+                  ORDENAR AHORA
+                </a>
+              );
+            })()}
           </div>
         </div>
       )}

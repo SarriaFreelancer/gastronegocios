@@ -10,6 +10,7 @@ import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { ChevronDown, Search, ArrowUpDown, Filter, Sparkles } from 'lucide-react';
+import { useTenant } from '@/context/TenantContext';
 
 interface CategoryClientViewProps {
   category: Category;
@@ -20,6 +21,10 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
   category: initialCategory,
   products: initialProducts,
 }) => {
+  const { restaurant } = useTenant();
+  const primaryColor = restaurant?.colorPrimario || '#EAA622';
+  const buttonColor = restaurant?.colorBoton || primaryColor;
+  const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
   const allProducts = allStaticProducts;
 
   // Detect whether initialCategory is a subcategory or a main category
@@ -142,14 +147,24 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
       
       {/* 1. Dynamic Category Top Hero Banner */}
       <div className="relative bg-gradient-to-r from-[#0d0d0d] via-[#141414] to-[#080808] border-b border-[#202020] overflow-hidden mb-8 sm:mb-12 transition-all duration-300">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+        <div 
+          className="absolute top-0 right-1/4 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20"
+          style={{ backgroundColor: primaryColor }}
+        />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
             
             {/* Left Category Title & Intro */}
             <div className="md:col-span-7 space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-black uppercase tracking-wider mb-1">
+              <div 
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-black uppercase tracking-wider mb-1"
+                style={{ 
+                  backgroundColor: `${primaryColor}15`, 
+                  borderColor: `${primaryColor}40`, 
+                  color: primaryColor 
+                }}
+              >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>NUESTRO MENÚ • {activeMainCategory.nombre}</span>
               </div>
@@ -158,8 +173,11 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase font-display tracking-tight drop-shadow-md">
                   {currentDisplayCategory.nombre}
                 </h1>
-                {/* Yellow swash underline */}
-                <div className="w-full h-2.5 sm:h-3 bg-brand-yellow rounded-full -mt-1 sm:-mt-2 opacity-90 shadow-glow" />
+                {/* Accent swash underline */}
+                <div 
+                  className="w-full h-2.5 sm:h-3 rounded-full -mt-1 sm:-mt-2 opacity-90 shadow-glow"
+                  style={{ backgroundColor: primaryColor }}
+                />
               </div>
 
               <p className="text-sm sm:text-base text-gray-300 max-w-xl pt-2 font-medium">
@@ -205,7 +223,10 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               
               {/* Category Info Header */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold flex-shrink-0 shadow-glow">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 shadow-md"
+                  style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+                >
                   <CategoryIcon name={currentDisplayCategory.icono} size={20} className="text-black" />
                 </div>
                 <div>
@@ -255,7 +276,7 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
             {availableSubcategories.length > 0 && (
               <div className="bg-[#121212] border border-[#222] rounded-2xl p-3 sm:p-4 flex flex-wrap items-center gap-2 shadow-md">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mr-1">
-                  <Filter className="w-3.5 h-3.5 text-brand-yellow" />
+                  <Filter className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                   <span>Subcategorías:</span>
                 </span>
 
@@ -264,9 +285,14 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                   onClick={() => handleSelectCategory(activeMainSlug, undefined)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                     activeSubSlug === null
-                      ? 'bg-brand-yellow text-black shadow-glow font-black'
+                      ? 'shadow-md font-black'
                       : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
                   }`}
+                  style={
+                    activeSubSlug === null
+                      ? { backgroundColor: buttonColor, color: buttonTextColor }
+                      : {}
+                  }
                 >
                   Todas ({totalInMainCategory})
                 </button>
@@ -283,14 +309,19 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                       onClick={() => handleSelectCategory(activeMainSlug, sub.slug)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-brand-yellow text-black shadow-glow font-black'
+                          ? 'shadow-md font-black'
                           : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#252525]'
                       }`}
+                      style={
+                        isSelected
+                          ? { backgroundColor: buttonColor, color: buttonTextColor }
+                          : {}
+                      }
                     >
                       <CategoryIcon
                         name={sub.icono}
                         size={12}
-                        className={isSelected ? 'text-black' : 'text-brand-yellow'}
+                        className={isSelected ? 'text-black' : ''}
                       />
                       <span>{sub.nombre}</span>
                       <span
@@ -319,7 +350,8 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                     setSearchQuery('');
                     handleSelectCategory(activeMainSlug, undefined);
                   }}
-                  className="mt-4 text-xs font-bold text-brand-yellow hover:underline"
+                  className="mt-4 text-xs font-bold hover:underline"
+                  style={{ color: primaryColor }}
                 >
                   Ver todos los platos de {activeMainCategory.nombre}
                 </button>
