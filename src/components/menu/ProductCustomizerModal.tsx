@@ -100,7 +100,11 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
       return;
     }
     setLoadingAddons(true);
-    fetch('/api/addons?activo=true')
+    const addonUrl = restaurant?.id
+      ? `/api/addons?activo=true&restaurantId=${restaurant.id}`
+      : '/api/addons?activo=true';
+
+    fetch(addonUrl)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -109,7 +113,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
       })
       .catch((err) => console.error('Error fetching addons:', err))
       .finally(() => setLoadingAddons(false));
-  }, [isOpen, isBeverage]);
+  }, [isOpen, isBeverage, restaurant]);
 
   // Reset local state when opened
   useEffect(() => {
@@ -142,13 +146,32 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
     });
   };
 
-  // Group addons by category
-  const groupedAddons = addonsList.reduce((acc, a) => {
-    const cat = a.categoria || 'Toppings';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(a);
-    return acc;
-  }, {} as Record<string, ProductAddon[]>);
+  // Group addons by category with priority: Adiciones, Toppings, Salsas, Acompañamientos
+  const groupedAddons = useMemo(() => {
+    const map = addonsList.reduce((acc, a) => {
+      const cat = a.categoria || 'Toppings';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(a);
+      return acc;
+    }, {} as Record<string, ProductAddon[]>);
+
+    const ORDER = ['Adiciones', 'Toppings', 'Salsas', 'Acompañamientos', 'Bebidas'];
+    const sortedEntries: [string, ProductAddon[]][] = [];
+
+    ORDER.forEach((catName) => {
+      if (map[catName]) {
+        sortedEntries.push([catName, map[catName]]);
+      }
+    });
+
+    Object.keys(map).forEach((otherCat) => {
+      if (!ORDER.includes(otherCat)) {
+        sortedEntries.push([otherCat, map[otherCat]]);
+      }
+    });
+
+    return sortedEntries;
+  }, [addonsList]);
 
   const addonsTotal = selectedAddons.reduce((sum, a) => sum + (a.precio || 0), 0);
   const unitPrice = product.precio + addonsTotal;
@@ -205,8 +228,11 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
           </button>
 
           <div className="absolute bottom-3 left-4 right-4 pointer-events-none">
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-brand-yellow text-black pointer-events-auto">
-              {product.categoria || 'PUNTO G'}
+            <span
+              className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow pointer-events-auto"
+              style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+            >
+              {product.categoria || restaurant?.nombre || 'RESTAURANTE'}
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-white uppercase drop-shadow-md mt-1">
               {product.nombre}
@@ -224,7 +250,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
             <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Precio Base
             </span>
-            <span className="text-lg font-black text-brand-yellow font-display">
+            <span className="text-lg font-black font-display" style={{ color: primaryColor }}>
               {formatCOP(product.precio)}
             </span>
           </div>
@@ -235,7 +261,7 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
                 <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
-                  Adicionales & Toppings
+                  Adiciones, Toppings & Salsas
                 </h3>
               </div>
 
@@ -243,13 +269,21 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
                 <div className="text-xs text-neutral-500 py-3 text-center animate-pulse">
                   Cargando adicionales disponibles...
                 </div>
-              ) : Object.keys(groupedAddons).length === 0 ? (
+              ) : groupedAddons.length === 0 ? (
                 <p className="text-xs text-neutral-500 italic">No hay adicionales configurados para este plato.</p>
               ) : (
-                Object.entries(groupedAddons).map(([categoria, items]) => (
+                groupedAddons.map(([categoria, items]) => (
                   <div key={categoria} className="space-y-2">
-                    <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                      {categoria}
+                    <h4
+                      className="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                      style={{ color: categoria === 'Adiciones' ? primaryColor : '#a3a3a3' }}
+                    >
+                      <span>{categoria}</span>
+                      {categoria === 'Adiciones' && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-white font-bold">
+                          Extra
+                        </span>
+                      )}
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {items.map((addon) => {

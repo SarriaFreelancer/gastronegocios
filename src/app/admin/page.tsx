@@ -7225,6 +7225,7 @@ export default function AdminPage() {
                     onChange={(e) => setAddonFormData({ ...addonFormData, categoria: e.target.value })}
                     className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
                   >
+                    <option value="Adiciones">Adiciones</option>
                     <option value="Toppings">Toppings</option>
                     <option value="Salsas">Salsas</option>
                     <option value="Acompañamientos">Acompañamientos</option>

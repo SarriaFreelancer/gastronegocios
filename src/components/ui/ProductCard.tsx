@@ -134,8 +134,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               onClick={() => setIsCustomizerOpen(true)}
               className="py-2.5 px-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 hover:border-neutral-500 transition-colors cursor-pointer"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" style={{ color: primaryColor }} />
-              <span>Toppings</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+              <span className="truncate">Toppings & Adiciones</span>
             </button>
 
             <button

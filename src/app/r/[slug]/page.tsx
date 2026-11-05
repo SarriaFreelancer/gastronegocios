@@ -29,6 +29,7 @@ import { PromotionBanner } from '@/components/home/PromotionBanner';
 import { ParrillaSection } from '@/components/home/ParrillaSection';
 import { VirtualAssistantSection } from '@/components/home/VirtualAssistantSection';
 import { Logo } from '@/components/ui/Logo';
+import { ProductCustomizerModal } from '@/components/menu/ProductCustomizerModal';
 import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
 
@@ -70,6 +71,7 @@ function DynamicClientLanding({
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [customizerProduct, setCustomizerProduct] = useState<any | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   const formatCOP = (num: number) => '$' + (num || 0).toLocaleString('es-CO');
@@ -476,7 +478,7 @@ function DynamicClientLanding({
               {categories.map((cat) => (
                 <Link
                   key={cat.id}
-                  href={`/r/${slug}/menu?category=${cat.slug}`}
+                  href={`/r/${slug}/menu/${cat.slug}`}
                   className="bg-[#121212] border border-[#222] hover:border-white/30 rounded-3xl p-5 space-y-3 transition-all group block cursor-pointer"
                 >
                   <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-[#202020]">
@@ -520,64 +522,90 @@ function DynamicClientLanding({
                 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
                 : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
             }`}>
-              {products.slice(0, plantilla === 'plantilla-minimalista' ? 6 : 8).map((prod) => (
-                <div
-                  key={prod.id}
-                  className={`bg-[#141414] border border-[#242424] hover:border-white/30 rounded-3xl p-4 flex flex-col justify-between space-y-3 transition-all group shadow-xl ${
-                    plantilla === 'plantilla-comercial' ? 'hover:-translate-y-1' : ''
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="relative w-full h-48 rounded-2xl overflow-hidden bg-[#1e1e1e]">
-                      <Image
-                        src={prod.imagen}
-                        alt={prod.nombre}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                      />
-                      {prod.etiqueta && (
-                        <span
-                          className="absolute top-2 left-2 text-black text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow"
+              {products.slice(0, plantilla === 'plantilla-minimalista' ? 6 : 8).map((prod) => {
+                const targetCatSlug = prod.subcategoria || prod.categoria || '';
+                const productTargetUrl = targetCatSlug
+                  ? `/r/${slug}/menu/${targetCatSlug}`
+                  : `/r/${slug}/menu`;
+
+                return (
+                  <div
+                    key={prod.id}
+                    className={`bg-[#141414] border border-[#242424] hover:border-white/30 rounded-3xl p-4 flex flex-col justify-between space-y-3 transition-all group shadow-xl ${
+                      plantilla === 'plantilla-comercial' ? 'hover:-translate-y-1' : ''
+                    }`}
+                  >
+                    <Link
+                      href={productTargetUrl}
+                      className="space-y-3 block group/link cursor-pointer"
+                      title={`Ver ${prod.nombre} en la categoría`}
+                    >
+                      <div className="relative w-full h-48 rounded-2xl overflow-hidden bg-[#1e1e1e]">
+                        <Image
+                          src={prod.imagen}
+                          alt={prod.nombre}
+                          fill
+                          className="object-cover group-hover/link:scale-105 transition-transform duration-500"
+                        />
+                        {prod.etiqueta && (
+                          <span
+                            className="absolute top-2 left-2 text-black text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow"
+                            style={{ backgroundColor: primary }}
+                          >
+                            {prod.etiqueta}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4
+                          className="text-sm sm:text-base font-bold text-white group-hover/link:underline transition-colors"
+                          style={{ textDecorationColor: primary }}
+                        >
+                          {prod.nombre}
+                        </h4>
+                        <p className="text-xs text-gray-400 line-clamp-2 mt-1">
+                          {prod.descripcion}
+                        </p>
+                      </div>
+                    </Link>
+
+                    <div className="pt-3 border-t border-[#222] flex items-center justify-between gap-2">
+                      <span
+                        className="text-base sm:text-lg font-black font-display"
+                        style={{ color: primary }}
+                      >
+                        {formatCOP(prod.precio)}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCustomizerProduct(prod)}
+                          className="px-2.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 text-[11px] font-bold uppercase flex items-center gap-1 transition cursor-pointer"
+                          title="Personalizar toppings y adiciones"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" style={{ color: primary }} />
+                          <span className="hidden sm:inline">Toppings</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addToCart(prod, 1);
+                            setIsCartOpen(true);
+                          }}
+                          className="flex items-center gap-1 px-3 py-2 rounded-xl text-black font-black text-xs uppercase tracking-wider shadow transition active:scale-95 cursor-pointer"
                           style={{ backgroundColor: primary }}
                         >
-                          {prod.etiqueta}
-                        </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-tenant-primary transition-colors">
-                        {prod.nombre}
-                      </h4>
-                      <p className="text-xs text-gray-400 line-clamp-2 mt-1">
-                        {prod.descripcion}
-                      </p>
+                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Agregar</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="pt-3 border-t border-[#222] flex items-center justify-between">
-                    <span
-                      className="text-lg font-black font-display"
-                      style={{ color: primary }}
-                    >
-                      {formatCOP(prod.precio)}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        addToCart(prod, 1);
-                        setIsCartOpen(true);
-                      }}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-black font-black text-xs uppercase tracking-wider shadow transition active:scale-95 cursor-pointer"
-                      style={{ backgroundColor: primary }}
-                    >
-                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                      <span>Agregar</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* View Full Menu CTA */}
@@ -675,6 +703,14 @@ function DynamicClientLanding({
             </div>
           </div>
         </section>
+      )}
+      {/* Customizer modal for toppings & additions from landing page */}
+      {customizerProduct && (
+        <ProductCustomizerModal
+          isOpen={Boolean(customizerProduct)}
+          onClose={() => setCustomizerProduct(null)}
+          product={customizerProduct}
+        />
       )}
     </div>
   );

@@ -3,11 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { Category, Product } from '@/types';
-import { categories } from '@/data/categories';
+import { categories as defaultStaticCategories } from '@/data/categories';
 import { products as allStaticProducts } from '@/data/products';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { ProductCard } from '@/components/ui/ProductCard';
-import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { ChevronDown, Search, ArrowUpDown, Filter, Sparkles } from 'lucide-react';
 import { useTenant } from '@/context/TenantContext';
@@ -15,34 +14,55 @@ import { useTenant } from '@/context/TenantContext';
 interface CategoryClientViewProps {
   category: Category;
   products?: Product[];
+  categoriesList?: any[];
+  tenantSlug?: string;
+  initialSubSlug?: string;
 }
 
 export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
   category: initialCategory,
   products: initialProducts,
+  categoriesList: initialCategoriesList,
+  tenantSlug,
+  initialSubSlug,
 }) => {
   const { restaurant } = useTenant();
   const primaryColor = restaurant?.colorPrimario || '#EAA622';
   const buttonColor = restaurant?.colorBoton || primaryColor;
   const buttonTextColor = restaurant?.colorBotonTexto || '#000000';
-  const allProducts = allStaticProducts;
+
+  // Usar categorías provistas o fallback a default
+  const categoriesList = useMemo(() => {
+    if (initialCategoriesList && initialCategoriesList.length > 0) {
+      return initialCategoriesList;
+    }
+    return defaultStaticCategories;
+  }, [initialCategoriesList]);
+
+  // Usar productos provistos o fallback a estáticos
+  const allProducts = useMemo(() => {
+    if (initialProducts && initialProducts.length > 0) {
+      return initialProducts;
+    }
+    return allStaticProducts;
+  }, [initialProducts]);
 
   // Detect whether initialCategory is a subcategory or a main category
   const initialIsSub = Boolean(initialCategory.parentId);
   const initialParent = initialIsSub
-    ? categories.find(
+    ? categoriesList.find(
         (c) => c.id === initialCategory.parentId || c.slug === initialCategory.parentId
       )
     : null;
 
-  // Active main category slug (e.g. 'comidas-rapidas', 'bebidas', 'platos-fuertes', 'combos')
+  // Active main category slug
   const [activeMainSlug, setActiveMainSlug] = useState<string>(
     initialParent ? initialParent.slug : initialCategory.slug
   );
 
-  // Active subcategory slug (e.g. 'hamburguesas', 'cocteles', etc., or null for "all")
+  // Active subcategory slug (e.g. 'hamburguesas', etc., or null for "all")
   const [activeSubSlug, setActiveSubSlug] = useState<string | null>(
-    initialIsSub ? initialCategory.slug : null
+    initialSubSlug || (initialIsSub ? initialCategory.slug : null)
   );
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,26 +71,26 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
   // Currently displayed category metadata for the Hero Banner and Title
   const currentDisplayCategory = useMemo(() => {
     if (activeSubSlug) {
-      const sub = categories.find((c) => c.slug === activeSubSlug);
+      const sub = categoriesList.find((c) => c.slug === activeSubSlug);
       if (sub) return sub;
     }
-    const main = categories.find((c) => c.slug === activeMainSlug);
+    const main = categoriesList.find((c) => c.slug === activeMainSlug);
     return main || initialCategory;
-  }, [activeMainSlug, activeSubSlug, initialCategory]);
+  }, [activeMainSlug, activeSubSlug, initialCategory, categoriesList]);
 
   // Main category object
   const activeMainCategory = useMemo(() => {
-    return categories.find((c) => c.slug === activeMainSlug) || initialCategory;
-  }, [activeMainSlug, initialCategory]);
+    return categoriesList.find((c) => c.slug === activeMainSlug) || initialCategory;
+  }, [activeMainSlug, initialCategory, categoriesList]);
 
   // Subcategories belonging to the active main category
   const availableSubcategories = useMemo(() => {
-    return categories.filter(
+    return categoriesList.filter(
       (c) =>
         (c.parentId === activeMainCategory.id || c.parentId === activeMainCategory.slug) &&
         c.activo !== false
     );
-  }, [activeMainCategory]);
+  }, [activeMainCategory, categoriesList]);
 
   // Handler for category and subcategory selection
   const handleSelectCategory = (mainCatSlug: string, subSlug?: string) => {
@@ -81,7 +101,10 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     // Smoothly synchronize browser URL without full page reload
     if (typeof window !== 'undefined') {
       const targetSlug = subSlug || mainCatSlug;
-      window.history.pushState(null, '', `/menu/${targetSlug}`);
+      const targetUrl = tenantSlug && tenantSlug !== 'punto-g' && tenantSlug !== 'puntog'
+        ? `/r/${tenantSlug}/menu/${targetSlug}`
+        : `/menu/${targetSlug}`;
+      window.history.pushState(null, '', targetUrl);
     }
   };
 
@@ -94,21 +117,25 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
       // 1. Category / Subcategory Matching
       let matchesCategory = false;
       if (activeSubSlug) {
-        matchesCategory = p.subcategoria === activeSubSlug || p.categoria === activeSubSlug;
+        matchesCategory =
+          p.subcategoria === activeSubSlug ||
+          p.categoria === activeSubSlug ||
+          (p as any).subcategoriaSlug === activeSubSlug;
       } else {
         matchesCategory =
           p.categoria === activeMainSlug ||
           p.subcategoria === activeMainSlug ||
-          availableSubcategories.some((s) => s.slug === p.subcategoria);
+          p.categoriaId === activeMainCategory.id ||
+          availableSubcategories.some((s) => s.slug === p.subcategoria || s.id === p.subcategoriaId);
       }
 
       // 2. Search query matching
       const query = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !query ||
-        p.nombre.toLowerCase().includes(query) ||
-        p.descripcion.toLowerCase().includes(query) ||
-        (p.ingredientes && p.ingredientes.some((i) => i.toLowerCase().includes(query)));
+        p.nombre?.toLowerCase().includes(query) ||
+        p.descripcion?.toLowerCase().includes(query) ||
+        (p.ingredientes && p.ingredientes.some((i: string) => i.toLowerCase().includes(query)));
 
       return matchesCategory && matchesSearch;
     });
@@ -125,12 +152,12 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
         break;
       case 'recomendados':
       default:
-        result = [...result].sort((a, b) => (a.orden || 99) - (b.orden || 99));
+        result = [...result].sort((a, b) => ((a as any).orden || 99) - ((b as any).orden || 99));
         break;
     }
 
     return result;
-  }, [allProducts, activeMainSlug, activeSubSlug, availableSubcategories, searchQuery, sortBy]);
+  }, [allProducts, activeMainSlug, activeSubSlug, activeMainCategory, availableSubcategories, searchQuery, sortBy]);
 
   // Total products count in active main category
   const totalInMainCategory = useMemo(() => {
@@ -138,9 +165,10 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
       (p) =>
         p.categoria === activeMainSlug ||
         p.subcategoria === activeMainSlug ||
-        availableSubcategories.some((s) => s.slug === p.subcategoria)
+        p.categoriaId === activeMainCategory.id ||
+        availableSubcategories.some((s) => s.slug === p.subcategoria || s.id === p.subcategoriaId)
     ).length;
-  }, [allProducts, activeMainSlug, availableSubcategories]);
+  }, [allProducts, activeMainSlug, activeMainCategory, availableSubcategories]);
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16">
@@ -190,7 +218,7 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)] overflow-hidden rounded-2xl border border-[#262626]">
                 <Image
                   key={currentDisplayCategory.imagen}
-                  src={currentDisplayCategory.imagen}
+                  src={currentDisplayCategory.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop'}
                   alt={currentDisplayCategory.nombre}
                   fill
                   priority
@@ -213,6 +241,8 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
             currentSlug={activeMainSlug}
             currentSubSlug={activeSubSlug || undefined}
             onSelectCategory={handleSelectCategory}
+            categoriesList={categoriesList}
+            tenantSlug={tenantSlug}
           />
 
           {/* Right Column: Main Products Area */}
@@ -227,14 +257,14 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                   className="w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 shadow-md"
                   style={{ backgroundColor: primaryColor, color: buttonTextColor }}
                 >
-                  <CategoryIcon name={currentDisplayCategory.icono} size={20} className="text-black" />
+                  <CategoryIcon name={currentDisplayCategory.icono} size={20} className="text-current" />
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-xl font-black text-white font-display uppercase tracking-wide">
                     {currentDisplayCategory.nombre}
                   </h2>
                   <p className="text-xs text-gray-400">
-                    {currentDisplayCategory.subtitulo || `${filteredAndSortedProducts.length} deliciosas opciones disponibles`}
+                    {(currentDisplayCategory as any).subtitulo || `${filteredAndSortedProducts.length} deliciosas opciones disponibles`}
                   </p>
                 </div>
               </div>
@@ -248,7 +278,8 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                     placeholder="Buscar producto..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[#1c1c1c] border border-[#2c2c2c] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-yellow"
+                    className="w-full bg-[#1c1c1c] border border-[#2c2c2c] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none"
+                    style={{ borderColor: searchQuery ? primaryColor : undefined }}
                   />
                   <Search className="w-4 h-4 text-gray-500 absolute left-3 top-2.5" />
                 </div>
@@ -258,7 +289,7 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full sm:w-auto appearance-none bg-[#1c1c1c] border border-[#2c2c2c] rounded-xl pl-8 pr-8 py-2 text-xs text-white font-bold cursor-pointer focus:outline-none focus:border-brand-yellow"
+                    className="w-full sm:w-auto appearance-none bg-[#1c1c1c] border border-[#2c2c2c] rounded-xl pl-8 pr-8 py-2 text-xs text-white font-bold cursor-pointer focus:outline-none"
                   >
                     <option value="recomendados">Ordenar por: Recomendados</option>
                     <option value="precio-menor">Menor precio</option>
@@ -300,7 +331,11 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                 {availableSubcategories.map((sub) => {
                   const isSelected = activeSubSlug === sub.slug;
                   const count = allProducts.filter(
-                    (p) => p.subcategoria === sub.slug || p.categoria === sub.slug
+                    (p) =>
+                      p.subcategoria === sub.slug ||
+                      p.categoria === sub.slug ||
+                      p.subcategoriaId === sub.id ||
+                      (p as any).subcategoriaSlug === sub.slug
                   ).length;
 
                   return (
@@ -321,13 +356,13 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                       <CategoryIcon
                         name={sub.icono}
                         size={12}
-                        className={isSelected ? 'text-black' : ''}
+                        className={isSelected ? 'text-current' : ''}
                       />
                       <span>{sub.nombre}</span>
                       <span
                         className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                           isSelected
-                            ? 'bg-black/20 text-black font-extrabold'
+                            ? 'bg-black/20 text-current font-extrabold'
                             : 'bg-black/40 text-gray-400'
                         }`}
                       >
@@ -339,33 +374,37 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               </div>
             )}
 
-            {/* Products Grid: 3 columns on desktop */}
+            {/* Products Grid */}
             {filteredAndSortedProducts.length === 0 ? (
-              <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center">
-                <p className="text-base font-bold text-gray-300">
-                  No se encontraron productos disponibles en esta sección{searchQuery ? ` con "${searchQuery}"` : ''}.
+              <div className="bg-[#121212] border border-[#222] rounded-2xl p-12 text-center space-y-4">
+                <div 
+                  className="w-12 h-12 mx-auto rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
+                >
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-white">No encontramos productos en esta sección</h3>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  Prueba seleccionando otra subcategoría o cambiando tu búsqueda.
                 </p>
                 <button
                   onClick={() => {
+                    setActiveSubSlug(null);
                     setSearchQuery('');
-                    handleSelectCategory(activeMainSlug, undefined);
                   }}
-                  className="mt-4 text-xs font-bold hover:underline"
-                  style={{ color: primaryColor }}
+                  className="px-4 py-2 rounded-xl font-bold text-xs uppercase"
+                  style={{ backgroundColor: buttonColor, color: buttonTextColor }}
                 >
-                  Ver todos los platos de {activeMainCategory.nombre}
+                  Ver todos los platos
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                 {filteredAndSortedProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             )}
-
-            {/* Bottom Promo Combo Banner */}
-            <CategoryComboBanner />
 
           </div>
 
@@ -375,4 +414,3 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     </div>
   );
 };
-

@@ -5,7 +5,48 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const soloActivos = searchParams.get('activo') === 'true';
+    const restaurantIdParam = searchParams.get('restaurantId');
+    const restaurantSlugParam = searchParams.get('restaurantSlug');
 
+    let targetRestaurantId: number | null = null;
+
+    if (restaurantIdParam && restaurantIdParam !== 'all') {
+      targetRestaurantId = Number(restaurantIdParam);
+    } else if (restaurantSlugParam) {
+      const rest = await prisma.restaurant.findUnique({
+        where: { slug: restaurantSlugParam },
+        select: { id: true },
+      });
+      if (rest) {
+        targetRestaurantId = rest.id;
+      }
+    }
+
+    // Si se especifica un restaurante, intentamos buscar primero sus adicionales
+    if (targetRestaurantId) {
+      let addons = await prisma.productAddon.findMany({
+        where: {
+          restaurantId: targetRestaurantId,
+          ...(soloActivos ? { activo: true } : {}),
+        },
+        orderBy: [{ categoria: 'asc' }, { precio: 'asc' }],
+      });
+
+      // Si el restaurante aún no tiene adicionales propios configurados, traer los globales / por defecto (restaurantId: 1 o null)
+      if (addons.length === 0) {
+        addons = await prisma.productAddon.findMany({
+          where: {
+            OR: [{ restaurantId: 1 }, { restaurantId: null }],
+            ...(soloActivos ? { activo: true } : {}),
+          },
+          orderBy: [{ categoria: 'asc' }, { precio: 'asc' }],
+        });
+      }
+
+      return NextResponse.json(addons);
+    }
+
+    // Consulta general (sin filtrar restaurante o para superadmin)
     const addons = await prisma.productAddon.findMany({
       where: soloActivos ? { activo: true } : {},
       orderBy: [{ categoria: 'asc' }, { precio: 'asc' }],
@@ -21,7 +62,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { nombre, precio, categoria = 'Toppings' } = body;
+    const { nombre, precio, categoria = 'Adiciones', restaurantId = 1 } = body;
 
     if (!nombre) {
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 });
@@ -33,6 +74,7 @@ export async function POST(req: Request) {
         precio: Number(precio) || 0,
         categoria,
         activo: true,
+        restaurantId: Number(restaurantId) || 1,
       },
     });
 
@@ -46,7 +88,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, nombre, precio, categoria, activo } = body;
+    const { id, nombre, precio, categoria, activo, restaurantId } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
@@ -59,6 +101,7 @@ export async function PUT(req: Request) {
         ...(precio !== undefined && { precio: Number(precio) }),
         ...(categoria !== undefined && { categoria }),
         ...(activo !== undefined && { activo: Boolean(activo) }),
+        ...(restaurantId !== undefined && { restaurantId: Number(restaurantId) }),
       },
     });
 
