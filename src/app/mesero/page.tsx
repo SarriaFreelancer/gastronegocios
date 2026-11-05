@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import {
   UtensilsCrossed,
   Bell,
@@ -133,6 +134,10 @@ interface ComandaItem {
 }
 
 export default function MeseroPage() {
+  const params = useParams();
+  const tenantSlug = (params?.slug as string) || null;
+  const [restaurant, setRestaurant] = useState<{ id: number; nombre: string; colorPrimario?: string; logo?: string; eslogan?: string } | null>(null);
+
   const [tables, setTables] = useState<Table[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -140,6 +145,18 @@ export default function MeseroPage() {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Fetch restaurant branding if tenantSlug exists
+  useEffect(() => {
+    if (tenantSlug) {
+      fetch(`/api/restaurants?slug=${tenantSlug}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) setRestaurant(data);
+        })
+        .catch(console.error);
+    }
+  }, [tenantSlug]);
 
   // Vista actual: 'mesas' | 'comanda' | 'dividir'
   const [currentView, setCurrentView] = useState<'mesas' | 'comanda' | 'dividir'>('mesas');
@@ -183,11 +200,24 @@ export default function MeseroPage() {
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      let tablesUrl = `/api/tables?`;
+      if (tenantSlug) tablesUrl += `restaurantSlug=${tenantSlug}&`;
+      if (selectedBranch !== 'all') tablesUrl += `branchId=${selectedBranch}&`;
+
+      let prodsUrl = `/api/products?`;
+      if (tenantSlug) prodsUrl += `restaurantSlug=${tenantSlug}&`;
+
+      let catsUrl = `/api/categories?all=true&`;
+      if (tenantSlug) catsUrl += `restaurantSlug=${tenantSlug}&`;
+
+      let branchesUrl = `/api/branches?activo=true&`;
+      if (tenantSlug) branchesUrl += `restaurantSlug=${tenantSlug}&`;
+
       const [resTables, resProds, resCats, resBranches] = await Promise.all([
-        fetch(`/api/tables${selectedBranch !== 'all' ? `?branchId=${selectedBranch}` : ''}`),
-        fetch('/api/products'),
-        fetch('/api/categories?all=true'),
-        fetch('/api/branches?activo=true'),
+        fetch(tablesUrl),
+        fetch(prodsUrl),
+        fetch(catsUrl),
+        fetch(branchesUrl),
       ]);
 
       if (resTables.ok) {
@@ -441,6 +471,8 @@ export default function MeseroPage() {
           mesaId: selectedTable.id,
           numeroMesa: selectedTable.numero,
           branchId: selectedTable.branchId,
+          restaurantSlug: tenantSlug,
+          restaurantId: restaurant?.id,
           subtotal: comandaSubtotal,
           propina: comandaPropina,
           total: comandaTotal,
@@ -823,20 +855,20 @@ export default function MeseroPage() {
       <header className="sticky top-0 z-30 bg-[#121212]/95 backdrop-blur-md border-b border-[#222] px-4 py-3 flex items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href={tenantSlug ? `/r/${tenantSlug}` : '/'}
             className="flex items-center gap-2 group hover:opacity-90 transition"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-yellow to-amber-500 flex items-center justify-center font-black text-black shadow-glow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-yellow to-amber-500 flex items-center justify-center font-black text-black shadow-glow shrink-0">
               <UtensilsCrossed className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-base font-black uppercase text-white font-display tracking-wider flex items-center gap-1.5">
-                <span>Punto G</span>
+                <span>{restaurant?.nombre || 'Punto G'}</span>
                 <span className="text-[10px] bg-brand-yellow text-black font-black px-1.5 py-0.5 rounded-md">
                   MESERO POS
                 </span>
               </h1>
-              <p className="text-[10px] text-gray-400 font-bold">Comandero Tablet & Móvil</p>
+              <p className="text-[10px] text-gray-400 font-bold">{restaurant?.eslogan || 'Comandero Tablet & Móvil'}</p>
             </div>
           </Link>
 

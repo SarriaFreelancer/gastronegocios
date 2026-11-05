@@ -3,11 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { categories as defaultCategories } from '@/data/categories';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
 export const CategorySection: React.FC = () => {
+  const pathname = usePathname();
+  const match = pathname ? pathname.match(/^\/r\/([^\/]+)/) : null;
+  const basePrefix = match ? `/r/${match[1]}` : '';
   const [categoriesList, setCategoriesList] = useState<any[]>(defaultCategories);
 
   // Fetch real categories from database
@@ -74,7 +78,7 @@ export const CategorySection: React.FC = () => {
             return (
               <Link
                 key={cat.slug}
-                href={`/menu/${cat.slug}`}
+                href={basePrefix ? `${basePrefix}/menu?category=${cat.slug}` : `/menu/${cat.slug}`}
                 className="group relative flex flex-col justify-end h-[360px] sm:h-[400px] rounded-3xl overflow-hidden border-2 border-[#222] hover:border-brand-yellow transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_45px_rgba(255,201,40,0.3)] bg-[#111]"
               >
                 {/* Background Food Photography */}

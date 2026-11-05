@@ -1,10 +1,16 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Utensils, MessageCircle, Sparkles } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 
 export const HeroSection: React.FC = () => {
+  const pathname = usePathname();
+  const match = pathname ? pathname.match(/^\/r\/([^\/]+)/) : null;
+  const menuHref = match ? `/r/${match[1]}/menu` : '/menu';
   return (
     <section className="relative pt-28 pb-16 bg-[#080808] overflow-hidden min-h-[90vh] flex items-center">
       {/* Yellow brush glow in top-left corner */}
@@ -49,7 +55,7 @@ export const HeroSection: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
               {/* Yellow VER MENÚ */}
               <Link
-                href="/menu"
+                href={menuHref}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-sm uppercase px-8 py-4 rounded-full shadow-[0_4px_25px_rgba(255,201,40,0.4)] transition-all transform hover:scale-105 active:scale-95"
               >
                 <Utensils className="w-4 h-4 fill-current" />

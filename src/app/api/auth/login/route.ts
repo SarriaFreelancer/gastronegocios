@@ -22,12 +22,16 @@ export async function POST(req: Request) {
       },
       include: {
         branch: true,
+        restaurant: true,
       },
     });
 
-    if (!user || user.password !== password) {
+    const cleanPass = (password || '').trim();
+    const isPasswordValid = user && (user.password === password || user.password === cleanPass || user.password.toLowerCase() === cleanPass.toLowerCase());
+
+    if (!user || !isPasswordValid) {
       return NextResponse.json(
-        { error: 'Credenciales inválidas' },
+        { error: 'Credenciales inválidas. Verifica tu correo y contraseña.' },
         { status: 401 }
       );
     }

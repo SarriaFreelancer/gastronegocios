@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { 
   BellRing, 
   CheckCircle2, 
@@ -57,6 +58,10 @@ interface Branch {
 }
 
 export default function PedidosListosPage() {
+  const params = useParams();
+  const tenantSlug = (params?.slug as string) || null;
+  const [restaurant, setRestaurant] = useState<{ id: number; nombre: string; colorPrimario?: string; logo?: string; eslogan?: string } | null>(null);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
@@ -67,6 +72,18 @@ export default function PedidosListosPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [mounted, setMounted] = useState(false);
   const [deliveringId, setDeliveringId] = useState<number | null>(null);
+
+  // Fetch restaurant branding if tenantSlug exists
+  useEffect(() => {
+    if (tenantSlug) {
+      fetch(`/api/restaurants?slug=${tenantSlug}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) setRestaurant(data);
+        })
+        .catch(console.error);
+    }
+  }, [tenantSlug]);
 
   // Track previous order IDs to detect when a new order becomes ready
   const prevReadyIdsRef = useRef<Set<number>>(new Set());
@@ -104,18 +121,21 @@ export default function PedidosListosPage() {
 
   // Fetch branches
   useEffect(() => {
-    fetch('/api/branches')
+    const branchesUrl = tenantSlug ? `/api/branches?restaurantSlug=${tenantSlug}` : '/api/branches';
+    fetch(branchesUrl)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) setBranches(data);
       })
       .catch(() => {});
-  }, []);
+  }, [tenantSlug]);
 
   // Fetch orders with estado = "Listo"
   const fetchOrders = useCallback(async () => {
     try {
-      let url = '/api/orders?estado=Listo';
+      let url = tenantSlug 
+        ? `/api/orders?estado=Listo&restaurantSlug=${tenantSlug}` 
+        : '/api/orders?estado=Listo';
       if (selectedBranchId !== 'all') {
         url += `&branchId=${selectedBranchId}`;
       }
@@ -146,7 +166,7 @@ export default function PedidosListosPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedBranchId, playChime]);
+  }, [selectedBranchId, playChime, tenantSlug]);
 
   // Polling every 4 seconds
   useEffect(() => {
@@ -218,7 +238,20 @@ export default function PedidosListosPage() {
       {/* Top Header Bar */}
       <header className="bg-[#101010] border-b border-[#222] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-2xl">
         <div className="flex items-center gap-3">
-          <Logo />
+          <Link href={tenantSlug ? `/r/${tenantSlug}/admin` : '/admin'} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            {tenantSlug && restaurant?.logo ? (
+              <img src={restaurant.logo} alt={restaurant.nombre} className="h-8 w-auto max-w-[120px] object-contain rounded-md" />
+            ) : tenantSlug && restaurant ? (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-brand-yellow/20 border border-brand-yellow/40 flex items-center justify-center font-black text-brand-yellow text-sm">
+                  {restaurant.nombre[0]}
+                </div>
+                <span className="font-bold text-white text-sm hidden sm:inline">{restaurant.nombre}</span>
+              </div>
+            ) : (
+              <Logo />
+            )}
+          </Link>
           <div className="h-6 w-px bg-white/10 hidden sm:block" />
           <div className="flex items-center gap-2">
             <span className="relative flex h-3 w-3">
@@ -228,7 +261,7 @@ export default function PedidosListosPage() {
             <h1 className="text-lg sm:text-2xl font-black uppercase tracking-tight font-display flex items-center gap-2 text-white">
               PEDIDOS LISTOS
               <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-bold tracking-wider">
-                PANTALLA DE ENTREGA
+                {restaurant?.nombre ? restaurant.nombre.toUpperCase() : 'PANTALLA DE ENTREGA'}
               </span>
             </h1>
           </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { 
   ChefHat, 
   Clock, 
@@ -68,6 +69,10 @@ interface Order {
 }
 
 export default function CocinaKDSPage() {
+  const params = useParams();
+  const tenantSlug = (params?.slug as string) || null;
+  const [restaurant, setRestaurant] = useState<{ id: number; nombre: string; colorPrimario?: string; logo?: string; eslogan?: string } | null>(null);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterEstado, setFilterEstado] = useState<'todos' | 'Pendiente' | 'En Preparación' | 'Listo' | 'Despachado'>('todos');
@@ -84,6 +89,18 @@ export default function CocinaKDSPage() {
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'comanda' | 'factura'>('comanda');
 
+  // Fetch restaurant branding if tenantSlug exists
+  useEffect(() => {
+    if (tenantSlug) {
+      fetch(`/api/restaurants?slug=${tenantSlug}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) setRestaurant(data);
+        })
+        .catch(console.error);
+    }
+  }, [tenantSlug]);
+
   const openReceipt = (order: Order, type: 'comanda' | 'factura' = 'comanda') => {
     setReceiptOrder(order);
     setReceiptType(type);
@@ -94,14 +111,17 @@ export default function CocinaKDSPage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005';
     const cleanPhone = (order.telefono || '').replace(/\D/g, '');
     const phone = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
-    const msg = `¡Hola ${order.cliente}! 🔥 Te escribimos de *PUNTO G*.\nTu pedido *#${order.codigo}* está actualmente en estado: *${order.estado.toUpperCase()}* 🍔✨\n\nPuedes ver el estado de preparación y despacho en vivo aquí:\n👉 ${origin}/pedido/${order.codigo}\n\n¡Muchas gracias por elegirnos!`;
+    const restName = (restaurant?.nombre || 'PUNTO G').toUpperCase();
+    const trackingUrl = `${origin}${tenantSlug ? `/r/${tenantSlug}` : ''}/pedido/${order.codigo}`;
+    const msg = `¡Hola ${order.cliente}! 🔥 Te escribimos de *${restName}*.\nTu pedido *#${order.codigo}* está actualmente en estado: *${order.estado.toUpperCase()}* 🍔✨\n\nPuedes ver el estado de preparación y despacho en vivo aquí:\n👉 ${trackingUrl}\n\n¡Muchas gracias por elegirnos!`;
     window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const dispatchToDeliveryWhatsApp = (order: Order) => {
     const addressQuery = encodeURIComponent(`${order.direccion || ''}, Cali, Colombia`);
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${addressQuery}`;
-    const msg = `🛵 *PEDIDO PARA DOMICILIO - PUNTO G* 🛵\n\n` +
+    const restName = (restaurant?.nombre || 'PUNTO G').toUpperCase();
+    const msg = `🛵 *PEDIDO PARA DOMICILIO - ${restName}* 🛵\n\n` +
       `📦 Orden: *#${order.codigo}*\n` +
       `👤 Cliente: *${order.cliente}*\n` +
       `📱 Teléfono: *${order.telefono}*\n` +
@@ -190,19 +210,24 @@ export default function CocinaKDSPage() {
 
   // Fetch branches on mount
   useEffect(() => {
-    fetch('/api/branches')
+    let url = '/api/branches?activo=true';
+    if (tenantSlug) url += `&restaurantSlug=${tenantSlug}`;
+    fetch(url)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data)) setBranches(data);
       })
       .catch(() => {});
-  }, []);
+  }, [tenantSlug]);
 
   // Fetch kitchen orders
   const fetchOrders = useCallback(async (isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
       let url = '/api/orders?cocina=true';
+      if (tenantSlug) {
+        url += `&restaurantSlug=${tenantSlug}`;
+      }
       if (selectedBranchId !== 'all') {
         url += `&branchId=${selectedBranchId}`;
       }
@@ -225,7 +250,7 @@ export default function CocinaKDSPage() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [playKitchenChime, soundEnabled, selectedBranchId]);
+  }, [playKitchenChime, soundEnabled, selectedBranchId, tenantSlug]);
 
   // Initial fetch and 3-second auto-polling
   useEffect(() => {
@@ -349,7 +374,7 @@ export default function CocinaKDSPage() {
               </div>
               <div>
                 <h1 className="text-sm sm:text-lg md:text-xl font-black tracking-wider uppercase text-white flex items-center gap-1.5 sm:gap-2">
-                  PUNTO G <span className="text-brand-yellow">KDS</span>
+                  <span>{restaurant?.nombre || 'PUNTO G'}</span> <span className="text-brand-yellow">KDS</span>
                 </h1>
                 <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -415,7 +440,7 @@ export default function CocinaKDSPage() {
               </div>
 
               <Link
-                href="/pedidos-listos"
+                href={tenantSlug ? `/r/${tenantSlug}/pedidos-listos` : '/pedidos-listos'}
                 className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition inline-flex items-center gap-1.5"
                 title="Pantalla de Pedidos Listos"
               >
@@ -424,7 +449,7 @@ export default function CocinaKDSPage() {
               </Link>
 
               <Link
-                href="/admin"
+                href={tenantSlug ? (restaurant?.id ? `/admin?restaurantId=${restaurant.id}` : `/r/${tenantSlug}`) : '/admin'}
                 className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#181818] border border-[#2b2b2b] text-xs font-semibold text-gray-300 hover:text-brand-yellow transition inline-flex items-center gap-1.5"
                 title="Panel de Administración"
               >

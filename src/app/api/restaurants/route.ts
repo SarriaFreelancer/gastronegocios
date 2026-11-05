@@ -46,7 +46,10 @@ export async function GET(req: Request) {
     const restaurants = await prisma.restaurant.findMany({
       include: {
         branches: {
-          select: { id: true, nombre: true, slug: true, activo: true },
+          select: { id: true, nombre: true, slug: true, activo: true, direccion: true, telefono: true, ciudad: true },
+        },
+        users: {
+          select: { id: true, nombre: true, email: true, rol: true, estado: true, password: true, branchId: true },
         },
         _count: {
           select: {
@@ -59,7 +62,7 @@ export async function GET(req: Request) {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { id: 'asc' },
     });
 
     // Calcular métricas consolidadas
@@ -157,6 +160,18 @@ export async function POST(req: Request) {
         propinaSugeridaPct: Number(propinaSugeridaPct) || 10,
         plan,
         activo: true,
+        // Configuración de Identidad y Secciones por defecto
+        plantilla: 'plantilla-actual',
+        tituloHero: `Bienvenidos a ${nombre}`,
+        subtituloHero: eslogan || 'Sabor & Antojos Inolvidables',
+        descripcionHero: descripcion || 'Disfruta de nuestros mejores platos preparados con pasión e ingredientes frescos.',
+        textoBotonHero: 'Ver Nuestra Carta',
+        tituloSeccionMenu: 'Nuestra Carta',
+        tituloSeccionDestacados: 'Los Más Populares',
+        // SEO por defecto
+        seoTitulo: `${nombre} | Restaurante & Domicilios en ${ciudad}`,
+        seoDescripcion: descripcion || `Disfruta del mejor menú de ${nombre} en ${ciudad}. Domicilios rápidos, combos especiales y atención por WhatsApp.`,
+        seoKeywords: `${nombre}, restaurante ${ciudad}, comidas rápidas, hamburguesas, picadas, domicilios ${ciudad}`,
         // Crear automáticamente su Sede Principal por defecto
         branches: {
           create: {

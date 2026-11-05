@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
+import { useTenant } from '@/context/TenantContext';
 import {
   Lock,
   Mail,
@@ -21,24 +22,39 @@ const LOCAL_STORAGE_AUTH = 'punto_g_admin_logged_in';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get('redirect') || '/admin';
+  const { tenant } = useTenant();
+  const redirectPath = searchParams.get('redirect') || '';
 
-  const [email, setEmail] = useState('superadmin@puntog.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [currentSession, setCurrentSession] = useState<{ id: number; nombre: string; email: string; rol: string; restaurant?: any } | null>(null);
 
-  // Check if user is already logged in
+  // Check if user has an active session or requested logout
   useEffect(() => {
     try {
+      const isLogout = searchParams.get('logout') === 'true';
+      if (isLogout) {
+        localStorage.removeItem(LOCAL_STORAGE_AUTH);
+        localStorage.removeItem('punto_g_active_restaurant');
+        setCurrentSession(null);
+        setIsCheckingAuth(false);
+        return;
+      }
+
       const savedAuth = localStorage.getItem(LOCAL_STORAGE_AUTH);
       if (savedAuth) {
         const user = JSON.parse(savedAuth);
         if (user && user.id) {
-          router.replace(redirectPath);
-          return;
+          setCurrentSession(user);
+          // If a redirect was explicitly requested by an auth guard and not directly visiting /login, redirect
+          if (redirectPath) {
+            router.replace(redirectPath);
+            return;
+          }
         }
       }
     } catch (e) {
@@ -46,7 +62,15 @@ function LoginForm() {
     } finally {
       setIsCheckingAuth(false);
     }
-  }, [router, redirectPath]);
+  }, [router, redirectPath, searchParams]);
+
+  const handleClearSession = () => {
+    localStorage.removeItem(LOCAL_STORAGE_AUTH);
+    localStorage.removeItem('punto_g_active_restaurant');
+    setCurrentSession(null);
+    setEmail('');
+    setPassword('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +88,28 @@ function LoginForm() {
 
       if (res.ok && data.user) {
         localStorage.setItem(LOCAL_STORAGE_AUTH, JSON.stringify(data.user));
-        router.push(redirectPath);
+        if (data.user.restaurant) {
+          localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data.user.restaurant));
+        } else {
+          localStorage.removeItem('punto_g_active_restaurant');
+        }
+
+        // Smart redirect based on role and tenant
+        let target = redirectPath;
+        if (!target) {
+          if (data.user.rol === 'Superadmin') {
+            target = '/superadmin';
+          } else if (data.user.rol === 'Cocina') {
+            target = data.user.restaurant?.slug ? `/r/${data.user.restaurant.slug}/cocina` : '/cocina';
+          } else if (data.user.rol === 'Mesero') {
+            target = data.user.restaurant?.slug ? `/r/${data.user.restaurant.slug}/mesero` : '/mesero';
+          } else if (data.user.restaurant?.slug) {
+            target = `/r/${data.user.restaurant.slug}/admin`;
+          } else {
+            target = '/admin';
+          }
+        }
+        router.push(target);
       } else {
         setError(data.error || 'Credenciales inválidas. Verifica tu correo y contraseña.');
       }
@@ -107,7 +152,7 @@ function LoginForm() {
       {/* Top Navigation Bar: Back & Live Status */}
       <div className="w-full max-w-5xl flex items-center justify-between mb-6 sm:mb-8 relative z-20">
         <Link
-          href="/"
+          href={tenant?.slug && tenant.slug !== 'punto-g' ? `/r/${tenant.slug}` : '/'}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#141414]/90 hover:bg-[#1f1f1f] border border-[#2b2b2b] text-gray-300 hover:text-white text-xs font-bold transition shadow-lg backdrop-blur-md group hover:border-brand-yellow/50"
         >
           <ArrowLeft className="w-4 h-4 text-brand-yellow group-hover:-translate-x-1 transition-transform" />
@@ -116,7 +161,7 @@ function LoginForm() {
 
         <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141414]/80 border border-[#262626] text-[11px] font-bold text-gray-400 backdrop-blur-md">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-gray-300">Punto G • Sistema Operativo</span>
+          <span className="text-gray-300">{tenant?.nombre || 'Punto G'} • Sistema Operativo</span>
         </div>
       </div>
 
@@ -128,8 +173,8 @@ function LoginForm() {
           {/* Background culinary image with dark gradient */}
           <div className="absolute inset-0 z-0">
             <img
-              src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"
-              alt="Punto G Burgers & Kitchen"
+              src={tenant?.bannerHero || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"}
+              alt={tenant?.nombre || "Restaurante"}
               className="w-full h-full object-cover opacity-25 scale-105 filter contrast-125"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/80 to-transparent" />
@@ -143,14 +188,32 @@ function LoginForm() {
             </div>
 
             <div className="space-y-1.5 pt-4">
-              <span className="text-[10px] font-black uppercase text-brand-yellow tracking-widest px-2.5 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 inline-block">
+              <span
+                className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border inline-block"
+                style={{
+                  color: tenant?.colorPrimario || '#ffc928',
+                  backgroundColor: `${tenant?.colorPrimario || '#ffc928'}15`,
+                  borderColor: `${tenant?.colorPrimario || '#ffc928'}40`,
+                }}
+              >
                 GASTRONOMÍA & SISTEMA POS
               </span>
               <h2 className="text-2xl xl:text-3xl font-black uppercase text-white font-display tracking-tight leading-tight">
-                ANTOJOS QUE <span className="text-brand-yellow italic">CONECTAN</span>
+                {tenant?.eslogan ? (
+                  <>
+                    {tenant.eslogan.split(' ')[0]}{' '}
+                    <span className="italic" style={{ color: tenant?.colorPrimario || '#ffc928' }}>
+                      {tenant.eslogan.split(' ').slice(1).join(' ')}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    ANTOJOS QUE <span className="italic" style={{ color: tenant?.colorPrimario || '#ffc928' }}>CONECTAN</span>
+                  </>
+                )}
               </h2>
               <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
-                Plataforma integral para cocina KDS, mesas QR, domicilios, reportes contables y gestión de menú en tiempo real.
+                {tenant?.descripcion || 'Plataforma integral para cocina KDS, mesas QR, domicilios, reportes contables y gestión de menú en tiempo real.'}
               </p>
             </div>
           </div>
@@ -158,7 +221,13 @@ function LoginForm() {
           {/* Feature Highlights Badges */}
           <div className="relative z-10 space-y-2.5 pt-6">
             <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm">
-              <div className="w-8 h-8 rounded-xl bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-bold">
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center font-bold"
+                style={{
+                  backgroundColor: `${tenant?.colorPrimario || '#ffc928'}20`,
+                  color: tenant?.colorPrimario || '#ffc928',
+                }}
+              >
                 <ChefHat className="w-4 h-4" />
               </div>
               <div>
@@ -181,7 +250,9 @@ function LoginForm() {
           {/* Bottom copyright / version */}
           <div className="relative z-10 pt-4 border-t border-white/[0.08] flex items-center justify-between text-[10px] text-gray-500">
             <span>Versión 2.0 • Dokploy Production</span>
-            <span className="text-brand-yellow font-bold">Cali, Colombia</span>
+            <span className="font-bold" style={{ color: tenant?.colorPrimario || '#ffc928' }}>
+              {tenant?.ciudad || 'Cali, Colombia'}
+            </span>
           </div>
         </div>
 
@@ -194,7 +265,14 @@ function LoginForm() {
               <Logo size="md" />
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[10px] font-black uppercase tracking-wider">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider"
+              style={{
+                backgroundColor: `${tenant?.colorPrimario || '#ffc928'}15`,
+                borderColor: `${tenant?.colorPrimario || '#ffc928'}40`,
+                color: tenant?.colorPrimario || '#ffc928',
+              }}
+            >
               <Lock className="w-3.5 h-3.5" />
               <span>TERMINAL DE ACCESO SEGURO</span>
             </div>
@@ -204,10 +282,48 @@ function LoginForm() {
                 INICIAR SESIÓN
               </h1>
               <p className="text-xs text-gray-400 mt-1">
-                Ingresa con tus credenciales para administrar Punto G.
+                Ingresa con tus credenciales para administrar {tenant?.nombre || 'Punto G'}.
               </p>
             </div>
           </div>
+
+          {/* Active Session Notification if logged in */}
+          {currentSession && (
+            <div className="bg-brand-yellow/10 border border-brand-yellow/30 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-black text-xs">
+                  {currentSession.nombre ? currentSession.nombre[0].toUpperCase() : 'U'}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">
+                    Sesión activa: <span className="text-brand-yellow">{currentSession.nombre}</span> ({currentSession.rol})
+                  </p>
+                  <p className="text-[10px] text-gray-400">{currentSession.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Link
+                  href={
+                    currentSession.rol === 'Superadmin'
+                      ? '/superadmin'
+                      : currentSession.restaurant?.slug
+                      ? `/r/${currentSession.restaurant.slug}/admin`
+                      : '/admin'
+                  }
+                  className="px-3 py-1.5 bg-brand-yellow text-black font-black text-[11px] rounded-xl uppercase hover:bg-yellow-400 transition"
+                >
+                  Ir al Panel
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleClearSession}
+                  className="px-3 py-1.5 bg-[#252525] text-gray-300 font-bold text-[11px] rounded-xl hover:text-white hover:bg-red-500/20 hover:text-red-400 transition"
+                >
+                  Cambiar cuenta
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Error Banner */}
           {error && (
@@ -282,7 +398,7 @@ function LoginForm() {
                 </span>
                 <span className="text-[10px] text-brand-yellow font-bold">Auto-completar</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -301,7 +417,17 @@ function LoginForm() {
                   }}
                   className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
                 >
-                  <span>🛡️ Admin</span>
+                  <span>🛡️ Admin PG</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('admin@salchiricuras.com');
+                    setPassword('admin123');
+                  }}
+                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
+                >
+                  <span>🍟 Admin Salchi</span>
                 </button>
                 <button
                   type="button"
@@ -368,7 +494,7 @@ function LoginForm() {
 
       {/* Bottom Legal / Restaurant Slogan */}
       <p className="text-center text-[11px] text-gray-500 mt-6 relative z-10">
-        Punto G Cali &copy; {new Date().getFullYear()} — Sistema Gastronómico y Punto de Venta
+        {tenant?.nombre || 'Punto G'} {tenant?.ciudad || 'Cali'} &copy; {new Date().getFullYear()} — Sistema Gastronómico y Punto de Venta
       </p>
     </div>
   );

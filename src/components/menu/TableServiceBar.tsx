@@ -1,15 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { Bell, Receipt, CheckCircle, CreditCard, Banknote, Smartphone, X } from 'lucide-react';
 import { swalCustom, showSuccess, showError } from '@/lib/swal';
 
 export function TableServiceBar() {
+  const pathname = usePathname();
   const { tableNumber, setTableNumber, deliveryType, setDeliveryType } = useCart();
   const [loading, setLoading] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [tempTableInput, setTempTableInput] = useState('');
+
+  if (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/superadmin') ||
+    pathname.startsWith('/login') ||
+    pathname.includes('/cocina') ||
+    pathname.includes('/mesero') ||
+    pathname.includes('/entregas') ||
+    pathname.includes('/pedidos-listos') ||
+    pathname.includes('/turnero')
+  ) {
+    return null;
+  }
 
   const currentTable = tableNumber ? tableNumber.trim() : '';
 

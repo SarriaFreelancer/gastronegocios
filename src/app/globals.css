@@ -8,6 +8,48 @@
   --font-bebas: 'Bebas Neue', Impact, sans-serif;
   --font-montserrat: 'Montserrat', sans-serif;
   --font-poppins: 'Poppins', sans-serif;
+
+  /* ======================================================== */
+  /* DESIGN TOKENS GLOBALES MULTI-RESTAURANTE / WHITE-LABEL  */
+  /* ======================================================== */
+  --tenant-primary: #ffc928;
+  --tenant-secondary: #E94B24;
+  --tenant-tertiary: #1a1a1a;
+  --tenant-accent: #ffc928;
+  --tenant-background: #080808;
+  --tenant-surface: #121212;
+  --tenant-text: #ffffff;
+  --tenant-text-muted: #9ca3af;
+  --tenant-border: #262626;
+  --tenant-button: #ffc928;
+  --tenant-button-text: #000000;
+  --tenant-navigation: #0a0a0a;
+  --tenant-success: #10b981;
+  --tenant-warning: #f59e0b;
+  --tenant-error: #ef4444;
+  --tenant-radius: 1rem;
+}
+
+/* Clases de utilidad para temas dinámicos */
+.bg-tenant-primary { background-color: var(--tenant-primary); }
+.text-tenant-primary { color: var(--tenant-primary); }
+.border-tenant-primary { border-color: var(--tenant-primary); }
+
+.bg-tenant-secondary { background-color: var(--tenant-secondary); }
+.text-tenant-secondary { color: var(--tenant-secondary); }
+
+.bg-tenant-background { background-color: var(--tenant-background); }
+.bg-tenant-surface { background-color: var(--tenant-surface); }
+.text-tenant-text { color: var(--tenant-text); }
+.text-tenant-muted { color: var(--tenant-text-muted); }
+.border-tenant-border { border-color: var(--tenant-border); }
+
+.bg-tenant-button { background-color: var(--tenant-button); }
+.text-tenant-button-text { color: var(--tenant-button-text); }
+.border-tenant-button { border-color: var(--tenant-button); }
+
+.shadow-tenant-glow {
+  box-shadow: 0 0 25px var(--tenant-primary);
 }
 
 body {

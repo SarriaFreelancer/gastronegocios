@@ -1,8 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Product, CartItem, ProductAddon } from '@/types';
 import { restaurantInfo } from '@/data/restaurant-info';
+
+export interface BranchOption {
+  id: number;
+  nombre: string;
+  slug?: string;
+  direccion?: string | null;
+  telefono?: string | null;
+  ciudad?: string;
+}
 
 interface CartContextType {
   items: CartItem[];
@@ -34,6 +44,12 @@ interface CartContextType {
   setCustomerNotes: (notes: string) => void;
   paymentMethod: string;
   setPaymentMethod: (method: string) => void;
+  // Sedes / Branches support
+  availableBranches: BranchOption[];
+  selectedBranchId: number | null;
+  selectedBranchName: string | null;
+  setSelectedBranchId: (id: number | null) => void;
+  setSelectedBranchName: (name: string | null) => void;
   lastAddedProduct: Product | null;
   clearToast: () => void;
   isSubmittingOrder: boolean;
@@ -46,8 +62,10 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'punto_g_cart_v2';
+const LOCAL_STORAGE_BRANCH = 'punto_g_selected_branch';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const pathname = usePathname();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [deliveryType, setDeliveryType] = useState<'domicilio' | 'recoger' | 'mesa'>('domicilio');
@@ -63,6 +81,62 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Sedes state
+  const [availableBranches, setAvailableBranches] = useState<BranchOption[]>([]);
+  const [selectedBranchId, setSelectedBranchIdState] = useState<number | null>(null);
+  const [selectedBranchName, setSelectedBranchName] = useState<string | null>(null);
+
+  // Fetch branches based on current route/restaurant
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        let url = '/api/branches?activo=true';
+        if (pathname?.startsWith('/r/')) {
+          const slug = pathname.split('/')[2];
+          if (slug) url += `&restaurantSlug=${slug}`;
+        }
+        const res = await fetch(url);
+        if (res.ok) {
+          const data: BranchOption[] = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setAvailableBranches(data);
+
+            // Restore from localStorage or default to first branch
+            const savedBranchId = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_BRANCH) : null;
+            const match = savedBranchId ? data.find((b) => String(b.id) === savedBranchId) : null;
+            if (match) {
+              setSelectedBranchIdState(match.id);
+              setSelectedBranchName(match.nombre);
+            } else {
+              setSelectedBranchIdState(data[0].id);
+              setSelectedBranchName(data[0].nombre);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching branches for CartContext:', e);
+      }
+    };
+
+    fetchBranches();
+  }, [pathname]);
+
+  const setSelectedBranchId = (id: number | null) => {
+    setSelectedBranchIdState(id);
+    if (id !== null) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_STORAGE_BRANCH, String(id));
+      }
+      const found = availableBranches.find((b) => b.id === id);
+      if (found) setSelectedBranchName(found.nombre);
+    } else {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(LOCAL_STORAGE_BRANCH);
+      }
+      setSelectedBranchName(null);
+    }
+  };
 
   // Auto-detect ?mesa= in query string on client load
   useEffect(() => {
@@ -198,6 +272,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Helper to persist order to MySQL
   const persistOrderToDatabase = async (): Promise<any | null> => {
     try {
+      let slugParam: string | null = null;
+      if (pathname?.startsWith('/r/')) {
+        slugParam = pathname.split('/')[2] || null;
+      }
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,6 +292,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           total: totalPrice,
           metodoPago: paymentMethod,
           notasCliente: customerNotes.trim(),
+          branchId: selectedBranchId,
+          sedeNombre: selectedBranchName,
+          restaurantSlug: slugParam,
           items: items.map((i) => {
             const addonsCost = (i.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
             return {
@@ -280,6 +362,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if (customerPhone.trim()) {
       message += `📱 *Teléfono:* ${customerPhone.trim()}\n`;
+    }
+
+    if (selectedBranchName) {
+      message += `🏢 *Sede:* ${selectedBranchName}\n`;
     }
 
     if (deliveryType === 'mesa') {
@@ -365,6 +451,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCustomerNotes,
         paymentMethod,
         setPaymentMethod,
+        availableBranches,
+        selectedBranchId,
+        selectedBranchName,
+        setSelectedBranchId,
+        setSelectedBranchName,
         lastAddedProduct,
         clearToast,
         isSubmittingOrder,

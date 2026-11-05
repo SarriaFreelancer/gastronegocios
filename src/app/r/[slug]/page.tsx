@@ -1,267 +1,110 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
+  Utensils,
   UtensilsCrossed,
   MapPin,
-  Phone,
   Clock,
-  ShoppingBag,
   Sparkles,
-  Search,
   Plus,
-  Minus,
-  Trash2,
-  Check,
-  X,
   Building2,
-  ChevronRight,
-  Instagram,
-  ArrowRight
+  Check,
+  Flame,
+  ArrowRight,
+  MessageCircle,
+  PhoneCall,
+  Star,
+  ShieldCheck,
+  Tag,
+  Zap,
 } from 'lucide-react';
-import { swalCustom, showSuccess, showError } from '@/lib/swal';
-import { TableServiceBar } from '@/components/menu/TableServiceBar';
+import { HeroSection } from '@/components/home/HeroSection';
+import { CategorySection } from '@/components/home/CategorySection';
+import { FeaturedProductsSection } from '@/components/home/FeaturedProductsSection';
+import { PromotionBanner } from '@/components/home/PromotionBanner';
+import { ParrillaSection } from '@/components/home/ParrillaSection';
+import { VirtualAssistantSection } from '@/components/home/VirtualAssistantSection';
+import { Logo } from '@/components/ui/Logo';
+import { useCart } from '@/context/CartContext';
+import { useTenant } from '@/context/TenantContext';
 
-interface RestaurantData {
-  id: number;
-  nombre: string;
-  slug: string;
-  subdominio?: string;
-  eslogan?: string;
-  descripcion?: string;
-  logo?: string;
-  bannerHero?: string;
-  colorPrimario: string;
-  colorSecundario: string;
-  colorFondo: string;
-  telefonoWhatsapp?: string;
-  instagram?: string;
-  direccionCentral?: string;
-  ciudad: string;
-  costoDomicilioBase: number;
-  propinaSugeridaPct: number;
-  plan?: string;
-  activo: boolean;
-  branches: Array<{
-    id: number;
-    nombre: string;
-    slug: string;
-    direccion?: string;
-    telefono?: string;
-    ciudad: string;
-  }>;
-}
-
-export default function RestaurantLandingPage() {
+export default function TenantLandingPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const slug = (params?.slug as string) || 'punto-g';
+  const slug = ((params?.slug as string) || 'punto-g').toLowerCase().trim();
+  const isPuntoG = slug === 'punto-g' || slug === 'puntog';
 
-  const [restaurant, setRestaurant] = useState<RestaurantData | null>(null);
+  const { restaurant } = useTenant();
+
+  // Si es Punto G y tiene la plantilla por defecto, podemos renderizar la experiencia completa original
+  if (isPuntoG && (!restaurant?.plantilla || restaurant.plantilla === 'plantilla-actual')) {
+    return (
+      <div className="bg-[#080808] min-h-screen text-white space-y-0">
+        <HeroSection />
+        <CategorySection />
+        <FeaturedProductsSection />
+        <PromotionBanner />
+        <ParrillaSection />
+        <VirtualAssistantSection />
+      </div>
+    );
+  }
+
+  return <DynamicClientLanding slug={slug} searchParams={searchParams} />;
+}
+
+function DynamicClientLanding({
+  slug,
+  searchParams,
+}: {
+  slug: string;
+  searchParams: any;
+}) {
+  const { addToCart, setIsCartOpen } = useCart();
+  const { restaurant, loading: tenantLoading } = useTenant();
+
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('todas');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  // Carrito local de la landing del restaurante
-  const [cart, setCart] = useState<Array<{ product: any; cantidad: number; notas?: string }>>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'recoger' | 'mesa'>('domicilio');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
-  const [customerNotes, setCustomerNotes] = useState('');
-  const [tableNumber, setTableNumber] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Cargar datos del restaurante por su slug
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/restaurants?slug=${slug}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && data.id) {
-          setRestaurant(data);
-          if (data.branches && data.branches.length > 0) {
-            setSelectedBranchId(data.branches[0].id);
-          }
-        }
-      })
-      .catch((e) => console.error(e))
-      .finally(() => setLoading(false));
-  }, [slug]);
-
-  // Cargar categorías y productos de este restaurante
-  useEffect(() => {
-    if (!restaurant) return;
-
-    fetch(`/api/categories?restaurantId=${restaurant.id}&principales=true`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((cats) => setCategories(cats))
-      .catch(() => {});
-
-    fetch(`/api/products?restaurantId=${restaurant.id}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((prods) => setProducts(prods))
-      .catch(() => {});
-  }, [restaurant]);
-
-  // Autodetectar mesa desde query string (?mesa=Mesa 3)
-  useEffect(() => {
-    const mesaParam = searchParams.get('mesa');
-    if (mesaParam) {
-      setTableNumber(mesaParam.startsWith('Mesa') ? mesaParam : `Mesa ${mesaParam}`);
-      setDeliveryType('mesa');
-    }
-    const branchParam = searchParams.get('sede');
-    if (branchParam && restaurant?.branches) {
-      const found = restaurant.branches.find(
-        (b) => b.id === Number(branchParam) || b.slug.includes(branchParam)
-      );
-      if (found) setSelectedBranchId(found.id);
-    }
-  }, [searchParams, restaurant]);
-
-  const primaryColor = restaurant?.colorPrimario || '#ffc928';
   const formatCOP = (num: number) => '$' + (num || 0).toLocaleString('es-CO');
 
-  // Agregar al carrito
-  const addToCart = (product: any) => {
-    setCart((prev) => {
-      const idx = prev.findIndex((i) => i.product.id === product.id);
-      if (idx >= 0) {
-        return prev.map((item, i) =>
-          i === idx ? { ...item, cantidad: item.cantidad + 1 } : item
-        );
-      }
-      return [...prev, { product, cantidad: 1, notas: '' }];
-    });
-    setIsCartOpen(true);
-  };
-
-  const updateCartQty = (productId: number, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.product.id === productId ? { ...item, cantidad: item.cantidad + delta } : item
-        )
-        .filter((item) => item.cantidad > 0)
-    );
-  };
-
-  const cartSubtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.product.precio * item.cantidad, 0);
-  }, [cart]);
-
-  const deliveryCost = deliveryType === 'domicilio' ? (restaurant?.costoDomicilioBase || 5000) : 0;
-  const tipAmount = Math.round((cartSubtotal * (restaurant?.propinaSugeridaPct || 10)) / 100);
-  const cartTotal = cartSubtotal + deliveryCost + (deliveryType === 'mesa' ? tipAmount : 0);
-
-  // Enviar pedido
-  const handleCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customerName || !customerPhone || cart.length === 0 || !restaurant) {
-      showError('Datos incompletos', 'Por favor ingresa tu nombre, teléfono y productos.');
-      return;
+  useEffect(() => {
+    if (!restaurant) return;
+    if (restaurant.branches && restaurant.branches.length > 0 && !selectedBranchId) {
+      setSelectedBranchId(restaurant.branches[0].id);
     }
 
-    setIsSubmitting(true);
-    try {
-      const selectedBranch = restaurant.branches.find((b) => b.id === selectedBranchId);
+    setDataLoading(true);
+    const catReq = fetch(`/api/categories?restaurantId=${restaurant.id}&principales=true`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((cats) => setCategories(Array.isArray(cats) ? cats : []))
+      .catch(() => setCategories([]));
 
-      const payload = {
-        cliente: customerName.trim(),
-        telefono: customerPhone.trim(),
-        tipo: deliveryType,
-        numeroMesa: deliveryType === 'mesa' ? tableNumber : null,
-        direccion: deliveryType === 'domicilio' ? customerAddress : null,
-        subtotal: cartSubtotal,
-        propina: deliveryType === 'mesa' ? tipAmount : 0,
-        costoEnvio: deliveryCost,
-        total: cartTotal,
-        metodoPago: 'Pendiente',
-        notasCliente: customerNotes.trim(),
-        branchId: selectedBranchId,
-        sedeNombre: selectedBranch?.nombre || null,
-        restaurantId: restaurant.id,
-        items: cart.map((i) => ({
-          productoId: i.product.id,
-          nombre: i.product.nombre,
-          precio: i.product.precio,
-          cantidad: i.cantidad,
-          notas: i.notas || null,
-        })),
-      };
+    const prodReq = fetch(`/api/products?restaurantId=${restaurant.id}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((prods) => setProducts(Array.isArray(prods) ? prods : []))
+      .catch(() => setProducts([]));
 
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+    Promise.all([catReq, prodReq]).finally(() => setDataLoading(false));
+  }, [restaurant]);
 
-      if (res.ok) {
-        const orderData = await res.json();
-        await swalCustom.fire({
-          title: `¡PEDIDO ENVIADO A ${restaurant.nombre.toUpperCase()}!`,
-          html: `
-            Tu pedido <strong class="text-brand-yellow">#${orderData.codigo}</strong> fue recibido con éxito.<br>
-            Sede: <strong>${selectedBranch?.nombre || 'Central'}</strong><br>
-            Total: <strong>${formatCOP(cartTotal)}</strong>
-          `,
-          icon: 'success',
-          confirmButtonText: 'Genial',
-        });
-
-        // Opción de enviar a WhatsApp del restaurante
-        if (restaurant.telefonoWhatsapp) {
-          const text = encodeURIComponent(
-            `¡Hola ${restaurant.nombre}! Acabo de hacer el pedido #${orderData.codigo} a nombre de ${customerName}. Total: ${formatCOP(cartTotal)}`
-          );
-          window.open(`https://wa.me/57${restaurant.telefonoWhatsapp}?text=${text}`, '_blank');
-        }
-
-        setCart([]);
-        setIsCartOpen(false);
-      } else {
-        const err = await res.json();
-        showError('Error al crear pedido', err.error || 'Ocurrió un error');
-      }
-    } catch (e) {
-      showError('Error de conexión', 'No se pudo registrar el pedido');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Filtrar productos
-  const filteredProducts = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return products.filter((p) => {
-      if (p.disponibilidad === false) return false;
-      if (selectedCategory !== 'todas') {
-        if (p.categoria !== selectedCategory && p.subcategoria !== selectedCategory) {
-          return false;
-        }
-      }
-      if (!q) return true;
-      return (
-        p.nombre.toLowerCase().includes(q) ||
-        (p.descripcion || '').toLowerCase().includes(q)
-      );
-    });
-  }, [products, selectedCategory, searchQuery]);
-
-  if (loading) {
+  if (tenantLoading || dataLoading) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
-        <div className="text-center space-y-3">
-          <UtensilsCrossed className="w-12 h-12 text-brand-yellow mx-auto animate-bounce" />
-          <p className="text-sm font-bold text-gray-400">Cargando restaurante...</p>
+        <div className="text-center space-y-4">
+          <UtensilsCrossed 
+            className="w-12 h-12 mx-auto animate-bounce" 
+            style={{ color: 'var(--tenant-primary, #EAA622)' }}
+          />
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+            Cargando restaurante...
+          </p>
         </div>
       </div>
     );
@@ -289,138 +132,299 @@ export default function RestaurantLandingPage() {
     );
   }
 
+  const primary = restaurant.colorPrimario || '#EAA622';
+  const plantilla = restaurant.plantilla || 'plantilla-actual';
+
+  // Section visibility flags (default to true if undefined)
+  const showHero = restaurant.mostrarHero !== false;
+  const showCategories = restaurant.mostrarCategorias !== false;
+  const showDestacados = restaurant.mostrarDestacados !== false;
+  const showPromociones = restaurant.mostrarPromociones !== false;
+  const showResenas = restaurant.mostrarResenas !== false;
+  const showHorarios = restaurant.mostrarHorarios !== false;
+
+  const phone = restaurant.telefonoWhatsapp || restaurant.telefono;
+  const heroTitle = restaurant.tituloHero || restaurant.nombre;
+  const heroSubtitle = restaurant.subtituloHero || restaurant.eslogan || 'TU MÁXIMO PLACER';
+  const heroDesc = restaurant.descripcionHero || restaurant.descripcion || 'Sabores excepcionales preparados al momento con ingredientes frescos.';
+  const heroBtnText = restaurant.textoBotonHero || 'VER MENÚ COMPLETO';
+  const heroImage = restaurant.bannerHero || restaurant.imagenHero || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200&auto=format&fit=crop';
+
+  // If the restaurant has no products and no categories yet, show a polite branded welcome page
+  const isBrandNew = categories.length === 0 && products.length === 0;
+
+  if (isBrandNew) {
+    return (
+      <div className="min-h-screen bg-[#080808] text-white pt-28 pb-16 px-4">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="bg-[#121212] border border-[#242424] rounded-3xl p-8 sm:p-14 text-center shadow-2xl relative overflow-hidden">
+            <div 
+              className="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-20 pointer-events-none"
+              style={{ backgroundColor: primary }}
+            />
+            <div className="relative z-10 space-y-6">
+              <div className="flex justify-center">
+                <Logo restaurant={restaurant} showSubtext={false} size="lg" />
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tight font-display">
+                  ¡Bienvenidos a{' '}
+                  <span style={{ color: primary }}>{restaurant.nombre}</span>!
+                </h1>
+                <p className="text-lg text-gray-300 font-medium max-w-xl mx-auto">
+                  {heroSubtitle}
+                </p>
+                <p className="text-sm text-gray-400 max-w-2xl mx-auto">
+                  {heroDesc}
+                </p>
+              </div>
+
+              {/* Informative Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-left max-w-3xl mx-auto">
+                {restaurant.direccionCentral && (
+                  <div className="bg-[#1a1a1a] border border-[#262626] p-4 rounded-2xl flex items-start gap-3">
+                    <MapPin className="w-5 h-5 shrink-0 mt-0.5" style={{ color: primary }} />
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dirección</p>
+                      <p className="text-xs font-semibold text-white">{restaurant.direccionCentral}</p>
+                      <p className="text-[11px] text-gray-400">{restaurant.ciudad}</p>
+                    </div>
+                  </div>
+                )}
+
+                {restaurant.horarioAtencion && (
+                  <div className="bg-[#1a1a1a] border border-[#262626] p-4 rounded-2xl flex items-start gap-3">
+                    <Clock className="w-5 h-5 shrink-0 mt-0.5" style={{ color: primary }} />
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Horario</p>
+                      <p className="text-xs font-semibold text-white">{restaurant.horarioAtencion}</p>
+                    </div>
+                  </div>
+                )}
+
+                {phone && (
+                  <div className="bg-[#1a1a1a] border border-[#262626] p-4 rounded-2xl flex items-start gap-3">
+                    <MessageCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#25D366]" />
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pedidos Directos</p>
+                      <p className="text-xs font-semibold text-white">+57 {phone}</p>
+                      <p className="text-[11px] text-[#25D366]">WhatsApp Disponible</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+                <Link
+                  href={`/r/${slug}/menu`}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full font-black text-xs uppercase tracking-wider shadow-lg transition transform hover:scale-105"
+                  style={{
+                    backgroundColor: 'var(--tenant-button, var(--tenant-primary, #EAA622))',
+                    color: 'var(--tenant-button-text, #000000)',
+                  }}
+                >
+                  <Utensils className="w-4 h-4" />
+                  <span>Ver Carta Digital</span>
+                </Link>
+
+                {phone && (
+                  <a
+                    href={`https://wa.me/57${phone}?text=${encodeURIComponent(
+                      `¡Hola ${restaurant.nombre}! Quisiera hacer un pedido o consultar su carta.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-[#181818] hover:bg-[#222222] text-white font-bold text-xs uppercase tracking-wider px-7 py-4 rounded-full border border-gray-700 transition"
+                  >
+                    <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                    <span>Contactar por WhatsApp</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ========================================================
+  // RENDER BASED ON TEMPLATE:
+  // 1. plantilla-comercial
+  // 2. plantilla-minimalista
+  // 3. plantilla-actual (default)
+  // ========================================================
+
   return (
     <div
-      className="min-h-screen text-white font-sans selection:bg-brand-yellow selection:text-black flex flex-col justify-between"
+      className="min-h-screen text-white font-sans space-y-0"
       style={{ backgroundColor: restaurant.colorFondo || '#080808' }}
     >
       {/* ======================================================== */}
-      {/* NAVBAR PERSONALIZADA DEL RESTAURANTE */}
+      {/* TOP PROMO RIBBON (PLANTILLA COMERCIAL) */}
       {/* ======================================================== */}
-      <header className="sticky top-0 z-40 bg-[#121212]/95 backdrop-blur-md border-b border-[#222] px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-3">
-          {restaurant.logo ? (
-            <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-black/50 border border-white/10">
-              <Image src={restaurant.logo} alt={restaurant.nombre} fill className="object-contain" />
-            </div>
-          ) : (
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-black text-base shadow-md font-display"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <UtensilsCrossed className="w-5 h-5" />
-            </div>
-          )}
-
-          <div>
-            <h1 className="text-base sm:text-lg font-black uppercase tracking-wider font-display text-white">
-              {restaurant.nombre}
-            </h1>
-            <p className="text-[11px] text-gray-400 line-clamp-1">{restaurant.eslogan}</p>
-          </div>
+      {plantilla === 'plantilla-comercial' && (
+        <div 
+          className="py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+          style={{ backgroundColor: primary, color: 'var(--tenant-button-text, #000000)' }}
+        >
+          <Zap className="w-4 h-4 fill-current animate-pulse" />
+          <span>¡OFERTAS DEL DÍA EN {restaurant.nombre.toUpperCase()}! PIDE HOY Y RECIBE CON DESPACHO PRIORITARIO</span>
+          <Zap className="w-4 h-4 fill-current animate-pulse" />
         </div>
-
-        {/* Botón Carrito y WhatsApp */}
-        <div className="flex items-center gap-2">
-          {restaurant.telefonoWhatsapp && (
-            <a
-              href={`https://wa.me/57${restaurant.telefonoWhatsapp}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition"
-            >
-              <Phone className="w-3.5 h-3.5 text-emerald-400" />
-              <span>WhatsApp</span>
-            </a>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setIsCartOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-black font-black text-xs uppercase tracking-wider shadow-glow transition active:scale-95"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Mi Pedido ({cart.reduce((s, i) => s + i.cantidad, 0)})</span>
-          </button>
-        </div>
-      </header>
+      )}
 
       {/* ======================================================== */}
-      {/* HERO SECTION CON BRANDING PROPIO */}
+      {/* 1. HERO SECTION */}
       {/* ======================================================== */}
-      <section className="relative w-full min-h-[320px] sm:min-h-[400px] flex items-center justify-center overflow-hidden border-b border-[#222]">
-        {/* Imagen de Fondo */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src={restaurant.bannerHero || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1400&auto=format&fit=crop'}
-            alt={restaurant.nombre}
-            fill
-            className="object-cover opacity-35 filter brightness-75 scale-105"
-            priority
+      {showHero && (
+        <section className={`relative overflow-hidden min-h-[85vh] flex items-center ${
+          plantilla === 'plantilla-minimalista' ? 'pt-28 pb-20 bg-[#070707]' : 'pt-24 sm:pt-28 pb-16'
+        }`}>
+          {/* Ambient Glow */}
+          <div
+            className="absolute top-0 left-0 w-80 sm:w-[520px] h-80 sm:h-[520px] pointer-events-none opacity-20 mix-blend-screen"
+            style={{
+              background: `radial-gradient(circle at 10% 10%, ${primary} 0%, rgba(255, 201, 40, 0.15) 45%, transparent 70%)`,
+            }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-black/60 to-transparent" />
-        </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 py-12 text-center space-y-4">
-          <span
-            className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider text-black shadow-md"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{restaurant.ciudad} • {restaurant.plan}</span>
-          </span>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              
+              {/* Text column */}
+              <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
+                {plantilla === 'plantilla-comercial' && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/20 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-wider">
+                    <Flame className="w-3.5 h-3.5 fill-current" />
+                    <span>¡PIDE EN LÍNEA FÁCIL Y RÁPIDO!</span>
+                  </div>
+                )}
 
-          <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-wider font-display text-white">
-            {restaurant.nombre}
-          </h2>
+                <div className="space-y-2">
+                  <div className="relative inline-block">
+                    <span
+                      className={`font-black italic tracking-tighter uppercase font-display block ${
+                        plantilla === 'plantilla-minimalista'
+                          ? 'text-4xl sm:text-6xl lg:text-7xl tracking-normal not-italic font-sans'
+                          : 'text-5xl sm:text-7xl lg:text-8xl'
+                      }`}
+                      style={{ color: primary }}
+                    >
+                      {heroTitle}
+                    </span>
+                    {plantilla !== 'plantilla-minimalista' && (
+                      <div
+                        className="w-full h-3 sm:h-4 rounded-full -mt-2 sm:-mt-4 opacity-95 transform -rotate-1 shadow-glow"
+                        style={{ backgroundColor: primary }}
+                      />
+                    )}
+                  </div>
 
-          <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto font-medium">
-            {restaurant.descripcion || restaurant.eslogan}
-          </p>
+                  <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight font-display">
+                    {heroSubtitle}
+                  </h1>
+                </div>
 
-          {/* Información de contacto rápida */}
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 pt-2 font-bold">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-brand-yellow" />
-              <span>{restaurant.direccionCentral}</span>
-            </span>
-            {restaurant.telefonoWhatsapp && (
-              <span className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{restaurant.telefonoWhatsapp}</span>
-              </span>
-            )}
+                <p className="text-base sm:text-lg text-gray-300 max-w-lg mx-auto lg:mx-0 font-medium leading-relaxed">
+                  {heroDesc}
+                </p>
+
+                {/* Hero CTAs */}
+                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                  <Link
+                    href={`/r/${slug}/menu`}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 font-black text-sm uppercase tracking-wider px-8 py-4 rounded-full shadow-lg transition-all transform hover:scale-105"
+                    style={{
+                      backgroundColor: 'var(--tenant-button, var(--tenant-primary, #EAA622))',
+                      color: 'var(--tenant-button-text, #000000)',
+                    }}
+                  >
+                    <Utensils className="w-4 h-4 stroke-[2.5]" />
+                    <span>{heroBtnText}</span>
+                  </Link>
+
+                  {phone && (
+                    <a
+                      href={`https://wa.me/57${phone}?text=${encodeURIComponent(`¡Hola ${restaurant.nombre}! Quiero hacer un pedido a domicilio.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-[#181818] hover:bg-[#222222] text-white font-bold text-sm uppercase tracking-wider px-7 py-4 rounded-full border border-gray-700/60 transition-all hover:border-gray-500"
+                    >
+                      <MessageCircle className="w-4 h-4 text-[#25D366] fill-[#25D366]/20" />
+                      <span>PEDIR POR WHATSAPP</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* Quick Info Badges */}
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 pt-3 text-xs sm:text-sm text-gray-300 font-semibold">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full animate-ping" style={{ backgroundColor: primary }} />
+                    <span>{restaurant.ciudad}</span>
+                  </div>
+                  {restaurant.branches && restaurant.branches.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4" style={{ color: primary }} />
+                      <span>{restaurant.branches.length} Sede(s) Disponible(s)</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Hero Image */}
+              <div className="lg:col-span-6 relative flex items-center justify-center">
+                <div className={`relative w-72 sm:w-96 md:w-[440px] lg:w-[480px] aspect-square ${
+                  plantilla === 'plantilla-minimalista' ? 'rounded-2xl' : 'rounded-3xl'
+                }`}>
+                  <div
+                    className="absolute inset-4 rounded-full filter blur-3xl opacity-35"
+                    style={{ backgroundColor: primary }}
+                  />
+                  <Image
+                    src={heroImage}
+                    alt={restaurant.nombre}
+                    fill
+                    className={`object-cover shadow-2xl relative z-10 border border-white/10 ${
+                      plantilla === 'plantilla-minimalista' ? 'rounded-2xl' : 'rounded-3xl'
+                    }`}
+                    priority
+                  />
+                </div>
+              </div>
+
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ======================================================== */}
-      {/* SELECTOR DE SEDES (SI EL NEGOCIO TIENE MÁS DE 1 SEDE) */}
+      {/* BRANCH SELECTOR (IF MULTI-SEDE) */}
       {/* ======================================================== */}
-      {restaurant.branches && restaurant.branches.length > 0 && (
-        <section className="max-w-7xl mx-auto w-full px-4 pt-6">
+      {restaurant.branches && restaurant.branches.length > 1 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-[#141414] border border-[#262626] rounded-3xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-black shrink-0"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: primary }}
               >
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-sm font-black uppercase text-white font-display">
-                  SEDE DE ATENCIÓN Y DESPACHO
+                  SELECCIONA TU SEDE DE ATENCIÓN
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Tus pedidos saldrán preparados desde la sede que selecciones.
+                  Tus pedidos se despacharán desde la sede que elijas.
                 </p>
               </div>
             </div>
 
-            {/* Botones de Sedes */}
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              {restaurant.branches.map((branch) => {
+            <div className="flex flex-wrap items-center gap-2">
+              {restaurant.branches.map((branch: any) => {
                 const isSelected = selectedBranchId === branch.id;
                 return (
                   <button
@@ -432,7 +436,7 @@ export default function RestaurantLandingPage() {
                         ? 'text-black shadow-glow'
                         : 'bg-[#1c1c1c] text-gray-300 hover:text-white border border-[#303030]'
                     }`}
-                    style={isSelected ? { backgroundColor: primaryColor } : {}}
+                    style={isSelected ? { backgroundColor: primary } : {}}
                   >
                     <Check className={`w-3.5 h-3.5 ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
                     <span>{branch.nombre}</span>
@@ -445,318 +449,233 @@ export default function RestaurantLandingPage() {
       )}
 
       {/* ======================================================== */}
-      {/* MENÚ DE PLATOS Y CATEGORÍAS DE ESTE NEGOCIO */}
+      {/* 2. CATEGORIES SECTION */}
       {/* ======================================================== */}
-      <main className="max-w-7xl mx-auto w-full px-4 py-8 space-y-6">
-        {/* Barra de Búsqueda y Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-          {/* Categorías */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full pb-2 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('todas')}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-                selectedCategory === 'todas'
-                  ? 'text-black shadow-glow'
-                  : 'bg-[#161616] text-gray-400 border border-[#2b2b2b] hover:text-white'
-              }`}
-              style={selectedCategory === 'todas' ? { backgroundColor: primaryColor } : {}}
-            >
-              Todas
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.slug)}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
-                  selectedCategory === cat.slug
-                    ? 'text-black shadow-glow'
-                    : 'bg-[#161616] text-gray-400 border border-[#2b2b2b] hover:text-white'
-                }`}
-                style={selectedCategory === cat.slug ? { backgroundColor: primaryColor } : {}}
-              >
-                {cat.nombre}
-              </button>
-            ))}
-          </div>
-
-          {/* Input de Búsqueda */}
-          <div className="relative w-full sm:w-72 shrink-0">
-            <input
-              type="text"
-              placeholder="Buscar en la carta..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#161616] border border-[#2e2e2e] focus:border-white text-white text-xs rounded-2xl pl-10 pr-4 py-2.5 outline-none transition"
-            />
-            <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
-          </div>
-        </div>
-
-        {/* Cuadrícula de Platos */}
-        {filteredProducts.length === 0 ? (
-          <div className="bg-[#121212] border border-[#222] rounded-3xl p-12 text-center space-y-3">
-            <UtensilsCrossed className="w-12 h-12 text-gray-600 mx-auto" />
-            <h4 className="text-base font-bold text-white">No hay platos disponibles</h4>
-            <p className="text-xs text-gray-400">
-              Prueba cambiando la categoría o término de búsqueda.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredProducts.map((prod) => (
+      {showCategories && categories.length > 0 && (
+        <section id="categorias" className="relative py-14 sm:py-20 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="text-center space-y-3 mb-10 sm:mb-14">
               <div
-                key={prod.id}
-                className="bg-[#141414] border border-[#262626] hover:border-white/30 rounded-3xl p-3.5 flex flex-col justify-between space-y-3 transition-all group shadow-xl"
+                className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/20"
+                style={{ color: primary }}
               >
-                <div className="space-y-2.5">
-                  <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-[#202020]">
-                    <Image
-                      src={prod.imagen}
-                      alt={prod.nombre}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform"
-                    />
-                    {prod.etiqueta && (
-                      <span
-                        className="absolute top-2 left-2 text-black text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        {prod.etiqueta}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-brand-yellow transition-colors">
-                      {prod.nombre}
-                    </h4>
-                    <p className="text-xs text-gray-400 line-clamp-2 mt-1">
-                      {prod.descripcion}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#222] flex items-center justify-between">
-                  <span
-                    className="text-base font-black font-display"
-                    style={{ color: primaryColor }}
-                  >
-                    {formatCOP(prod.precio)}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => addToCart(prod)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-black font-black text-xs uppercase tracking-wider shadow transition active:scale-95 cursor-pointer"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>Agregar</span>
-                  </button>
-                </div>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Nuestras Especialidades</span>
               </div>
-            ))}
-          </div>
-        )}
-      </main>
 
-      {/* ======================================================== */}
-      {/* DRAWER / MODAL DEL CARRITO DE COMPRA */}
-      {/* ======================================================== */}
-      {isCartOpen && (
-        <div
-          onClick={() => setIsCartOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#121212] border-l border-[#262626] w-full max-w-md h-full flex flex-col justify-between p-5 sm:p-6 shadow-2xl animate-in slide-in-from-right"
-          >
-            {/* Header del Carrito */}
-            <div className="flex items-center justify-between pb-4 border-b border-[#222]">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-brand-yellow" />
-                <h3 className="text-base font-black uppercase text-white font-display">
-                  Mi Pedido en {restaurant.nombre}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCartOpen(false)}
-                className="p-1.5 rounded-full bg-[#1e1e1e] text-gray-400 hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-white font-display tracking-wider text-center">
+                EXPLORA NUESTRAS <span className="italic" style={{ color: primary }}>CATEGORÍAS</span>
+              </h2>
+
+              <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto">
+                Selecciona tu categoría favorita para ver los platos disponibles.
+              </p>
             </div>
 
-            {/* Selector de Tipo de Pedido */}
-            <div className="grid grid-cols-3 gap-1.5 bg-[#181818] p-1 rounded-2xl border border-[#2b2b2b] my-3">
-              {(['domicilio', 'recoger', 'mesa'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setDeliveryType(t)}
-                  className={`py-2 rounded-xl text-xs font-black uppercase transition capitalize ${
-                    deliveryType === t
-                      ? 'text-black shadow'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  style={deliveryType === t ? { backgroundColor: primaryColor } : {}}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/r/${slug}/menu?category=${cat.slug}`}
+                  className="bg-[#121212] border border-[#222] hover:border-white/30 rounded-3xl p-5 space-y-3 transition-all group block cursor-pointer"
                 >
-                  {t}
-                </button>
+                  <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-[#202020]">
+                    <Image
+                      src={cat.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=600&auto=format&fit=crop'}
+                      alt={cat.nombre}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <h3 className="text-base font-black uppercase text-white font-display group-hover:text-tenant-primary transition-colors">
+                    {cat.nombre}
+                  </h3>
+                  <p className="text-xs text-gray-400 line-clamp-2">
+                    {cat.descripcion || 'Platos preparados artesanalmente con los mejores ingredientes.'}
+                  </p>
+                </Link>
               ))}
             </div>
-
-            {/* Lista de Ítems */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 my-2">
-              {cart.length === 0 ? (
-                <div className="py-16 text-center text-gray-500 text-xs space-y-2">
-                  <ShoppingBag className="w-10 h-10 mx-auto text-gray-600 mb-2" />
-                  <p className="font-bold">Tu carrito está vacío</p>
-                  <p>Agrega deliciosos platos de la carta para continuar.</p>
-                </div>
-              ) : (
-                cart.map((item) => (
-                  <div
-                    key={item.product.id}
-                    className="bg-[#181818] border border-[#282828] rounded-2xl p-3 flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="flex-1">
-                      <p className="font-bold text-white line-clamp-1">{item.product.nombre}</p>
-                      <span
-                        className="font-black font-display text-[11px]"
-                        style={{ color: primaryColor }}
-                      >
-                        {formatCOP(item.product.precio * item.cantidad)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 bg-[#222] rounded-xl p-1 border border-[#333]">
-                      <button
-                        type="button"
-                        onClick={() => updateCartQty(item.product.id, -1)}
-                        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white rounded-lg"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-6 text-center font-black text-white">{item.cantidad}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateCartQty(item.product.id, 1)}
-                        className="w-6 h-6 flex items-center justify-center text-brand-yellow hover:text-yellow-400 rounded-lg"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Formulario de Checkout */}
-            {cart.length > 0 && (
-              <form onSubmit={handleCheckout} className="space-y-3 pt-3 border-t border-[#222]">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Tu Nombre *"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white outline-none"
-                  />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Tu Teléfono *"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white outline-none"
-                  />
-                </div>
-
-                {deliveryType === 'domicilio' && (
-                  <input
-                    type="text"
-                    required
-                    placeholder="Dirección exacta de entrega (con barrio) *"
-                    value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs outline-none"
-                  />
-                )}
-
-                {deliveryType === 'mesa' && (
-                  <input
-                    type="text"
-                    required
-                    placeholder="Número de Mesa (ej: Mesa 3) *"
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs outline-none font-bold"
-                  />
-                )}
-
-                {/* Resumen de Valores */}
-                <div className="bg-[#181818] rounded-2xl p-3 space-y-1.5 text-xs border border-[#282828]">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Subtotal:</span>
-                    <span className="font-bold text-white">{formatCOP(cartSubtotal)}</span>
-                  </div>
-                  {deliveryType === 'domicilio' && (
-                    <div className="flex justify-between text-gray-400">
-                      <span>Costo de Envío:</span>
-                      <span className="font-bold text-white">{formatCOP(deliveryCost)}</span>
-                    </div>
-                  )}
-                  {deliveryType === 'mesa' && (
-                    <div className="flex justify-between text-gray-400">
-                      <span>Propina sugerida:</span>
-                      <span className="font-bold text-brand-orange">{formatCOP(tipAmount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-baseline pt-1.5 border-t border-[#333]">
-                    <span className="text-sm font-black uppercase text-white font-display">Total:</span>
-                    <span
-                      className="text-lg font-black font-display"
-                      style={{ color: primaryColor }}
-                    >
-                      {formatCOP(cartTotal)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Botón de Confirmar Pedido */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-2xl text-black font-black text-xs uppercase tracking-wider shadow-glow transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>{isSubmitting ? 'Procesando Pedido...' : 'Confirmar Pedido'}</span>
-                </button>
-              </form>
-            )}
           </div>
-        </div>
+        </section>
       )}
 
       {/* ======================================================== */}
-      {/* FOOTER DEL RESTAURANTE */}
+      {/* 3. FEATURED PRODUCTS SECTION */}
       {/* ======================================================== */}
-      <footer className="bg-[#101010] border-t border-[#222] py-8 px-4 text-center text-xs text-gray-400 space-y-2 mt-12">
-        <p className="font-bold text-white">
-          {restaurant.nombre} • {restaurant.ciudad}
-        </p>
-        <p className="text-[11px] text-gray-500">{restaurant.direccionCentral}</p>
-        <p className="text-[10px] text-gray-600 pt-2">
-          Potenciado por SaaS GastroTech • Plataforma Multi-Restaurante
-        </p>
-      </footer>
+      {showDestacados && products.length > 0 && (
+        <section id="destacados" className="relative py-14 sm:py-20 bg-[#0a0a0a] border-t border-[#1a1a1a]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center space-y-3 mb-10">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-white font-display tracking-wider text-center">
+                {restaurant.tituloSeccionDestacados || 'LOS MÁS'} <span className="italic" style={{ color: primary }}>PEDIDOS</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto">
+                Los platos y recetas favoritos de nuestros comensales.
+              </p>
+            </div>
+
+            <div className={`grid gap-6 ${
+              plantilla === 'plantilla-minimalista'
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            }`}>
+              {products.slice(0, plantilla === 'plantilla-minimalista' ? 6 : 8).map((prod) => (
+                <div
+                  key={prod.id}
+                  className={`bg-[#141414] border border-[#242424] hover:border-white/30 rounded-3xl p-4 flex flex-col justify-between space-y-3 transition-all group shadow-xl ${
+                    plantilla === 'plantilla-comercial' ? 'hover:-translate-y-1' : ''
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="relative w-full h-48 rounded-2xl overflow-hidden bg-[#1e1e1e]">
+                      <Image
+                        src={prod.imagen}
+                        alt={prod.nombre}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform"
+                      />
+                      {prod.etiqueta && (
+                        <span
+                          className="absolute top-2 left-2 text-black text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow"
+                          style={{ backgroundColor: primary }}
+                        >
+                          {prod.etiqueta}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-tenant-primary transition-colors">
+                        {prod.nombre}
+                      </h4>
+                      <p className="text-xs text-gray-400 line-clamp-2 mt-1">
+                        {prod.descripcion}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#222] flex items-center justify-between">
+                    <span
+                      className="text-lg font-black font-display"
+                      style={{ color: primary }}
+                    >
+                      {formatCOP(prod.precio)}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        addToCart(prod, 1);
+                        setIsCartOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-black font-black text-xs uppercase tracking-wider shadow transition active:scale-95 cursor-pointer"
+                      style={{ backgroundColor: primary }}
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Agregar</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* View Full Menu CTA */}
+            <div className="text-center pt-10">
+              <Link
+                href={`/r/${slug}/menu`}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[#181818] hover:bg-[#222222] text-white font-bold text-xs uppercase tracking-wider border border-gray-700 hover:border-gray-500 transition"
+              >
+                <span>Explorar Carta Completa</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ======================================================== */}
+      {/* 4. PROMOTIONAL BANNER */}
+      {/* ======================================================== */}
+      {showPromociones && (
+        <section className="relative py-14 sm:py-20 overflow-hidden border-t border-[#1a1a1a]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div
+              className="relative rounded-3xl p-8 sm:p-12 overflow-hidden shadow-2xl border border-white/10"
+              style={{
+                background: `linear-gradient(135deg, rgba(234,166,34,0.12) 0%, rgba(20,20,20,0.95) 50%, rgba(10,10,10,0.98) 100%)`,
+              }}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+                <div className="lg:col-span-8 space-y-3 text-center lg:text-left">
+                  <span
+                    className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/10 text-white"
+                  >
+                    ¿Deseas pedir ahora mismo?
+                  </span>
+                  <h3 className="text-3xl sm:text-5xl font-black uppercase text-white font-display">
+                    {restaurant.textoPromocional || (
+                      <>
+                        PIDE TUS PLATOS A{' '}
+                        <span className="italic" style={{ color: primary }}>
+                          DOMICILIO
+                        </span>
+                      </>
+                    )}
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-300 max-w-xl">
+                    {restaurant.direccionCentral ? `${restaurant.direccionCentral} • ` : ''}
+                    Atención rápida y entregas seguras en {restaurant.ciudad}.
+                  </p>
+                </div>
+
+                <div className="lg:col-span-4 flex justify-center lg:justify-end">
+                  {phone && (
+                    <a
+                      href={`https://wa.me/57${phone}?text=${encodeURIComponent(`¡Hola ${restaurant.nombre}! Quiero hacer un pedido a domicilio.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-black font-black text-sm uppercase px-8 py-4 rounded-full shadow-glow transition transform hover:scale-105"
+                      style={{ backgroundColor: primary }}
+                    >
+                      <PhoneCall className="w-5 h-5" />
+                      <span>Pedir por WhatsApp</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ======================================================== */}
+      {/* 5. SCHEDULES & DETAILS (SHOW IF ENABLED) */}
+      {showHorarios && (
+        <section className="py-12 bg-[#0c0c0c] border-t border-[#181818]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
+              <div className="bg-[#141414] border border-[#222] p-6 rounded-2xl space-y-2">
+                <Clock className="w-6 h-6 mx-auto md:mx-0" style={{ color: primary }} />
+                <h4 className="text-sm font-bold uppercase text-white">Horarios de Atención</h4>
+                <p className="text-xs text-gray-400">{restaurant.horarioAtencion || 'Lunes a Domingo: 12:00 m. a 11:30 p.m.'}</p>
+              </div>
+
+              <div className="bg-[#141414] border border-[#222] p-6 rounded-2xl space-y-2">
+                <MapPin className="w-6 h-6 mx-auto md:mx-0" style={{ color: primary }} />
+                <h4 className="text-sm font-bold uppercase text-white">Sede Central</h4>
+                <p className="text-xs text-gray-400">{restaurant.direccionCentral || 'Principal'}, {restaurant.ciudad}</p>
+              </div>
+
+              <div className="bg-[#141414] border border-[#222] p-6 rounded-2xl space-y-2">
+                <ShieldCheck className="w-6 h-6 mx-auto md:mx-0 text-emerald-400" />
+                <h4 className="text-sm font-bold uppercase text-white">Garantía de Calidad</h4>
+                <p className="text-xs text-gray-400">Ingredientes frescos y protocolos de bioseguridad en cada despacho.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
+import { PersonalizacionTab } from '@/components/admin/PersonalizacionTab';
+import { SeoTab } from '@/components/admin/SeoTab';
 import { 
   ShoppingBag, 
   Layers, 
@@ -13,6 +15,8 @@ import {
   Plus, 
   Search, 
   Edit, 
+  Palette,
+  Globe,
   Trash2, 
   Phone, 
   Save, 
@@ -62,6 +66,7 @@ import {
   FolderTree,
   GitFork,
   Building2,
+  Store,
   BellRing,
   X
 } from 'lucide-react';
@@ -204,6 +209,8 @@ const getTodayDateString = () => {
 
 export default function AdminPage() {
   const router = useRouter();
+  const params = useParams();
+  const routeSlug = (params?.slug as string) || null;
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loginEmail, setLoginEmail] = useState('admin@puntog.com');
@@ -214,15 +221,17 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion'
+    'pedidos' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo'
   >('pedidos');
 
   // Loading States
   const [isLoading, setIsLoading] = useState(false);
 
-  // ==================== 0. MULTI-SEDE STATE ====================
+  // ==================== 0. MULTI-SEDE & RESTAURANTE STATE ====================
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
+  const [groupByBranch, setGroupByBranch] = useState(false);
+  const [activeRestaurant, setActiveRestaurant] = useState<any>(null);
 
   // ==================== 1. PEDIDOS STATE & FILTERS ====================
   const [orders, setOrders] = useState<Order[]>([]);
@@ -266,6 +275,46 @@ export default function AdminPage() {
   const totalItemsSold = useMemo(() => {
     return productSalesSummary.reduce((sum, p) => sum + p.cantidad, 0);
   }, [productSalesSummary]);
+
+  // Derived grouping of orders by branch
+  const ordersGroupedByBranch = useMemo(() => {
+    const groups: Array<{
+      branchId: number | null;
+      branchName: string;
+      branchAddress?: string;
+      orders: Order[];
+      totalSales: number;
+    }> = [];
+
+    branches.forEach((b) => {
+      const branchOrders = orders.filter(
+        (o) => o.branchId === b.id || (o.sedeNombre && o.sedeNombre.toLowerCase().includes(b.slug.toLowerCase()))
+      );
+      const totalSales = branchOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+      groups.push({
+        branchId: b.id,
+        branchName: b.nombre,
+        branchAddress: b.direccion || undefined,
+        orders: branchOrders,
+        totalSales,
+      });
+    });
+
+    const unassigned = orders.filter(
+      (o) => !o.branchId && !branches.some((b) => o.sedeNombre && o.sedeNombre.toLowerCase().includes(b.slug.toLowerCase()))
+    );
+    if (unassigned.length > 0) {
+      const totalSales = unassigned.reduce((sum, o) => sum + Number(o.total || 0), 0);
+      groups.push({
+        branchId: null,
+        branchName: 'Sede Principal / Sin Asignar',
+        orders: unassigned,
+        totalSales,
+      });
+    }
+
+    return groups;
+  }, [branches, orders]);
 
   // Derived Payment breakdown for report analytics
   const reportPaymentBreakdown = useMemo(() => {
@@ -502,6 +551,56 @@ export default function AdminPage() {
         if (userObj.branchId) {
           setSelectedBranchId(String(userObj.branchId));
         }
+
+        // Check if a specific restaurant was selected from route /r/[slug]/admin or query param
+        if (typeof window !== 'undefined') {
+          if (routeSlug) {
+            fetch(`/api/restaurants?slug=${routeSlug}`)
+              .then((res) => (res.ok ? res.json() : null))
+              .then((data) => {
+                if (data && data.id) {
+                  // Aislamiento Multi-Tenant: Validar que el usuario tenga acceso a este restaurante
+                  if (userObj.rol !== 'Superadmin' && userObj.restaurantId && userObj.restaurantId !== data.id) {
+                    showError('Acceso Denegado', 'No tienes permisos para administrar este restaurante.');
+                    router.replace('/login');
+                    return;
+                  }
+                  setActiveRestaurant(data);
+                  localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
+                }
+              })
+              .catch(console.error);
+          } else {
+            const urlParams = new URLSearchParams(window.location.search);
+            const qRestId = urlParams.get('restaurantId');
+            const storedRest = localStorage.getItem('punto_g_active_restaurant');
+            if (qRestId) {
+              if (storedRest) {
+                try {
+                  const parsed = JSON.parse(storedRest);
+                  if (String(parsed.id) === String(qRestId)) {
+                    setActiveRestaurant(parsed);
+                  } else {
+                    setActiveRestaurant({ id: Number(qRestId), nombre: `Restaurante #${qRestId}`, slug: `r-${qRestId}` });
+                  }
+                } catch {
+                  setActiveRestaurant({ id: Number(qRestId), nombre: `Restaurante #${qRestId}`, slug: `r-${qRestId}` });
+                }
+              } else {
+                setActiveRestaurant({ id: Number(qRestId), nombre: `Restaurante #${qRestId}`, slug: `r-${qRestId}` });
+              }
+            } else if (userObj.restaurant) {
+              setActiveRestaurant(userObj.restaurant);
+              localStorage.setItem('punto_g_active_restaurant', JSON.stringify(userObj.restaurant));
+            } else if (storedRest && (userObj.rol === 'Superadmin' || userObj.rol === 'admin')) {
+              try {
+                setActiveRestaurant(JSON.parse(storedRest));
+              } catch (e) {
+                console.error(e);
+              }
+            }
+          }
+        }
       } else {
         router.replace('/login');
       }
@@ -511,12 +610,12 @@ export default function AdminPage() {
     }
   }, [router]);
 
-  // Fetch initial data when authenticated
+  // Fetch initial data when authenticated or when active restaurant changes
   useEffect(() => {
     if (isAuthenticated) {
       loadAllData();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeRestaurant]);
 
   const loadAllData = async () => {
     setIsLoading(true);
@@ -538,7 +637,11 @@ export default function AdminPage() {
 
   const fetchBranches = async () => {
     try {
-      const res = await fetch('/api/branches');
+      let url = '/api/branches';
+      if (activeRestaurant?.id) {
+        url += `?restaurantId=${activeRestaurant.id}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setBranches(Array.isArray(data) ? data : []);
@@ -615,6 +718,9 @@ export default function AdminPage() {
       if (searchOrder) params.append('search', searchOrder);
       if (selectedBranchId && selectedBranchId !== 'all') {
         params.append('branchId', selectedBranchId);
+      }
+      if (activeRestaurant?.id) {
+        params.append('restaurantId', String(activeRestaurant.id));
       }
 
       const res = await fetch(`/api/orders?${params.toString()}`);
@@ -1805,12 +1911,36 @@ export default function AdminPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Restaurante Activo Indicator (cuando se ingresa desde Superadmin) */}
+            {activeRestaurant && (
+              <div className="flex items-center gap-2 bg-brand-yellow/15 border border-brand-yellow/40 px-3 py-1.5 rounded-xl shadow-glow">
+                <Store className="w-4 h-4 text-brand-yellow" />
+                <div className="flex flex-col text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-brand-yellow font-black leading-none">
+                    Restaurante Activo:
+                  </span>
+                  <span className="text-xs font-black text-white leading-tight">
+                    {activeRestaurant.nombre}
+                  </span>
+                </div>
+                {currentUser?.rol === 'Superadmin' && (
+                  <Link
+                    href="/superadmin"
+                    className="text-[10px] bg-[#222] hover:bg-[#333] text-gray-300 hover:text-white px-2 py-0.5 rounded ml-1 transition"
+                    title="Volver al panel Superadmin"
+                  >
+                    Cambiar
+                  </Link>
+                )}
+              </div>
+            )}
+
             {/* Sede Switcher */}
             <div className="flex items-center gap-2 bg-[#181818] border border-[#2a2a2a] px-3 py-1.5 rounded-xl">
               <Building2 className="w-4 h-4 text-brand-yellow" />
               <div className="flex flex-col text-left">
                 <span className="text-[9px] uppercase tracking-wider text-gray-400 font-bold leading-none">
-                  Sede:
+                  Sede Activa:
                 </span>
                 {currentUser?.rol === 'Superadmin' || !currentUser?.branchId ? (
                   <select
@@ -1892,6 +2022,29 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Sede Activa Banner */}
+        {selectedBranchId !== 'all' && (
+          <div className="bg-brand-yellow/10 border border-brand-yellow/40 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="text-gray-300">
+                Sede Activa Seleccionada:{' '}
+                <strong className="text-brand-yellow font-black">
+                  {branches.find((b) => String(b.id) === selectedBranchId)?.nombre || `Sede #${selectedBranchId}`}
+                </strong>
+                . El sistema completo (pedidos, mesas, comandas, turnos de caja y KDS) está operando para esta sede.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedBranchId('all')}
+              className="text-[11px] font-black uppercase text-brand-yellow hover:underline cursor-pointer shrink-0"
+            >
+              Ver Consolidado de Todas las Sedes →
+            </button>
+          </div>
+        )}
+
         {/* Navigation Tabs */}
         {(() => {
           const isMesero = currentUser?.rol === 'Mesero';
@@ -1907,7 +2060,9 @@ export default function AdminPage() {
             { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length },
             { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
             { id: 'sedes', label: 'Sedes / Sucursales', icon: Building2, count: branches.length },
-            { id: 'configuracion', label: 'Configuración', icon: Settings },
+            { id: 'personalizacion', label: 'Personalización & Plantillas', icon: Palette, badge: 'White-Label' },
+            { id: 'seo', label: 'SEO & Google', icon: Globe, badge: 'Indexación' },
+            { id: 'configuracion', label: 'Configuración Operativa', icon: Settings },
           ];
 
           const allowedForMesero = ['mesas', 'productos', 'toppings'];
@@ -2043,6 +2198,50 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Quick Branch / Sede Filter Pills */}
+              {branches.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 pb-2 border-t border-[#1e1e1e]">
+                  <span className="text-[10px] font-black uppercase text-gray-400 flex items-center gap-1 mr-1">
+                    <Building2 className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Filtrar por Sede:</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranchId('all')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      selectedBranchId === 'all'
+                        ? 'bg-brand-yellow text-black font-black shadow-glow'
+                        : 'bg-[#181818] border border-[#2e2e2e] text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <span>Todas las Sedes</span>
+                    <span className="text-[10px] opacity-75">({orders.length})</span>
+                  </button>
+                  {branches.map((b) => {
+                    const count = orders.filter(
+                      (o) =>
+                        o.branchId === b.id ||
+                        (o.sedeNombre && o.sedeNombre.toLowerCase().includes(b.slug.toLowerCase()))
+                    ).length;
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => setSelectedBranchId(String(b.id))}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                          selectedBranchId === String(b.id)
+                            ? 'bg-brand-yellow text-black font-black shadow-glow'
+                            : 'bg-[#181818] border border-[#2e2e2e] text-gray-300 hover:text-white'
+                        }`}
+                      >
+                        <span>{b.nombre}</span>
+                        <span className="text-[10px] opacity-75">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Advanced Filter Inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 text-xs">
@@ -2199,6 +2398,20 @@ export default function AdminPage() {
                       <Layers className="w-3.5 h-3.5" />
                       <span>Tarjetas</span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setGroupByBranch(!groupByBranch)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition border cursor-pointer ${
+                        groupByBranch
+                          ? 'bg-purple-600 text-white border-purple-500 shadow-glow font-black'
+                          : 'text-gray-300 hover:text-white border-transparent'
+                      }`}
+                      title="Organizar y agrupar pedidos por cada una de las sedes"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-brand-yellow" />
+                      <span>{groupByBranch ? '✓ Agrupado por Sedes' : 'Organizar por Sedes'}</span>
+                    </button>
                   </div>
 
                   {/* Toggle Inventory Sold Summary */}
@@ -2321,6 +2534,117 @@ export default function AdminPage() {
                 <p className="text-sm font-bold text-gray-300">No se encontraron pedidos con estos filtros</p>
                 <p className="text-xs text-gray-500 mt-1">Prueba seleccionando otro rango de fechas o modalidad.</p>
               </div>
+            ) : groupByBranch ? (
+              /* ================= GROUPED BY SEDES / BRANCH VIEW ================= */
+              <div className="space-y-6">
+                {ordersGroupedByBranch.map((group, gIdx) => (
+                  <div
+                    key={gIdx}
+                    className="bg-[#121212] border-2 border-[#242424] hover:border-brand-yellow/40 rounded-3xl p-5 space-y-4 shadow-xl transition-all"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#222]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-brand-yellow/15 text-brand-yellow flex items-center justify-center font-black shrink-0">
+                          <Building2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black uppercase text-white font-display flex items-center gap-2">
+                            <span>{group.branchName}</span>
+                            <span className="text-xs bg-[#202020] text-gray-300 px-2.5 py-0.5 rounded-full border border-[#333]">
+                              {group.orders.length} pedidos
+                            </span>
+                          </h3>
+                          {group.branchAddress && (
+                            <p className="text-[11px] text-gray-400">{group.branchAddress}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block">Ventas de esta Sede</span>
+                          <span className="text-lg font-black text-brand-yellow font-display">
+                            {formatPrice(group.totalSales)}
+                          </span>
+                        </div>
+                        {group.branchId && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBranchId(String(group.branchId))}
+                            className="px-3 py-1.5 bg-[#1f1f1f] hover:bg-brand-yellow hover:text-black text-gray-300 font-bold text-xs rounded-xl border border-[#333] transition cursor-pointer"
+                          >
+                            Filtrar solo esta Sede →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {group.orders.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic py-3 text-center">
+                        No hay pedidos registrados en esta sede para el rango de fechas seleccionado.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {group.orders.map((o) => (
+                          <div
+                            key={o.id}
+                            className="bg-[#181818] border border-[#282828] rounded-2xl p-4 space-y-2.5 hover:border-brand-yellow/40 transition"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-xs font-black text-brand-yellow">#{o.codigo}</span>
+                              <span
+                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                  o.estado === 'Entregado'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    : o.estado === 'Cancelado'
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                }`}
+                              >
+                                {o.estado}
+                              </span>
+                            </div>
+
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h4 className="text-xs font-black text-white">{o.cliente}</h4>
+                                <span className="text-[10px] text-gray-400 font-mono">{o.telefono}</span>
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  o.tipo === 'mesa'
+                                    ? 'bg-purple-500/20 text-purple-300'
+                                    : o.tipo === 'domicilio'
+                                    ? 'bg-blue-500/20 text-blue-300'
+                                    : 'bg-emerald-500/20 text-emerald-300'
+                                }`}
+                              >
+                                {o.tipo === 'mesa' ? `🍽️ ${o.numeroMesa || 'Mesa'}` : o.tipo === 'domicilio' ? '🛵 Domicilio' : '🏪 Recoger'}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] text-gray-300 border-t border-[#242424] pt-1.5 space-y-0.5">
+                              {o.items.map((i, iIdx) => (
+                                <div key={iIdx} className="flex justify-between text-[11px]">
+                                  <span className="text-gray-300 truncate">{i.cantidad}x {i.nombre}</span>
+                                  <span className="font-mono text-gray-400">{formatPrice(i.precio * i.cantidad)}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-[#242424]">
+                              <span className="text-[10px] text-gray-400">{o.metodoPago}</span>
+                              <span className="font-black text-xs text-brand-yellow font-display">
+                                {formatPrice(o.total)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : ordersViewMode === 'tabla' ? (
               /* ================= TABULAR VIEW WITH PAGINATION & ITEM INVENTORY ================= */
               <div className="space-y-4">
@@ -2331,6 +2655,7 @@ export default function AdminPage() {
                         <tr>
                           <th className="p-3.5"># Orden</th>
                           <th className="p-3.5">Cliente</th>
+                          <th className="p-3.5">Sede</th>
                           <th className="p-3.5">Modalidad</th>
                           <th className="p-3.5 min-w-[280px]">Inventario / Productos del Pedido</th>
                           <th className="p-3.5">Pago</th>
@@ -2365,6 +2690,16 @@ export default function AdminPage() {
                                     🛵 Rep: {o.repartidor}
                                   </span>
                                 )}
+                              </td>
+
+                              {/* Sede */}
+                              <td className="p-3.5 align-top">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#1f1f1f] border border-[#333] text-gray-200">
+                                  <Building2 className="w-3 h-3 text-brand-yellow shrink-0" />
+                                  <span className="truncate max-w-[110px]">
+                                    {o.sedeNombre || branches.find((b) => b.id === o.branchId)?.nombre || 'Sede Principal'}
+                                  </span>
+                                </span>
                               </td>
 
                               {/* Modality */}
@@ -5332,6 +5667,32 @@ export default function AdminPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: PERSONALIZACIÓN Y APARIENCIA                       */}
+        {/* ======================================================== */}
+        {activeTab === 'personalizacion' && (
+          <PersonalizacionTab
+            restaurant={activeRestaurant}
+            onUpdate={(updated) => {
+              setActiveRestaurant(updated);
+              localStorage.setItem('punto_g_active_restaurant', JSON.stringify(updated));
+            }}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: SEO Y POSICIONAMIENTO                              */}
+        {/* ======================================================== */}
+        {activeTab === 'seo' && (
+          <SeoTab
+            restaurant={activeRestaurant}
+            onUpdate={(updated) => {
+              setActiveRestaurant(updated);
+              localStorage.setItem('punto_g_active_restaurant', JSON.stringify(updated));
+            }}
+          />
         )}
 
         {/* ======================================================== */}

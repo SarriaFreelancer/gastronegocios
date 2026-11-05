@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { TenantProvider } from '@/context/TenantContext';
 import { CartProvider } from '@/context/CartContext';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -35,14 +36,16 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark scroll-smooth">
       <body className="min-h-screen bg-[#080808] text-white flex flex-col antialiased selection:bg-brand-yellow selection:text-black">
-        <CartProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <CartDrawer />
-          <CartToast />
-          <TableServiceBar />
-        </CartProvider>
+        <TenantProvider>
+          <CartProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <CartDrawer />
+            <CartToast />
+            <TableServiceBar />
+          </CartProvider>
+        </TenantProvider>
       </body>
     </html>
   );

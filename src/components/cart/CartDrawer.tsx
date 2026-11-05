@@ -17,7 +17,9 @@ import {
   Heart,
   CheckCircle,
   MessageCircle,
-  ArrowRight
+  ArrowRight,
+  Building2,
+  Check
 } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 
@@ -50,6 +52,11 @@ export const CartDrawer: React.FC = () => {
     setCustomerNotes,
     paymentMethod,
     setPaymentMethod,
+    availableBranches,
+    selectedBranchId,
+    selectedBranchName,
+    setSelectedBranchId,
+    setSelectedBranchName,
     isSubmittingOrder,
     submitWebOrderOnly,
     submitAndSendWhatsAppOrder,
@@ -273,6 +280,56 @@ export const CartDrawer: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Sede Selector when more than 1 Sede exists */}
+                {availableBranches.length > 1 && (
+                  <div className="bg-[#161616] border border-[#252525] rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-brand-yellow flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5" />
+                        <span>Sede de Despacho / Atención:</span>
+                      </label>
+                      <span className="text-[9px] bg-brand-yellow/10 text-brand-yellow font-bold px-2 py-0.5 rounded-full border border-brand-yellow/30">
+                        {availableBranches.length} Sedes
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {availableBranches.map((branch) => {
+                        const isSelected = selectedBranchId === branch.id;
+                        return (
+                          <button
+                            key={branch.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedBranchId(branch.id);
+                              setSelectedBranchName(branch.nombre);
+                            }}
+                            className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-brand-yellow/15 border-brand-yellow text-white shadow-glow'
+                                : 'bg-[#1e1e1e] border-[#2c2c2c] text-gray-300 hover:border-[#444]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span
+                                className={`text-xs font-black truncate ${
+                                  isSelected ? 'text-brand-yellow' : 'text-white'
+                                }`}
+                              >
+                                {branch.nombre}
+                              </span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-brand-yellow shrink-0" />}
+                            </div>
+                            {branch.direccion && (
+                              <p className="text-[10px] text-gray-400 truncate mt-0.5">{branch.direccion}</p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Delivery & Ordering Mode */}
                 <div className="bg-[#161616] border border-[#252525] rounded-xl p-3.5 space-y-2.5">

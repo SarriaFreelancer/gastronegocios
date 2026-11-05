@@ -20,7 +20,55 @@ model Restaurant {
   bannerHero         String?           @db.Text
   colorPrimario      String            @default("#ffc928")
   colorSecundario    String            @default("#E94B24")
+  colorTerciario     String            @default("#1a1a1a")
+  colorAcento        String            @default("#ffc928")
   colorFondo         String            @default("#080808")
+  colorSuperficie    String            @default("#121212")
+  colorTexto         String            @default("#ffffff")
+  colorTextoSecundario String          @default("#9ca3af")
+  colorBorde         String            @default("#262626")
+  colorBoton         String            @default("#ffc928")
+  colorBotonTexto    String            @default("#000000")
+  colorNavegacion    String            @default("#0a0a0a")
+  colorExito         String            @default("#10b981")
+  colorAlerta        String            @default("#f59e0b")
+  colorError         String            @default("#ef4444")
+
+  // Sistema de Plantillas y Personalización de Secciones
+  plantilla          String            @default("plantilla-actual") // "plantilla-actual", "plantilla-minimalista", "plantilla-comercial"
+  tituloHero         String?           @db.Text
+  subtituloHero      String?           @db.Text
+  descripcionHero    String?           @db.Text
+  textoBotonHero     String?           @default("Ver la Carta")
+  bannerPromocional  String?           @db.Text
+  textoPromocional   String?           @db.Text
+  tituloSeccionMenu  String?           @default("Nuestra Carta")
+  tituloSeccionDestacados String?      @default("Los Más Pedidos")
+  mostrarHero        Boolean           @default(true)
+  mostrarCategorias  Boolean           @default(true)
+  mostrarDestacados  Boolean           @default(true)
+  mostrarPromociones Boolean           @default(true)
+  mostrarResenas     Boolean           @default(true)
+  mostrarHorarios    Boolean           @default(true)
+  ordenSecciones     String?           @db.Text // JSON string: ["hero", "categorias", "destacados", "promociones", "menu", "resenas"]
+  horarioAtencion    String?           @default("Lunes a Domingo: 12:00 m. a 11:30 p.m.")
+  redesSociales      String?           @db.Text // JSON string: { facebook, instagram, tiktok, youtube }
+
+  // Configuración de Estilo Avanzado
+  tipografia         String            @default("system") // "system", "inter", "poppins", "montserrat", "playfair"
+  radioBordes        String            @default("rounded-2xl") // "rounded-none", "rounded-lg", "rounded-2xl", "rounded-full"
+  estiloTarjetas     String            @default("card-glass") // "card-glass", "card-solid", "card-bordered"
+  columnasMenu       Int               @default(3) // 2, 3, 4
+
+  // Sistema de SEO Técnico y Posicionamiento
+  seoTitulo          String?           @db.Text
+  seoDescripcion    String?           @db.Text
+  seoKeywords        String?           @db.Text
+  seoTipoNegocio     String            @default("Restaurant") // Restaurant, FastFoodRestaurant, BarOrPub, CafeOrCoffeeShop
+  seoImagenCompartir String?           @db.Text
+  seoUrlCanonica     String?           @db.Text
+  googleSearchConsoleCode String?      @db.Text
+  googleAnalyticsId  String?
   telefonoWhatsapp   String?           @default("3229088736")
   instagram          String?
   direccionCentral   String?           @default("Calle 9 # 45-12, Granada, Cali")
@@ -29,6 +77,18 @@ model Restaurant {
   propinaSugeridaPct Float             @default(10)
   plan               String            @default("Pro") // "Basico", "Pro", "Enterprise"
   activo             Boolean           @default(true)
+
+  // Servidor de Base de Datos Dedicada / Migración Monolítica (Exclusivo Superadmin)
+  databaseType       String            @default("SHARED") // "SHARED", "DEDICATED"
+  dbHost             String?           // Ej: "192.168.1.50" o "db-puntog.aws.com"
+  dbPort             Int?              @default(3306)
+  dbName             String?           // Ej: "restaurant_masterhamburguesas"
+  dbUser             String?           // Ej: "dbuser_master"
+  dbPassword         String?           // Clave del servidor dedicado
+  dbConnectionUrl    String?           @db.Text
+  dbStatus           String?           @default("COMPARTIDA") // "COMPARTIDA", "MIGRANDO", "DEDICADA_ACTIVA"
+  migratedAt         DateTime?
+
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -53,6 +113,7 @@ model User {
   rol          String      @default("Cajero") // Superadmin, Administrador, Supervisor, Cajero, Cocinero, Mesero
   estado       String      @default("Activo") // Activo, Inactivo
   branchId     Int?
+  sedeId       Int?
   branch       Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
   restaurantId Int?
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -139,6 +200,7 @@ model RestaurantTable {
   ubicacion         String?     // Salon Principal, Terraza, Barra, VIP
   notas             String?     @db.Text
   branchId          Int?
+  sedeId            Int?
   branch            Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
   restaurantId      Int?
   restaurant        Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)

@@ -1,9 +1,16 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Flame, ArrowRight } from 'lucide-react';
 
 export const ParrillaSection: React.FC = () => {
+  const pathname = usePathname();
+  const match = pathname ? pathname.match(/^\/r\/([^\/]+)/) : null;
+  const basePrefix = match ? `/r/${match[1]}` : '';
+  const parrillaHref = basePrefix ? `${basePrefix}/menu?category=parrillas` : '/menu/parrillas';
   return (
     <section className="relative py-12 sm:py-16 bg-[#090909] border-t border-[#1a1a1a] overflow-hidden">
       {/* Background warm fire glow */}
@@ -43,7 +50,7 @@ export const ParrillaSection: React.FC = () => {
 
                 <div className="pt-2">
                   <Link
-                    href="/menu/parrillas"
+                    href={parrillaHref}
                     className="inline-flex items-center gap-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs sm:text-sm px-7 py-3.5 rounded-full shadow-glow transition-all transform hover:scale-105"
                   >
                     <span>EXPLORAR PARRILLAS</span>
