@@ -86,6 +86,9 @@ interface RestaurantItem {
 }
 
 export default function SuperadminPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   const [restaurants, setRestaurants] = useState<RestaurantItem[]>([]);
   const [metrics, setMetrics] = useState({
     totalRestaurantes: 0,
@@ -95,6 +98,22 @@ export default function SuperadminPage() {
   });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Verificación de credenciales de Superadmin
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('puntog_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u && (u.rol === 'Superadmin' || u.role === 'Superadmin')) {
+          setCurrentUser(u);
+          setAuthChecked(true);
+          return;
+        }
+      }
+    } catch {}
+    setAuthChecked(true);
+  }, []);
 
   // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -547,6 +566,41 @@ export default function SuperadminPage() {
       r.slug.toLowerCase().includes(search.toLowerCase()) ||
       r.ciudad.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Protección de acceso al Superadmin
+  if (authChecked && (!currentUser || currentUser.rol !== 'Superadmin')) {
+    return (
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center p-6 text-white font-sans">
+        <div className="bg-[#121212] border border-purple-500/30 rounded-3xl p-8 max-w-md w-full text-center space-y-5 shadow-2xl relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-purple-600/15 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-black uppercase text-white font-display">
+              Acceso Restringido SaaS
+            </h2>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Esta es la consola central del Superadmin de la plataforma. Tu usuario no tiene privilegios de Superadministrador para ver o modificar otros clientes.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5 pt-2">
+            <Link
+              href="/login?redirect=/superadmin"
+              className="py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider transition shadow-glow"
+            >
+              Iniciar Sesión como Superadmin
+            </Link>
+            <Link
+              href="/admin"
+              className="py-3 px-4 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 font-bold text-xs uppercase tracking-wider border border-[#2e2e2e] transition"
+            >
+              Ir a mi Panel de Administración
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#080808] text-white font-sans pb-16">
