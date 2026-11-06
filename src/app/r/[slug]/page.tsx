@@ -21,6 +21,10 @@ import {
   ShieldCheck,
   Tag,
   Zap,
+  Bot,
+  Send,
+  CheckCheck,
+  MessageSquare,
 } from 'lucide-react';
 import { HeroSection } from '@/components/home/HeroSection';
 import { CategorySection } from '@/components/home/CategorySection';
@@ -73,6 +77,54 @@ function DynamicClientLanding({
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [customizerProduct, setCustomizerProduct] = useState<any | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Chat del Asistente Virtual Interactivo para el restaurante
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'bot' | 'user'; text: string; time: string }>>([]);
+
+  useEffect(() => {
+    if (restaurant?.nombre) {
+      setChatMessages([
+        {
+          sender: 'bot',
+          text: `¡Hola! 👋 Bienvenido a ${restaurant.nombre}. ¿Qué se te antoja hoy?`,
+          time: '12:00',
+        },
+        {
+          sender: 'user',
+          text: 'Quisiera ver sus especialidades y pedir a domicilio.',
+          time: '12:01',
+        },
+        {
+          sender: 'bot',
+          text: `¡Con gusto! 😋 Puedes pedir a domicilio o para recoger directamente por nuestra línea de WhatsApp.`,
+          time: '12:01',
+        },
+      ]);
+    }
+  }, [restaurant?.nombre]);
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const userText = chatInput.trim();
+    const now = new Date();
+    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    setChatMessages((prev) => [...prev, { sender: 'user', text: userText, time: timeStr }]);
+    setChatInput('');
+
+    setTimeout(() => {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'bot',
+          text: `¡Excelente elección! 🍔 Dale clic a 'Pedir por WhatsApp' para confirmar los detalles directamente a nuestra línea oficial.`,
+          time: timeStr,
+        },
+      ]);
+    }, 700);
+  };
 
   const formatCOP = (num: number) => '$' + (num || 0).toLocaleString('es-CO');
 
@@ -678,7 +730,196 @@ function DynamicClientLanding({
       )}
 
       {/* ======================================================== */}
-      {/* 5. SCHEDULES & DETAILS (SHOW IF ENABLED) */}
+      {/* 5. ESPECIALIDAD DE LA CASA / PLATO INSIGNIA               */}
+      {/* ======================================================== */}
+      <section className="relative py-12 sm:py-16 bg-[#090909] border-t border-[#1a1a1a] overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none opacity-20"
+          style={{
+            background: `radial-gradient(circle at center, ${primary} 0%, transparent 70%)`,
+          }}
+        />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="relative rounded-3xl overflow-hidden border border-[#2b2b2b] shadow-2xl bg-[#121212] group">
+            <div className="relative w-full h-72 sm:h-80 md:h-96">
+              <Image
+                src={heroImage}
+                alt={restaurant.nombre}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-black/85 flex items-center p-6 sm:p-12">
+                <div className="max-w-xl space-y-4">
+                  <div
+                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+                    style={{
+                      backgroundColor: `${primary}15`,
+                      borderColor: `${primary}40`,
+                      color: primary,
+                    }}
+                  >
+                    <Flame className="w-3.5 h-3.5 fill-current" />
+                    <span>Nuestra Especialidad Insignia</span>
+                  </div>
+
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase text-white font-display tracking-tight leading-tight">
+                    EL SABOR DE{' '}
+                    <span className="italic" style={{ color: primary }}>
+                      {restaurant.nombre}
+                    </span>{' '}
+                    EN CADA BOCADO
+                  </h2>
+
+                  <p className="text-sm sm:text-base text-gray-300 leading-relaxed">
+                    {heroDesc}
+                  </p>
+
+                  <div className="pt-2">
+                    <Link
+                      href={`/r/${slug}/menu`}
+                      className="inline-flex items-center gap-2 text-black font-black text-xs sm:text-sm px-7 py-3.5 rounded-full shadow-glow transition-all transform hover:scale-105"
+                      style={{ backgroundColor: primary }}
+                    >
+                      <span>EXPLORAR LA CARTA</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* 6. ASISTENTE VIRTUAL INTERACTIVO & WHATSAPP 24/7        */}
+      {/* ======================================================== */}
+      <section className="relative py-16 sm:py-20 bg-gradient-to-b from-[#0a0a0a] via-[#111111] to-[#080808] border-t border-[#1f1f1f] overflow-hidden">
+        <div
+          className="absolute top-1/2 left-1/4 -translate-y-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-10"
+          style={{ backgroundColor: primary }}
+        />
+        <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-96 h-96 bg-[#25D366]/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            
+            {/* Left Column: Headline & Action */}
+            <div className="lg:col-span-5 text-center lg:text-left space-y-5">
+              <div
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold tracking-wider uppercase"
+                style={{
+                  backgroundColor: `${primary}15`,
+                  borderColor: `${primary}40`,
+                  color: primary,
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Atención Digital al Instante</span>
+              </div>
+
+              <h2
+                className="text-4xl sm:text-5xl lg:text-6xl font-black italic uppercase font-display tracking-tight drop-shadow-md"
+                style={{ color: primary }}
+              >
+                ¿YA SE TE ANTOJÓ?
+              </h2>
+
+              <p className="text-base sm:text-lg text-gray-300 max-w-md mx-auto lg:mx-0 leading-relaxed">
+                Haz tu pedido en segundos. Nuestro asistente virtual y equipo de {restaurant.nombre} están listos para atenderte{phone ? ` al WhatsApp ${phone}` : ''}.
+              </p>
+
+              {phone && (
+                <div className="pt-2">
+                  <a
+                    href={`https://wa.me/57${phone}?text=${encodeURIComponent(`¡Hola ${restaurant.nombre}! Quiero hacer un pedido a domicilio.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-3 bg-[#25D366] hover:bg-[#20ba5a] text-black font-black text-sm uppercase px-8 py-4 rounded-full shadow-[0_4px_25px_rgba(37,211,102,0.4)] transition-all transform hover:scale-105 active:scale-95"
+                  >
+                    <MessageSquare className="w-5 h-5 fill-black" />
+                    <span>HABLAR POR WHATSAPP</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Simulated Chat Widget */}
+            <div className="lg:col-span-7 flex justify-center lg:justify-end">
+              <div className="w-full max-w-md bg-[#141414] border border-[#2b2b2b] rounded-3xl p-5 shadow-2xl relative overflow-hidden">
+                
+                {/* Chat Top Bar */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#242424] mb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-black"
+                      style={{ backgroundColor: primary }}
+                    >
+                      <Bot className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                        <span>Asistente {restaurant.nombre}</span>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      </h4>
+                      <p className="text-[11px] text-gray-400">En línea para tomar tu orden</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat Messages */}
+                <div className="space-y-3 min-h-[190px] max-h-[220px] overflow-y-auto pr-1">
+                  {chatMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
+                          msg.sender === 'user'
+                            ? 'text-black font-medium rounded-tr-none'
+                            : 'bg-[#222222] text-gray-200 rounded-tl-none border border-[#303030]'
+                        }`}
+                        style={msg.sender === 'user' ? { backgroundColor: primary } : {}}
+                      >
+                        {msg.text}
+                      </div>
+                      <span className="text-[9px] text-gray-500 mt-0.5 px-1 flex items-center gap-1">
+                        {msg.time}
+                        {msg.sender === 'user' && <CheckCheck className="w-3 h-3 text-emerald-400" />}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Interactive Input Form */}
+                <form onSubmit={handleSendChat} className="mt-4 pt-3 border-t border-[#242424] flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Escribe tu plato favorito aquí..."
+                    className="flex-1 bg-[#1e1e1e] border border-[#333] rounded-full px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-black font-black transition transform active:scale-90 shrink-0"
+                    style={{ backgroundColor: primary }}
+                  >
+                    <Send className="w-4 h-4 fill-current" />
+                  </button>
+                </form>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* 7. SCHEDULES & DETAILS (SHOW IF ENABLED) */}
       {showHorarios && (
         <section className="py-12 bg-[#0c0c0c] border-t border-[#181818]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
