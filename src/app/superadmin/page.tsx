@@ -102,18 +102,35 @@ export default function SuperadminPage() {
   // Verificación de credenciales de Superadmin
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('puntog_user');
+      const stored =
+        localStorage.getItem('punto_g_admin_logged_in') ||
+        localStorage.getItem('puntog_user') ||
+        localStorage.getItem('punto_g_user');
       if (stored) {
         const u = JSON.parse(stored);
-        if (u && (u.rol === 'Superadmin' || u.role === 'Superadmin')) {
+        const role = (u?.rol || u?.role || '').toLowerCase();
+        if (role === 'superadmin') {
           setCurrentUser(u);
           setAuthChecked(true);
           return;
+        } else {
+          // Guardar usuario para mostrar advertencia descriptiva
+          setCurrentUser(u);
         }
       }
-    } catch {}
+    } catch (e) {
+      console.error('Error al verificar sesión superadmin:', e);
+    }
     setAuthChecked(true);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('punto_g_admin_logged_in');
+    localStorage.removeItem('puntog_user');
+    localStorage.removeItem('punto_g_user');
+    localStorage.removeItem('punto_g_active_restaurant');
+    window.location.href = '/login?logout=true';
+  };
 
   // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -568,7 +585,21 @@ export default function SuperadminPage() {
   );
 
   // Protección de acceso al Superadmin
-  if (authChecked && (!currentUser || currentUser.rol !== 'Superadmin')) {
+  const isSuperadmin =
+    currentUser && (currentUser.rol || currentUser.role || '').toLowerCase() === 'superadmin';
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center p-6 text-white font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+          <span className="text-xs uppercase tracking-wider text-gray-400 font-bold">Verificando credenciales Superadmin...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (authChecked && !isSuperadmin) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center p-6 text-white font-sans">
         <div className="bg-[#121212] border border-purple-500/30 rounded-3xl p-8 max-w-md w-full text-center space-y-5 shadow-2xl relative overflow-hidden">
@@ -580,18 +611,37 @@ export default function SuperadminPage() {
               Acceso Restringido SaaS
             </h2>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Esta es la consola central del Superadmin de la plataforma. Tu usuario no tiene privilegios de Superadministrador para ver o modificar otros clientes.
+              Esta es la consola central del Superadmin de la plataforma. Tu usuario actual no tiene privilegios de Superadministrador para ver o modificar otros clientes.
             </p>
+            {currentUser && (
+              <div className="mt-3 p-2.5 rounded-xl bg-[#181818] border border-[#282828] text-[11px] text-gray-300 text-left space-y-1">
+                <div className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Sesión detectada en navegador:</div>
+                <div className="flex items-center justify-between">
+                  <strong className="text-white">{currentUser.nombre || currentUser.email}</strong>
+                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold text-[10px]">
+                    {currentUser.rol || currentUser.role || 'Usuario'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-2.5 pt-2">
-            <Link
-              href="/login?redirect=/superadmin"
-              className="py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider transition shadow-glow"
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('punto_g_admin_logged_in');
+                localStorage.removeItem('puntog_user');
+                localStorage.removeItem('punto_g_user');
+                localStorage.removeItem('punto_g_active_restaurant');
+                window.location.href = '/login?redirect=/superadmin&switch=true';
+              }}
+              className="py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider transition shadow-glow flex items-center justify-center gap-2 cursor-pointer"
             >
-              Iniciar Sesión como Superadmin
-            </Link>
+              <Key className="w-4 h-4" />
+              <span>Iniciar Sesión como Superadmin</span>
+            </button>
             <Link
-              href="/admin"
+              href={currentUser?.restaurant?.slug ? `/r/${currentUser.restaurant.slug}/admin` : '/admin'}
               className="py-3 px-4 rounded-xl bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 font-bold text-xs uppercase tracking-wider border border-[#2e2e2e] transition"
             >
               Ir a mi Panel de Administración
@@ -624,6 +674,14 @@ export default function SuperadminPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {currentUser && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#181818] border border-[#2e2e2e] text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-gray-400 text-[11px]">Superadmin:</span>
+              <span className="font-bold text-white text-[11px]">{currentUser.nombre || currentUser.email}</span>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={loadRestaurants}
@@ -647,6 +705,15 @@ export default function SuperadminPage() {
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>+ Crear Restaurante</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition cursor-pointer"
+            title="Cerrar sesión Superadmin"
+          >
+            <Power className="w-4 h-4" />
           </button>
         </div>
       </header>

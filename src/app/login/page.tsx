@@ -36,24 +36,32 @@ function LoginForm() {
   // Check if user has an active session or requested logout
   useEffect(() => {
     try {
-      const isLogout = searchParams.get('logout') === 'true';
+      const isLogout = searchParams.get('logout') === 'true' || searchParams.get('switch') === 'true';
       if (isLogout) {
         localStorage.removeItem(LOCAL_STORAGE_AUTH);
+        localStorage.removeItem('puntog_user');
+        localStorage.removeItem('punto_g_user');
         localStorage.removeItem('punto_g_active_restaurant');
         setCurrentSession(null);
         setIsCheckingAuth(false);
         return;
       }
 
-      const savedAuth = localStorage.getItem(LOCAL_STORAGE_AUTH);
+      const savedAuth = localStorage.getItem(LOCAL_STORAGE_AUTH) || localStorage.getItem('puntog_user');
       if (savedAuth) {
         const user = JSON.parse(savedAuth);
         if (user && user.id) {
           setCurrentSession(user);
           // If a redirect was explicitly requested by an auth guard and not directly visiting /login, redirect
           if (redirectPath) {
-            router.replace(redirectPath);
-            return;
+            const role = (user.rol || user.role || '').toLowerCase();
+            // If redirected to /superadmin but current user is not superadmin, do NOT auto-redirect back into restriction!
+            if (redirectPath.startsWith('/superadmin') && role !== 'superadmin') {
+              // Stay on login page so user can log in with their superadmin account
+            } else {
+              router.replace(redirectPath);
+              return;
+            }
           }
         }
       }
@@ -66,6 +74,8 @@ function LoginForm() {
 
   const handleClearSession = () => {
     localStorage.removeItem(LOCAL_STORAGE_AUTH);
+    localStorage.removeItem('puntog_user');
+    localStorage.removeItem('punto_g_user');
     localStorage.removeItem('punto_g_active_restaurant');
     setCurrentSession(null);
     setEmail('');
@@ -88,6 +98,8 @@ function LoginForm() {
 
       if (res.ok && data.user) {
         localStorage.setItem(LOCAL_STORAGE_AUTH, JSON.stringify(data.user));
+        localStorage.setItem('puntog_user', JSON.stringify(data.user));
+        localStorage.setItem('punto_g_user', JSON.stringify(data.user));
         if (data.user.restaurant) {
           localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data.user.restaurant));
         } else {
