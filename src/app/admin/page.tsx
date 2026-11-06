@@ -573,6 +573,15 @@ export default function AdminPage() {
           } else {
             const urlParams = new URLSearchParams(window.location.search);
             const qRestId = urlParams.get('restaurantId');
+
+            // Si el usuario es Superadmin y entra a la ruta plana "/admin" sin especificar restaurante,
+            // su consola principal es /superadmin. Redirigir para mantener el aislamiento del SaaS.
+            const userRole = (userObj.rol || userObj.role || '').toLowerCase();
+            if (userRole === 'superadmin' && !qRestId) {
+              router.replace('/superadmin');
+              return;
+            }
+
             const storedRest = localStorage.getItem('punto_g_active_restaurant');
             if (qRestId) {
               if (storedRest) {

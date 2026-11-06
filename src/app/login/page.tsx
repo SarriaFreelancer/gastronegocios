@@ -108,10 +108,14 @@ function LoginForm() {
 
         // Smart redirect based on role and tenant
         let target = redirectPath;
-        if (!target) {
-          if (data.user.rol === 'Superadmin') {
+        const userRole = (data.user.rol || data.user.role || '').toLowerCase();
+        if (userRole === 'superadmin') {
+          // El Superadmin SIEMPRE va a /superadmin a menos que explícitamente haya solicitado un restaurante específico
+          if (!target || target === '/admin' || target === '/' || !target.includes('/r/')) {
             target = '/superadmin';
-          } else if (data.user.rol === 'Cocina') {
+          }
+        } else if (!target) {
+          if (data.user.rol === 'Cocina') {
             target = data.user.restaurant?.slug ? `/r/${data.user.restaurant.slug}/cocina` : '/cocina';
           } else if (data.user.rol === 'Mesero') {
             target = data.user.restaurant?.slug ? `/r/${data.user.restaurant.slug}/mesero` : '/mesero';

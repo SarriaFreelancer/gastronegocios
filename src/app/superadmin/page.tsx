@@ -691,13 +691,6 @@ export default function SuperadminPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-yellow' : ''}`} />
           </button>
 
-          <Link
-            href="/admin"
-            className="px-4 py-2.5 bg-[#181818] hover:bg-[#222] text-gray-300 hover:text-white rounded-xl text-xs font-bold border border-[#333] transition flex items-center gap-1.5"
-          >
-            <span>← Ir al Admin General</span>
-          </Link>
-
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
@@ -948,7 +941,9 @@ export default function SuperadminPage() {
 
                   {/* Botón Principal: Administrar Restaurante */}
                   <Link
-                    href={`/admin?restaurantId=${rest.id}`}
+                    href={`/r/${rest.slug}/admin`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     onClick={() => {
                       if (typeof window !== 'undefined') {
                         localStorage.setItem(
@@ -966,7 +961,7 @@ export default function SuperadminPage() {
                   >
                     <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
                     <span>Administrar este Restaurante</span>
-                    <ArrowRight className="w-4 h-4 ml-auto stroke-[2.5]" />
+                    <ExternalLink className="w-4 h-4 ml-auto stroke-[2.5]" />
                   </Link>
 
                   {/* Paleta de Color */}
