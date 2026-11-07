@@ -159,7 +159,8 @@ export default function RastreoPortalPage() {
     e.preventDefault();
     const finalCode = normalizeOrderCode(code);
     if (!finalCode) return;
-    router.push(`/pedido/${encodeURIComponent(finalCode)}`);
+    const targetSlug = (liveOrder as any)?.restaurant?.slug || 'punto-g';
+    router.push(`/r/${targetSlug}/pedido/${encodeURIComponent(finalCode)}`);
   };
 
   return (
@@ -200,7 +201,7 @@ export default function RastreoPortalPage() {
             </div>
 
             <Link
-              href={`/pedido/${encodeURIComponent(lastOrderCode)}`}
+              href={`/r/punto-g/pedido/${encodeURIComponent(lastOrderCode)}`}
               className="w-full sm:w-auto px-5 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-glow transition-transform hover:scale-105 active:scale-95 flex-shrink-0"
             >
               <span>Ver en vivo</span>
@@ -360,7 +361,7 @@ export default function RastreoPortalPage() {
 
                 {/* Primary CTA to Full Tracking Screen */}
                 <Link
-                  href={`/pedido/${encodeURIComponent(liveOrder.codigo)}`}
+                  href={`/r/${(liveOrder as any)?.restaurant?.slug || 'punto-g'}/pedido/${encodeURIComponent(liveOrder.codigo)}`}
                   className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-glow transition-transform hover:scale-105 active:scale-95"
                 >
                   <span>🔴 VER SEGUIMIENTO EN VIVO COMPLETO 👉</span>

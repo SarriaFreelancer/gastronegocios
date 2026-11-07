@@ -108,11 +108,12 @@ export default function CocinaKDSPage() {
   };
 
   const notifyCustomerWhatsApp = (order: Order) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     const cleanPhone = (order.telefono || '').replace(/\D/g, '');
     const phone = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
     const restName = (restaurant?.nombre || 'PUNTO G').toUpperCase();
-    const trackingUrl = `${origin}${tenantSlug ? `/r/${tenantSlug}` : ''}/pedido/${order.codigo}`;
+    const trackingSlug = (order as any)?.restaurant?.slug || tenantSlug || 'punto-g';
+    const trackingUrl = `${origin}/r/${trackingSlug}/pedido/${order.codigo}`;
     const msg = `¡Hola ${order.cliente}! 🔥 Te escribimos de *${restName}*.\nTu pedido *#${order.codigo}* está actualmente en estado: *${order.estado.toUpperCase()}* 🍔✨\n\nPuedes ver el estado de preparación y despacho en vivo aquí:\n👉 ${trackingUrl}\n\n¡Muchas gracias por elegirnos!`;
     window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
   };

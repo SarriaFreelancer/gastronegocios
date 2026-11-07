@@ -10,12 +10,22 @@ export async function GET(req: Request) {
 
     // Consulta específica de un restaurante por slug, subdominio o id
     if (slug || subdominio || id) {
+      const searchKey = (slug || subdominio || '').trim();
+      const variantWithHyphen = searchKey === 'puntog' ? 'punto-g' : searchKey.includes('-') ? searchKey : searchKey.replace(/([a-z])([A-Z])/g, '$1-$2');
+      const variantWithoutHyphen = searchKey.replace(/-/g, '');
+
       const restaurant = await prisma.restaurant.findFirst({
         where: {
           OR: [
             ...(id ? [{ id: Number(id) }] : []),
-            ...(slug ? [{ slug }] : []),
-            ...(subdominio ? [{ subdominio }] : []),
+            ...(searchKey ? [
+              { slug: searchKey },
+              { subdominio: searchKey },
+              { slug: variantWithHyphen },
+              { subdominio: variantWithHyphen },
+              { slug: variantWithoutHyphen },
+              { subdominio: variantWithoutHyphen },
+            ] : []),
           ],
         },
         include: {

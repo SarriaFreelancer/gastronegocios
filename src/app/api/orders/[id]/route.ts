@@ -24,6 +24,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       include: {
         items: true,
         mesa: true,
+        restaurant: true,
       },
     });
 
@@ -65,6 +66,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       include: {
         items: true,
         mesa: true,
+        restaurant: true,
       },
     });
 

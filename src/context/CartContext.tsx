@@ -408,8 +408,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     message += `⭐ *TOTAL A PAGAR:* ${formatCurrency(totalPrice)} COP\n`;
     message += `----------------------------\n\n`;
-    const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005';
-    message += `📍 *Rastrea tu pedido en tiempo real:* ${siteUrl}/pedido/${orderCode}\n\n`;
+    const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    let tenantSlug = 'punto-g';
+    if (pathname?.startsWith('/r/')) {
+      const slug = pathname.split('/')[2];
+      if (slug) tenantSlug = slug;
+    }
+    message += `📍 *Rastrea tu pedido en tiempo real:* ${siteUrl}/r/${tenantSlug}/pedido/${orderCode}\n\n`;
     message += `¡Muchas gracias! Ya quedó registrado en el sistema con el código *#${orderCode}*.`;
 
     const encodedMessage = encodeURIComponent(message);

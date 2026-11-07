@@ -336,7 +336,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
             <div className="my-2 border-t border-dashed border-black" />
             <div className="text-center text-[10px] space-y-0.5">
               <p className="font-bold">¡GRACIAS POR TU PREFERENCIA!</p>
-              <p>Rastrea en vivo: puntog.com/pedido/{order.codigo}</p>
+              <p>Rastrea en vivo: puntog.com/r/{(order as any)?.restaurant?.slug || 'punto-g'}/pedido/{order.codigo}</p>
               <p className="text-[9px] text-neutral-500 mt-1">Software gastronómico Punto G v2.0</p>
             </div>
           </div>
