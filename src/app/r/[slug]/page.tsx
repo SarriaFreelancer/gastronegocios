@@ -207,7 +207,7 @@ function DynamicClientLanding({
     restaurant.bannerHero ||
     restaurant.imagenHero ||
     (isPuntoG
-      ? '/images/assets/hero-burger.png'
+      ? 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1400&auto=format&fit=crop'
       : 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200&auto=format&fit=crop');
 
   // If the restaurant has no products and no categories yet, show a polite branded welcome page
@@ -434,22 +434,30 @@ function DynamicClientLanding({
                 </div>
               </div>
 
-              {/* Hero Image: Seamless food silhouette without box, border or frame */}
+              {/* Hero Image: Large round difuminado without box or square borders */}
               <div className="lg:col-span-6 relative flex items-center justify-center">
                 <div
-                  className="absolute w-72 sm:w-96 md:w-[420px] h-72 sm:h-96 md:h-[420px] rounded-full blur-[100px] opacity-30 pointer-events-none"
+                  className="absolute w-[300px] h-[300px] sm:w-[420px] sm:h-[420px] rounded-full blur-[110px] opacity-35 pointer-events-none"
                   style={{ backgroundColor: primary }}
                 />
 
-                <div className="relative w-full max-w-[500px] h-[340px] sm:h-[440px] md:h-[480px] flex items-center justify-center z-10">
-                  <Image
-                    src={heroImage}
-                    alt={restaurant.nombre}
-                    fill
-                    className="object-contain filter drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)] transform hover:scale-105 transition-transform duration-700"
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 500px"
-                  />
+                <div className="relative w-[320px] h-[320px] sm:w-[420px] sm:h-[420px] lg:w-[480px] lg:h-[480px] flex items-center justify-center z-10">
+                  <div
+                    className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
+                    style={{
+                      maskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
+                      WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
+                    }}
+                  >
+                    <Image
+                      src={heroImage}
+                      alt={restaurant.nombre}
+                      fill
+                      className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 480px"
+                    />
+                  </div>
                 </div>
               </div>
 

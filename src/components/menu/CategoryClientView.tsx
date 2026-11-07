@@ -78,22 +78,23 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     return main || initialCategory;
   }, [activeMainSlug, activeSubSlug, initialCategory, categoriesList]);
 
-  // Featured hero image for the category banner (high-res transparent cutout or photographic card)
+  // Featured hero image for the category banner (high-res appetizing gastronomy)
   const heroImageSrc = useMemo(() => {
     const slug = currentDisplayCategory.slug;
     if (slug === 'hamburguesas' || slug === 'comidas-rapidas') {
-      return '/images/assets/menu-hero-burger.png';
+      return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1200&auto=format&fit=crop';
     }
     if (slug === 'parrilla-llanera' || slug === 'picadas' || slug === 'costillas') {
-      return '/images/assets/parrilla-steaks.png';
+      return 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=85&w=1200&auto=format&fit=crop';
     }
     if (slug === 'combos' || slug === 'combos-especiales') {
-      return '/images/assets/combo-promo.png';
+      return 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=85&w=1200&auto=format&fit=crop';
+    }
+    if (slug === 'bebidas' || slug === 'cocteles' || slug === 'jugos-limonadas') {
+      return 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?q=85&w=1200&auto=format&fit=crop';
     }
     return currentDisplayCategory.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop';
   }, [currentDisplayCategory]);
-
-  const isTransparentPng = heroImageSrc.includes('.png') || heroImageSrc.includes('assets/');
 
   // Main category object
   const activeMainCategory = useMemo(() => {
@@ -230,18 +231,31 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               </p>
             </div>
 
-            {/* Right Hero Food Image without box or border */}
+            {/* Right Hero Food Image: Round difuminado without harsh box */}
             <div className="md:col-span-5 flex justify-center md:justify-end">
-              <div className="relative w-full max-w-[360px] h-[220px] sm:h-[260px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                <Image
-                  key={heroImageSrc}
-                  src={heroImageSrc}
-                  alt={currentDisplayCategory.nombre}
-                  fill
-                  priority
-                  className="object-contain hover:scale-105 transition-transform duration-500"
-                  sizes="(max-width: 768px) 280px, 360px"
+              <div className="relative w-[240px] h-[240px] sm:w-[300px] sm:h-[300px] flex items-center justify-center">
+                {/* Organic glow */}
+                <div 
+                  className="absolute w-[200px] h-[200px] sm:w-[260px] sm:h-[260px] rounded-full blur-[80px] opacity-30 pointer-events-none"
+                  style={{ backgroundColor: primaryColor }}
                 />
+                <div 
+                  className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
+                  style={{
+                    maskImage: 'radial-gradient(circle at center, black 46%, rgba(0,0,0,0.85) 58%, rgba(0,0,0,0.3) 68%, transparent 74%)',
+                    WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0,0,0,0.85) 58%, rgba(0,0,0,0.3) 68%, transparent 74%)',
+                  }}
+                >
+                  <Image
+                    key={heroImageSrc}
+                    src={heroImageSrc}
+                    alt={currentDisplayCategory.nombre}
+                    fill
+                    priority
+                    className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
+                    sizes="(max-width: 768px) 240px, 300px"
+                  />
+                </div>
               </div>
             </div>
 

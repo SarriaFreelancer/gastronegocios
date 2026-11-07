@@ -77,13 +77,13 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Hero Image: Gourmet Burger floating naturally without any box or frame */}
+          {/* Right Hero Image: Large circular gourmet burger with soft radial feather fade into the black background */}
           <div className="lg:col-span-6 relative flex justify-center items-center">
-            {/* Ambient warm glow directly behind the burger */}
-            <div className="absolute w-72 sm:w-96 md:w-[440px] h-72 sm:h-96 md:h-[440px] rounded-full bg-brand-yellow/20 blur-[110px] pointer-events-none" />
+            {/* Ambient golden restaurant spotlight glow behind the burger */}
+            <div className="absolute w-[300px] h-[300px] sm:w-[440px] sm:h-[440px] lg:w-[500px] lg:h-[500px] rounded-full bg-brand-yellow/25 blur-[120px] pointer-events-none" />
 
-            {/* "Sabor Real" callout script above burger */}
-            <div className="absolute -top-6 right-4 sm:right-10 z-20 text-right select-none pointer-events-none">
+            {/* "Sabor Real" callout script */}
+            <div className="absolute -top-4 right-4 sm:right-8 z-20 text-right select-none pointer-events-none">
               <span className="font-script text-3xl sm:text-5xl text-white italic drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)] leading-none block">
                 Sabor
               </span>
@@ -93,16 +93,24 @@ export const HeroSection: React.FC = () => {
               <Sparkles className="w-5 h-5 text-brand-yellow animate-spin-slow ml-auto mt-1" />
             </div>
 
-            {/* Clean Burger silhouette without border, box, or frame */}
-            <div className="relative w-full max-w-[520px] h-[360px] sm:h-[460px] md:h-[500px] flex items-center justify-center">
-              <Image
-                src="/images/assets/hero-burger.png"
-                alt="Hamburguesa Artesanal Punto G"
-                fill
-                priority
-                className="object-contain filter drop-shadow-[0_25px_35px_rgba(0,0,0,0.95)] transform hover:scale-105 transition-transform duration-700 select-none"
-                sizes="(max-width: 1024px) 100vw, 520px"
-              />
+            {/* Circular mask with smooth feathered radial diffusion (no square, no box, no hard borders) */}
+            <div className="relative w-[320px] h-[320px] sm:w-[440px] sm:h-[440px] lg:w-[520px] lg:h-[520px] flex items-center justify-center">
+              <div
+                className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
+                style={{
+                  maskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
+                  WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
+                }}
+              >
+                <Image
+                  src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1400&auto=format&fit=crop"
+                  alt="Hamburguesa Gourmet Artesanal Punto G"
+                  fill
+                  priority
+                  className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
+                  sizes="(max-width: 1024px) 100vw, 520px"
+                />
+              </div>
             </div>
           </div>
 

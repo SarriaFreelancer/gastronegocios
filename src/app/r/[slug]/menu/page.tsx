@@ -346,24 +346,36 @@ export default function TenantMenuGeneralPage() {
                 </p>
               </div>
               <div className="md:col-span-5 flex justify-center md:justify-end">
-                <div className="relative w-full max-w-[340px] h-[200px] sm:h-[240px] drop-shadow-[0_20px_35px_rgba(0,0,0,0.9)] flex items-center justify-center">
-                  <Image
-                    key={currentCategoryObj.imagen || currentCategoryObj.slug}
-                    src={
-                      currentCategoryObj.slug === 'hamburguesas' || currentCategoryObj.slug === 'comidas-rapidas'
-                        ? '/images/assets/menu-hero-burger.png'
-                        : currentCategoryObj.slug === 'parrilla-llanera' || currentCategoryObj.slug === 'picadas' || currentCategoryObj.slug === 'costillas'
-                        ? '/images/assets/parrilla-steaks.png'
-                        : currentCategoryObj.slug === 'combos' || currentCategoryObj.slug === 'combos-especiales'
-                        ? '/images/assets/combo-promo.png'
-                        : currentCategoryObj.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop'
-                    }
-                    alt={currentCategoryObj.nombre}
-                    fill
-                    priority
-                    className="object-contain"
-                    sizes="(max-width: 768px) 280px, 340px"
+                <div className="relative w-[240px] h-[240px] sm:w-[300px] sm:h-[300px] flex items-center justify-center">
+                  <div 
+                    className="absolute w-[200px] h-[200px] sm:w-[260px] sm:h-[260px] rounded-full blur-[80px] opacity-30 pointer-events-none"
+                    style={{ backgroundColor: 'var(--tenant-primary, #EAA622)' }}
                   />
+                  <div
+                    className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
+                    style={{
+                      maskImage: 'radial-gradient(circle at center, black 46%, rgba(0,0,0,0.85) 58%, rgba(0,0,0,0.3) 68%, transparent 74%)',
+                      WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0,0,0,0.85) 58%, rgba(0,0,0,0.3) 68%, transparent 74%)',
+                    }}
+                  >
+                    <Image
+                      key={currentCategoryObj.imagen || currentCategoryObj.slug}
+                      src={
+                        currentCategoryObj.slug === 'hamburguesas' || currentCategoryObj.slug === 'comidas-rapidas'
+                          ? 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1200&auto=format&fit=crop'
+                          : currentCategoryObj.slug === 'parrilla-llanera' || currentCategoryObj.slug === 'picadas' || currentCategoryObj.slug === 'costillas'
+                          ? 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=85&w=1200&auto=format&fit=crop'
+                          : currentCategoryObj.slug === 'combos' || currentCategoryObj.slug === 'combos-especiales'
+                          ? 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=85&w=1200&auto=format&fit=crop'
+                          : currentCategoryObj.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop'
+                      }
+                      alt={currentCategoryObj.nombre}
+                      fill
+                      priority
+                      className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
+                      sizes="(max-width: 768px) 240px, 300px"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
