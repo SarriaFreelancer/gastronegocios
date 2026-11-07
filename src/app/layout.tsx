@@ -9,20 +9,19 @@ import { CartToast } from '@/components/cart/CartToast';
 import { TableServiceBar } from '@/components/menu/TableServiceBar';
 
 export const metadata: Metadata = {
-  title: 'Punto G | Antojos Que Conectan | Comidas Rápidas',
+  title: 'GastroNegocios | Plataforma y Software Integral para Restaurantes',
   description:
-    'Restaurante de comidas rápidas gourmet en Cali: hamburguesas artesanales, picadas, salchipapas, perros calientes, parrillas al carbón, bebidas y cócteles. Haz tu pedido por WhatsApp.',
+    'Sistema integral y plataforma de software gastronómico para restaurantes: menú digital QR interactivo, punto de venta (POS), comandas de cocina KDS, pedidos por WhatsApp y gestión multi-sede con 0% de comisiones.',
   keywords: [
-    'Punto G',
-    'Hamburguesas Cali',
-    'Comidas Rápidas',
-    'Picadas',
-    'Salchipapas',
-    'Perros calientes',
-    'Parrilladas',
-    'Domicilios Cali'
+    'GastroNegocios',
+    'Software para restaurantes',
+    'Carta digital QR',
+    'Comandera meseros',
+    'Sistema POS restaurante',
+    'Pantalla de cocina KDS',
+    'Pedidos WhatsApp restaurante'
   ],
-  authors: [{ name: 'Punto G' }],
+  authors: [{ name: 'GastroNegocios' }],
   icons: {
     icon: '/favicon.ico',
   },

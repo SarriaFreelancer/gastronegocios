@@ -117,10 +117,10 @@ export function SaasLandingPage() {
             </div>
             <div>
               <span className="text-lg font-black tracking-wider text-white font-display flex items-center gap-1.5 leading-none">
-                PUNTO G <span className="text-[10px] bg-brand-yellow text-black font-black px-1.5 py-0.5 rounded tracking-normal">SAAS</span>
+                GASTRONEGOCIOS <span className="text-[10px] bg-brand-yellow text-black font-black px-1.5 py-0.5 rounded tracking-normal">PLATAFORMA</span>
               </span>
               <span className="text-[10px] text-gray-400 block tracking-widest uppercase font-semibold mt-0.5">
-                Software Gastronómico
+                Software & POS Gastronómico
               </span>
             </div>
           </Link>
@@ -596,7 +596,7 @@ export function SaasLandingPage() {
 
               <div className="bg-[#181818] border border-gray-700 p-5 rounded-2xl text-center space-y-1">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
-                  Punto G SaaS (Plan Pro)
+                  GastroNegocios (Plan Pro)
                 </span>
                 <span className="text-2xl font-black text-white font-display block">
                   $149.000
@@ -965,7 +965,7 @@ export function SaasLandingPage() {
                   G
                 </div>
                 <div>
-                  <span className="font-black text-white uppercase text-base tracking-wider block font-display">Punto G SaaS Platform</span>
+                  <span className="font-black text-white uppercase text-base tracking-wider block font-display">GastroNegocios Platform</span>
                   <span className="text-xs text-gray-400">Software Gastronómico White-Label & POS para Restaurantes</span>
                 </div>
               </div>
