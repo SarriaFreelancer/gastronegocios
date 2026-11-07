@@ -101,6 +101,36 @@ export default function CocinaKDSPage() {
     }
   }, [tenantSlug]);
 
+  // Set dynamic browser tab title
+  useEffect(() => {
+    const name = restaurant?.nombre || (tenantSlug ? tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'KDS Cocina');
+    document.title = `${name} | Pantalla de Cocina (KDS)`;
+  }, [restaurant?.nombre, tenantSlug]);
+
+  // If accessed directly via /cocina without slug, auto-redirect if session has a restaurant
+  useEffect(() => {
+    if (!tenantSlug && typeof window !== 'undefined') {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userObj = JSON.parse(storedUser);
+          if (userObj.restaurantId) {
+            fetch(`/api/restaurants?id=${userObj.restaurantId}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((data) => {
+                if (data && data.slug) {
+                  window.location.replace(`/r/${data.slug}/cocina`);
+                }
+              })
+              .catch(console.error);
+          }
+        }
+      } catch (e) {
+        // Ignore JSON error
+      }
+    }
+  }, [tenantSlug]);
+
   const openReceipt = (order: Order, type: 'comanda' | 'factura' = 'comanda') => {
     setReceiptOrder(order);
     setReceiptType(type);

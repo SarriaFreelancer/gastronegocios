@@ -158,6 +158,36 @@ export default function MeseroPage() {
     }
   }, [tenantSlug]);
 
+  // Set dynamic browser tab title
+  useEffect(() => {
+    const name = restaurant?.nombre || (tenantSlug ? tenantSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Mesero POS');
+    document.title = `${name} | Comandero de Meseros`;
+  }, [restaurant?.nombre, tenantSlug]);
+
+  // If accessed directly via /mesero without slug, auto-redirect if session has a restaurant
+  useEffect(() => {
+    if (!tenantSlug && typeof window !== 'undefined') {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userObj = JSON.parse(storedUser);
+          if (userObj.restaurantId) {
+            fetch(`/api/restaurants?id=${userObj.restaurantId}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((data) => {
+                if (data && data.slug) {
+                  window.location.replace(`/r/${data.slug}/mesero`);
+                }
+              })
+              .catch(console.error);
+          }
+        }
+      } catch (e) {
+        // Ignore JSON error
+      }
+    }
+  }, [tenantSlug]);
+
   // Vista actual: 'mesas' | 'comanda' | 'dividir'
   const [currentView, setCurrentView] = useState<'mesas' | 'comanda' | 'dividir'>('mesas');
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);

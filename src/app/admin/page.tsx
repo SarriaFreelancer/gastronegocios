@@ -2141,7 +2141,7 @@ export default function AdminPage() {
             </div>
 
             <Link
-              href="/pedidos-listos"
+              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/pedidos-listos` : '/pedidos-listos'}
               target="_blank"
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
             >
@@ -2150,7 +2150,7 @@ export default function AdminPage() {
             </Link>
 
             <Link
-              href="/cocina"
+              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/cocina` : '/cocina'}
               target="_blank"
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
             >
@@ -2159,7 +2159,7 @@ export default function AdminPage() {
             </Link>
 
             <Link
-              href="/mesero"
+              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/mesero` : '/mesero'}
               target="_blank"
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-500 to-brand-yellow hover:opacity-90 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
             >
@@ -4492,7 +4492,7 @@ export default function AdminPage() {
                         )}
                         <div className="grid grid-cols-2 gap-1.5 pt-1">
                           <Link
-                            href="/mesero"
+                            href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/mesero` : '/mesero'}
                             target="_blank"
                             className="py-2 bg-[#252525] hover:bg-[#303030] text-brand-yellow border border-brand-yellow/30 text-center rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition"
                           >
