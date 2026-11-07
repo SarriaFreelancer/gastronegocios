@@ -24,6 +24,7 @@ import {
   Globe,
   Users,
   ChevronDown,
+  ChevronRight,
   Calculator,
   Flame,
   Check,
@@ -953,30 +954,111 @@ export function SaasLandingPage() {
       {/* ======================================================== */}
       {/* FOOTER SAAS                                              */}
       {/* ======================================================== */}
-      <footer className="py-12 px-4 sm:px-8 border-t border-[#181818] bg-[#060606] text-xs text-gray-400">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+      <footer className="pt-16 pb-12 px-4 sm:px-8 border-t border-[#181818] bg-[#050505] text-xs text-gray-400">
+        <div className="max-w-7xl mx-auto space-y-12">
           
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-brand-yellow text-black flex items-center justify-center font-black text-sm shadow-glow">
-              G
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 items-start">
+            {/* Col 1: Brand */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-yellow text-black flex items-center justify-center font-black text-lg shadow-glow">
+                  G
+                </div>
+                <div>
+                  <span className="font-black text-white uppercase text-base tracking-wider block font-display">Punto G SaaS Platform</span>
+                  <span className="text-xs text-gray-400">Software Gastronómico White-Label & POS para Restaurantes</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 max-w-md leading-relaxed">
+                Plataforma integral de pedidos directos, cartas digitales interactivas en 3D, comandera de cocina KDS, facturación térmica ESC/POS y pedidos automatizados por WhatsApp. Sin comisiones abusivas por venta.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
+                <span className="px-3 py-1 rounded-full bg-[#121212] border border-[#242424] text-gray-300 font-bold">
+                  ⚡ 0% Comisiones por Pedido
+                </span>
+                <span className="px-3 py-1 rounded-full bg-[#121212] border border-[#242424] text-gray-300 font-bold">
+                  🔒 Multi-Tenant Aislado
+                </span>
+                <span className="px-3 py-1 rounded-full bg-[#121212] border border-[#242424] text-gray-300 font-bold">
+                  🧾 Impresión Térmica ESC/POS
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="font-black text-white uppercase tracking-wider block">Punto G SaaS Platform</span>
-              <span className="text-[11px] text-gray-500">Software Gastronómico White-Label para Restaurantes</span>
+
+            {/* Col 2: Módulos & Demos */}
+            <div className="lg:col-span-3 space-y-3">
+              <h4 className="text-xs font-black uppercase text-white tracking-wider font-display">
+                Módulos de la Suite
+              </h4>
+              <ul className="space-y-2 text-xs">
+                <li>
+                  <Link href="/r/puntog" className="hover:text-brand-yellow transition flex items-center gap-1.5 text-gray-300">
+                    <ChevronRight className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Demo Restaurante: Punto G</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/r/salchiricurras" className="hover:text-brand-yellow transition flex items-center gap-1.5 text-gray-300">
+                    <ChevronRight className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Demo Restaurante: Salchi Ricurras</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/r/puntog/cocina" className="hover:text-brand-yellow transition flex items-center gap-1.5 text-gray-300">
+                    <ChevronRight className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Pantalla de Cocina (KDS)</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/r/puntog/mesero" className="hover:text-brand-yellow transition flex items-center gap-1.5 text-gray-300">
+                    <ChevronRight className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Comandera Móvil Meseros</span>
+                  </Link>
+                </li>
+              </ul>
             </div>
+
+            {/* Col 3: Enlaces y Soporte */}
+            <div className="lg:col-span-4 space-y-3">
+              <h4 className="text-xs font-black uppercase text-white tracking-wider font-display">
+                Comenzar & Soporte
+              </h4>
+              <p className="text-xs text-gray-400">
+                ¿Tienes un restaurante o franquicia y deseas digitalizar tus ventas hoy mismo?
+              </p>
+              <div className="space-y-2 pt-1">
+                <a
+                  href={whatsappSalesUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-yellow text-black font-black text-xs uppercase tracking-wider shadow-glow hover:scale-[1.02] transition"
+                >
+                  <MessageCircle className="w-4 h-4 fill-current" />
+                  <span>Hablar con un Asesor Comercial</span>
+                </a>
+                <div className="flex items-center justify-between text-xs pt-1 px-1">
+                  <Link href="/login" className="text-gray-300 hover:text-white transition">
+                    Acceso Clientes / Admin
+                  </Link>
+                  <Link href="/superadmin" className="text-gray-400 hover:text-brand-yellow transition">
+                    Portal Superadmin
+                  </Link>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          <p className="text-xs text-gray-400 leading-relaxed font-medium">
-            Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
-          </p>
+          <div className="pt-8 border-t border-[#181818] flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-center md:text-left">
+            <p className="leading-relaxed font-medium text-gray-300">
+              Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+            </p>
 
-          <div className="flex items-center gap-5 text-xs font-semibold">
-            <Link href="/login" className="hover:text-brand-yellow transition">
-              Acceso Clientes
-            </Link>
-            <a href={whatsappSalesUrl} target="_blank" rel="noopener noreferrer" className="hover:text-brand-yellow transition">
-              Soporte & Ventas
-            </a>
+            <div className="flex items-center gap-4 text-[11px] text-gray-400 font-medium">
+              <span>Cali, Colombia</span>
+              <span>•</span>
+              <span>SaaS Gastronómico de Alta Disponibilidad</span>
+            </div>
           </div>
 
         </div>

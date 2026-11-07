@@ -12,6 +12,7 @@ import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { Logo } from '@/components/ui/Logo';
 import { useTenant } from '@/context/TenantContext';
+import { getCategoryHeroImage } from '@/lib/category-images';
 import { 
   Search, 
   Sparkles, 
@@ -351,7 +352,7 @@ export default function TenantMenuGeneralPage() {
                   <div className="relative w-full h-full select-none transition-transform duration-500 hover:scale-105">
                     <Image
                       key={currentCategoryObj.slug}
-                      src="/images/assets/burger-hero-transparent.png"
+                      src={getCategoryHeroImage(currentCategoryObj, null)}
                       alt={currentCategoryObj.nombre}
                       fill
                       priority

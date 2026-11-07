@@ -11,6 +11,7 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { Search, Sparkles, Filter } from 'lucide-react';
+import { getCategoryHeroImage } from '@/lib/category-images';
 
 export default function MenuGeneralPage() {
   const searchParams = useSearchParams();
@@ -161,7 +162,7 @@ export default function MenuGeneralPage() {
                   <div className="relative w-full h-full select-none transition-transform duration-500 hover:scale-105">
                     <Image
                       key={currentCategoryObj.slug}
-                      src="/images/assets/burger-hero-transparent.png"
+                      src={getCategoryHeroImage(currentCategoryObj, null)}
                       alt={currentCategoryObj.nombre}
                       fill
                       priority

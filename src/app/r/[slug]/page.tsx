@@ -36,6 +36,7 @@ import { Logo } from '@/components/ui/Logo';
 import { ProductCustomizerModal } from '@/components/menu/ProductCustomizerModal';
 import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
+import { getCategoryHeroImage } from '@/lib/category-images';
 
 export default function TenantLandingPage() {
   const params = useParams();
@@ -595,28 +596,36 @@ function DynamicClientLanding({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {categories.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/r/${slug}/menu/${cat.slug}`}
-                  className="bg-[#121212] border border-[#222] hover:border-white/30 rounded-3xl p-5 space-y-3 transition-all group block cursor-pointer"
-                >
-                  <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-[#202020]">
-                    <Image
-                      src={cat.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=600&auto=format&fit=crop'}
-                      alt={cat.nombre}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                  <h3 className="text-base font-black uppercase text-white font-display group-hover:text-tenant-primary transition-colors">
-                    {cat.nombre}
-                  </h3>
-                  <p className="text-xs text-gray-400 line-clamp-2">
-                    {cat.descripcion || 'Platos preparados artesanalmente con los mejores ingredientes.'}
-                  </p>
-                </Link>
-              ))}
+              {categories.map((cat) => {
+                const catImg = (cat.imagen && !cat.imagen.includes('unsplash.com'))
+                  ? cat.imagen
+                  : getCategoryHeroImage(cat, null);
+                const is3D = catImg.includes('-3d.png') || catImg.includes('burger-hero-transparent.png');
+
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/r/${slug}/menu/${cat.slug}`}
+                    className="bg-[#121212] border border-[#222] hover:border-white/30 rounded-3xl p-5 space-y-3 transition-all group block cursor-pointer shadow-lg hover:shadow-2xl"
+                  >
+                    <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-gradient-to-b from-[#181818] to-[#0d0d0d] flex items-center justify-center p-2">
+                      <Image
+                        src={catImg}
+                        alt={cat.nombre}
+                        fill
+                        className={`${is3D ? 'object-contain p-2 group-hover:scale-110 drop-shadow-[0_12px_20px_rgba(0,0,0,0.8)]' : 'object-cover group-hover:scale-105'} transition-transform duration-500`}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                      />
+                    </div>
+                    <h3 className="text-base font-black uppercase text-white font-display group-hover:text-tenant-primary transition-colors">
+                      {cat.nombre}
+                    </h3>
+                    <p className="text-xs text-gray-400 line-clamp-2">
+                      {cat.descripcion || 'Platos preparados artesanalmente con los mejores ingredientes.'}
+                    </p>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>

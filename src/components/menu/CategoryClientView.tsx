@@ -10,6 +10,7 @@ import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { ChevronDown, Search, ArrowUpDown, Filter, Sparkles } from 'lucide-react';
 import { useTenant } from '@/context/TenantContext';
+import { getCategoryHeroImage } from '@/lib/category-images';
 
 interface CategoryClientViewProps {
   category: Category;
@@ -78,15 +79,21 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     return main || initialCategory;
   }, [activeMainSlug, activeSubSlug, initialCategory, categoriesList]);
 
-  // Featured hero image for the category banner (clean 3D transparent product asset)
-  const heroImageSrc = useMemo(() => {
-    return '/images/assets/burger-hero-transparent.png';
-  }, []);
-
   // Main category object
   const activeMainCategory = useMemo(() => {
     return categoriesList.find((c) => c.slug === activeMainSlug) || initialCategory;
   }, [activeMainSlug, initialCategory, categoriesList]);
+
+  // Active subcategory object if selected
+  const activeSubCategoryObj = useMemo(() => {
+    if (!activeSubSlug) return null;
+    return categoriesList.find((c) => c.slug === activeSubSlug) || null;
+  }, [activeSubSlug, categoriesList]);
+
+  // Featured hero image for the category banner (clean 3D transparent product asset)
+  const heroImageSrc = useMemo(() => {
+    return getCategoryHeroImage(activeMainCategory, activeSubCategoryObj);
+  }, [activeMainCategory, activeSubCategoryObj]);
 
   // Subcategories belonging to the active main category
   const availableSubcategories = useMemo(() => {
