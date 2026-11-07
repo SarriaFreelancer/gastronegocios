@@ -198,6 +198,8 @@ interface AdminUser {
   estado: string;
   branchId?: number | null;
   branch?: { id: number; nombre: string; slug: string } | null;
+  restaurantId?: number | null;
+  restaurant?: any;
   createdAt?: string;
 }
 
@@ -588,18 +590,35 @@ export default function AdminPage() {
         const userObj = JSON.parse(auth);
         setIsAuthenticated(true);
         setCurrentUser(userObj);
-        if (userObj.branchId) {
-          setSelectedBranchId(String(userObj.branchId));
-        }
 
-        // Check if a specific restaurant was selected from route /r/[slug]/admin or query param
-        if (typeof window !== 'undefined') {
+        // Si el usuario pertenece a un restaurante específico (no Superadmin global),
+        // su único restaurante autorizado es su restaurantId
+        if (userObj.rol !== 'Superadmin' && userObj.restaurantId) {
+          if (userObj.restaurant) {
+            setActiveRestaurant(userObj.restaurant);
+            localStorage.setItem('punto_g_active_restaurant', JSON.stringify(userObj.restaurant));
+          }
+          fetch(`/api/restaurants?id=${userObj.restaurantId}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+              if (data && data.id) {
+                setActiveRestaurant(data);
+                localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
+                if (data.branches && data.branches.length > 0) {
+                  setSelectedBranchId((prev) => {
+                    const hasBranch = data.branches.some((b: any) => String(b.id) === prev);
+                    return hasBranch ? prev : String(data.branches[0].id);
+                  });
+                }
+              }
+            })
+            .catch(console.error);
+        } else if (typeof window !== 'undefined') {
           if (routeSlug) {
             fetch(`/api/restaurants?slug=${routeSlug}`)
               .then((res) => (res.ok ? res.json() : null))
               .then((data) => {
                 if (data && data.id) {
-                  // Aislamiento Multi-Tenant: Validar que el usuario tenga acceso a este restaurante
                   if (userObj.rol !== 'Superadmin' && userObj.restaurantId && userObj.restaurantId !== data.id) {
                     showError('Acceso Denegado', 'No tienes permisos para administrar este restaurante.');
                     router.replace('/login');
@@ -607,6 +626,12 @@ export default function AdminPage() {
                   }
                   setActiveRestaurant(data);
                   localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
+                  if (data.branches && data.branches.length > 0) {
+                    setSelectedBranchId((prev) => {
+                      const hasBranch = data.branches.some((b: any) => String(b.id) === prev);
+                      return hasBranch ? prev : String(data.branches[0].id);
+                    });
+                  }
                 }
               })
               .catch(console.error);
@@ -614,8 +639,6 @@ export default function AdminPage() {
             const urlParams = new URLSearchParams(window.location.search);
             const qRestId = urlParams.get('restaurantId');
 
-            // Si el usuario es Superadmin y entra a la ruta plana "/admin" sin especificar restaurante,
-            // su consola principal es /superadmin. Redirigir para mantener el aislamiento del SaaS.
             const userRole = (userObj.rol || userObj.role || '').toLowerCase();
             if (userRole === 'superadmin' && !qRestId) {
               router.replace('/superadmin');
@@ -657,43 +680,61 @@ export default function AdminPage() {
       console.error(e);
       router.replace('/login');
     }
-  }, [router]);
+  }, [router, routeSlug]);
+
+  // Actualizar título de la pestaña del navegador con el nombre del restaurante
+  useEffect(() => {
+    if (activeRestaurant?.nombre) {
+      document.title = `${activeRestaurant.nombre} | Panel de Administración`;
+    }
+  }, [activeRestaurant?.nombre]);
 
   // Fetch initial data when authenticated or when active restaurant changes
   useEffect(() => {
     if (isAuthenticated) {
       loadAllData();
     }
-  }, [isAuthenticated, activeRestaurant]);
+  }, [isAuthenticated, activeRestaurant?.id]);
 
-  const loadAllData = async () => {
+  const loadAllData = async (restIdParam?: number | null) => {
     setIsLoading(true);
+    const targetRestId = restIdParam ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
     await Promise.all([
-      fetchBranches(),
-      fetchOrders(),
-      fetchTables(),
-      fetchCategories(),
-      fetchProducts(),
-      fetchReviews(),
-      fetchUsers(),
-      fetchConfig(),
+      fetchBranches(targetRestId),
+      fetchOrders(targetRestId),
+      fetchTables(targetRestId),
+      fetchCategories(targetRestId),
+      fetchProducts(targetRestId),
+      fetchReviews(targetRestId),
+      fetchUsers(targetRestId),
+      fetchConfig(targetRestId),
       fetchCurrentShift(),
       fetchShiftHistory(),
-      fetchAddons(),
+      fetchAddons(targetRestId),
     ]);
     setIsLoading(false);
   };
 
-  const fetchBranches = async () => {
+  const fetchBranches = async (restId?: number | null) => {
     try {
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
       let url = '/api/branches';
-      if (activeRestaurant?.id) {
-        url += `?restaurantId=${activeRestaurant.id}`;
+      if (rId) {
+        url += `?restaurantId=${rId}`;
       }
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setBranches(Array.isArray(data) ? data : []);
+        const branchList = Array.isArray(data) ? data : [];
+        setBranches(branchList);
+        setSelectedBranchId((prev) => {
+          if (prev === 'all') return 'all';
+          const exists = branchList.some((b: any) => String(b.id) === String(prev));
+          if (!exists) {
+            return branchList.length > 0 ? String(branchList[0].id) : 'all';
+          }
+          return prev;
+        });
       }
     } catch (e) {
       console.error(e);
@@ -732,9 +773,14 @@ export default function AdminPage() {
     }
   };
 
-  const fetchAddons = async () => {
+  const fetchAddons = async (restId?: number | null) => {
     try {
-      const res = await fetch('/api/addons');
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      let url = '/api/addons';
+      if (rId) {
+        url += `?restaurantId=${rId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setAddonsList(Array.isArray(data) ? data : []);
@@ -755,8 +801,9 @@ export default function AdminPage() {
   }, [selectedBranchId]);
 
   // ==================== API FETCHERS ====================
-  const fetchOrders = async () => {
+  const fetchOrders = async (restId?: number | null) => {
     try {
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
       const params = new URLSearchParams();
       if (filterDesde) params.append('desde', filterDesde);
       if (filterHasta) params.append('hasta', filterHasta);
@@ -768,8 +815,8 @@ export default function AdminPage() {
       if (selectedBranchId && selectedBranchId !== 'all') {
         params.append('branchId', selectedBranchId);
       }
-      if (activeRestaurant?.id) {
-        params.append('restaurantId', String(activeRestaurant.id));
+      if (rId) {
+        params.append('restaurantId', String(rId));
       }
 
       const res = await fetch(`/api/orders?${params.toString()}`);
@@ -783,49 +830,66 @@ export default function AdminPage() {
     }
   };
 
-  const fetchTables = async () => {
+  const fetchTables = async (restId?: number | null) => {
     try {
-      let url = '/api/tables';
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      const params = new URLSearchParams();
+      if (rId) params.append('restaurantId', String(rId));
       if (selectedBranchId && selectedBranchId !== 'all') {
-        url += `?branchId=${selectedBranchId}`;
+        params.append('branchId', selectedBranchId);
+      }
+      const res = await fetch(`/api/tables?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTables(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchCategories = async (restId?: number | null) => {
+    try {
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      let url = '/api/categories?all=true';
+      if (rId) {
+        url += `&restaurantId=${rId}`;
       }
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setTables(data || []);
+        setCategoryList(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const fetchCategories = async () => {
+  const fetchProducts = async (restId?: number | null) => {
     try {
-      const res = await fetch('/api/categories?all=true');
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      let url = '/api/products';
+      if (rId) {
+        url += `?restaurantId=${rId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setCategoryList(data || []);
+        setProductList(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchReviews = async (restId?: number | null) => {
     try {
-      const res = await fetch('/api/products');
-      if (res.ok) {
-        const data = await res.json();
-        setProductList(data || []);
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      let url = '/api/reviews';
+      if (rId) {
+        url += `?restaurantId=${rId}`;
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchReviews = async () => {
-    try {
-      const res = await fetch('/api/reviews');
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setReviews(data.reviews || []);
@@ -835,21 +899,31 @@ export default function AdminPage() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (restId?: number | null) => {
     try {
-      const res = await fetch('/api/users');
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      let url = '/api/users';
+      if (rId) {
+        url += `?restaurantId=${rId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setUserList(data || []);
+        setUserList(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const fetchConfig = async () => {
+  const fetchConfig = async (restId?: number | null) => {
     try {
-      const res = await fetch('/api/config');
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      let url = '/api/config';
+      if (rId) {
+        url += `?restaurantId=${rId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data) {
@@ -1110,10 +1184,15 @@ export default function AdminPage() {
   const handleSaveTable = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
       const res = await fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tableFormData),
+        body: JSON.stringify({
+          ...tableFormData,
+          restaurantId: targetRestId,
+          branchId: selectedBranchId && selectedBranchId !== 'all' ? Number(selectedBranchId) : (branches[0]?.id || null),
+        }),
       });
       if (res.ok) {
         setIsTableModalOpen(false);
@@ -1159,9 +1238,11 @@ export default function AdminPage() {
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
       const payload = {
         ...catFormData,
         parentId: catFormData.parentId ? Number(catFormData.parentId) : null,
+        restaurantId: targetRestId,
       };
 
       let res: Response;
@@ -1300,10 +1381,12 @@ export default function AdminPage() {
       return;
     }
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
       const payload = {
         ...subcatFormData,
         parentId: Number(subcatFormData.parentId),
         orden: Number(subcatFormData.orden) || 0,
+        restaurantId: targetRestId,
       };
 
       let res: Response;
@@ -1398,6 +1481,7 @@ export default function AdminPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
       const payload = {
         ...productFormData,
         precio: Number(productFormData.precio),
@@ -1405,6 +1489,7 @@ export default function AdminPage() {
         stock: productFormData.controlarStock && productFormData.stock !== '' ? Number(productFormData.stock) : null,
         stockMinimo: productFormData.controlarStock && productFormData.stockMinimo !== '' ? Number(productFormData.stockMinimo) : 5,
         controlarStock: Boolean(productFormData.controlarStock),
+        restaurantId: targetRestId,
       };
 
       let res: Response;
@@ -1538,18 +1623,19 @@ export default function AdminPage() {
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || null;
       let res: Response;
       if (editingUser) {
         res = await fetch(`/api/users/${editingUser.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userFormData),
+          body: JSON.stringify({ ...userFormData, restaurantId: targetRestId }),
         });
       } else {
         res = await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userFormData),
+          body: JSON.stringify({ ...userFormData, restaurantId: targetRestId }),
         });
       }
       if (!res.ok) {
@@ -1615,18 +1701,19 @@ export default function AdminPage() {
   const handleSaveBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || null;
       let res: Response;
       if (editingBranch) {
         res = await fetch('/api/branches', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: editingBranch.id, ...branchFormData }),
+          body: JSON.stringify({ id: editingBranch.id, ...branchFormData, restaurantId: targetRestId }),
         });
       } else {
         res = await fetch('/api/branches', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(branchFormData),
+          body: JSON.stringify({ ...branchFormData, restaurantId: targetRestId }),
         });
       }
       if (!res.ok) {
@@ -1848,6 +1935,7 @@ export default function AdminPage() {
   const handleSaveAddon = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
       let res: Response;
       if (editingAddon) {
         res = await fetch('/api/addons', {
@@ -1859,6 +1947,7 @@ export default function AdminPage() {
             precio: Number(addonFormData.precio) || 0,
             categoria: addonFormData.categoria,
             activo: addonFormData.activo,
+            restaurantId: targetRestId,
           }),
         });
       } else {
@@ -1869,6 +1958,7 @@ export default function AdminPage() {
             nombre: addonFormData.nombre,
             precio: Number(addonFormData.precio) || 0,
             categoria: addonFormData.categoria,
+            restaurantId: targetRestId,
           }),
         });
       }
@@ -1952,7 +2042,7 @@ export default function AdminPage() {
               ACCESO ADMINISTRATIVO PROTEGIDO
             </h2>
             <p className="text-xs text-gray-400">
-              Debes iniciar sesión con tus credenciales de Punto G para acceder a este panel. Redirigiendo a la ruta de inicio de sesión...
+              Debes iniciar sesión con tus credenciales autorizadas para acceder a este panel. Redirigiendo a la ruta de inicio de sesión...
             </p>
           </div>
 
@@ -1989,11 +2079,11 @@ export default function AdminPage() {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-brand-whatsapp animate-ping" />
               <span className="text-[11px] font-bold text-brand-yellow uppercase tracking-wider">
-                Sistema Operativo Punto G (MySQL Conectado)
+                Sistema Operativo {activeRestaurant?.nombre || 'Restaurante'} (MySQL Conectado)
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black uppercase text-white font-display">
-              ADMINISTRACIÓN DEL RESTAURANTE
+              ADMINISTRACIÓN • {activeRestaurant?.nombre ? activeRestaurant.nombre.toUpperCase() : 'RESTAURANTE'}
             </h1>
           </div>
 
@@ -2029,7 +2119,7 @@ export default function AdminPage() {
                 <span className="text-[9px] uppercase tracking-wider text-gray-400 font-bold leading-none">
                   Sede Activa:
                 </span>
-                {currentUser?.rol === 'Superadmin' || !currentUser?.branchId ? (
+                {currentUser?.rol === 'Superadmin' || currentUser?.rol === 'Administrador' || !currentUser?.branchId ? (
                   <select
                     value={selectedBranchId}
                     onChange={(e) => setSelectedBranchId(e.target.value)}
@@ -2096,7 +2186,7 @@ export default function AdminPage() {
                   {currentUser?.nombre || 'Administrador'}
                 </p>
                 <span className="text-[10px] text-brand-yellow font-medium">
-                  {currentUser?.rol || 'Administrador'}
+                  {currentUser?.rol || 'Administrador'} {activeRestaurant?.nombre ? `• ${activeRestaurant.nombre}` : ''}
                 </span>
               </div>
             </div>
@@ -2139,7 +2229,7 @@ export default function AdminPage() {
           const isMesero = currentUser?.rol === 'Mesero';
           const allTabs = [
             { id: 'pedidos', label: 'Pedidos & Comandas', icon: ShoppingBag, count: orders.length },
-            { id: 'facturas', label: 'Facturas & Cuentas Divididas', icon: Receipt, badge: 'N Facturas' },
+            { id: 'facturas', label: 'Facturación', icon: Receipt, badge: 'POS' },
             { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF' },
             { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
             { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length },

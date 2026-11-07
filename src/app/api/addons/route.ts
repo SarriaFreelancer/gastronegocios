@@ -24,26 +24,15 @@ export async function GET(req: Request) {
       }
     }
 
-    // Si se especifica un restaurante, intentamos buscar primero sus adicionales
+    // Si se especifica un restaurante, retornamos estrictamente sus adicionales
     if (targetRestaurantId) {
-      let addons = await prisma.productAddon.findMany({
+      const addons = await prisma.productAddon.findMany({
         where: {
           restaurantId: targetRestaurantId,
           ...(soloActivos ? { activo: true } : {}),
         },
         orderBy: [{ categoria: 'asc' }, { precio: 'asc' }],
       });
-
-      // Si el restaurante aún no tiene adicionales propios configurados, traer los globales / por defecto (restaurantId: 1 o null)
-      if (addons.length === 0) {
-        addons = await prisma.productAddon.findMany({
-          where: {
-            OR: [{ restaurantId: 1 }, { restaurantId: null }],
-            ...(soloActivos ? { activo: true } : {}),
-          },
-          orderBy: [{ categoria: 'asc' }, { precio: 'asc' }],
-        });
-      }
 
       return NextResponse.json(addons);
     }

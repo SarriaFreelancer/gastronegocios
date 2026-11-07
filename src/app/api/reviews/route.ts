@@ -7,9 +7,16 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const soloPublicados = searchParams.get('publicados') === 'true';
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
 
     const where: any = {};
     if (soloPublicados) where.publicado = true;
+    if (restaurantId && restaurantId !== 'all') {
+      where.restaurantId = Number(restaurantId);
+    } else if (restaurantSlug) {
+      where.restaurant = { slug: restaurantSlug };
+    }
 
     const reviews = await prisma.review.findMany({
       where,

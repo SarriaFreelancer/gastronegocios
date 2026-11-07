@@ -1,8 +1,58 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const restaurantId = searchParams.get('restaurantId');
+    const restaurantSlug = searchParams.get('restaurantSlug');
+
+    if (restaurantId && restaurantId !== 'all') {
+      const rest = await prisma.restaurant.findUnique({
+        where: { id: Number(restaurantId) },
+      });
+      if (rest) {
+        return NextResponse.json({
+          id: rest.id,
+          restaurantId: rest.id,
+          nombre: rest.nombre,
+          eslogan: rest.eslogan || '',
+          telefonoWhatsapp: rest.telefonoWhatsapp || '',
+          mensajeWhatsappDefault: rest.mensajeWhatsappDefault || '¡Hola! Quiero hacer un pedido por la web.',
+          email: rest.email || '',
+          correoRemitente: rest.correoRemitente || '',
+          correoDestinatario: rest.correoDestinatario || '',
+          direccion: rest.direccionCentral || '',
+          horario: rest.horarioAtencion || '',
+          costoDomicilioBase: rest.costoDomicilioBase || 5000,
+          propinaSugeridaPct: rest.propinaSugeridaPct || 10,
+        });
+      }
+    } else if (restaurantSlug) {
+      const rest = await prisma.restaurant.findUnique({
+        where: { slug: restaurantSlug },
+      });
+      if (rest) {
+        return NextResponse.json({
+          id: rest.id,
+          restaurantId: rest.id,
+          nombre: rest.nombre,
+          eslogan: rest.eslogan || '',
+          telefonoWhatsapp: rest.telefonoWhatsapp || '',
+          mensajeWhatsappDefault: rest.mensajeWhatsappDefault || '¡Hola! Quiero hacer un pedido por la web.',
+          email: rest.email || '',
+          correoRemitente: rest.correoRemitente || '',
+          correoDestinatario: rest.correoDestinatario || '',
+          direccion: rest.direccionCentral || '',
+          horario: rest.horarioAtencion || '',
+          costoDomicilioBase: rest.costoDomicilioBase || 5000,
+          propinaSugeridaPct: rest.propinaSugeridaPct || 10,
+        });
+      }
+    }
+
     let config = await prisma.restaurantConfig.findFirst();
     if (!config) {
       config = await prisma.restaurantConfig.create({
@@ -30,6 +80,28 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
+
+    if (body.restaurantId && body.restaurantId !== 'all') {
+      const targetId = Number(body.restaurantId);
+      const updatedRest = await prisma.restaurant.update({
+        where: { id: targetId },
+        data: {
+          ...(body.nombre !== undefined ? { nombre: body.nombre } : {}),
+          ...(body.eslogan !== undefined ? { eslogan: body.eslogan } : {}),
+          ...(body.telefonoWhatsapp !== undefined ? { telefonoWhatsapp: body.telefonoWhatsapp } : {}),
+          ...(body.mensajeWhatsappDefault !== undefined ? { mensajeWhatsappDefault: body.mensajeWhatsappDefault } : {}),
+          ...(body.email !== undefined ? { email: body.email } : {}),
+          ...(body.correoRemitente !== undefined ? { correoRemitente: body.correoRemitente } : {}),
+          ...(body.correoDestinatario !== undefined ? { correoDestinatario: body.correoDestinatario } : {}),
+          ...(body.direccion !== undefined ? { direccionCentral: body.direccion } : {}),
+          ...(body.horario !== undefined ? { horarioAtencion: body.horario } : {}),
+          ...(body.costoDomicilioBase !== undefined ? { costoDomicilioBase: Number(body.costoDomicilioBase) } : {}),
+          ...(body.propinaSugeridaPct !== undefined ? { propinaSugeridaPct: Number(body.propinaSugeridaPct) } : {}),
+        },
+      });
+      return NextResponse.json(updatedRest);
+    }
+
     let config = await prisma.restaurantConfig.findFirst();
 
     if (!config) {

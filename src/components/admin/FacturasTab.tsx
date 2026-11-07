@@ -191,7 +191,7 @@ export function FacturasTab({
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-black uppercase text-white font-display tracking-wide flex items-center gap-2">
-              <span>Módulo de Facturación & Cuentas Divididas</span>
+              <span>Módulo de Facturación</span>
               <span className="text-[10px] bg-brand-yellow text-black font-black px-2 py-0.5 rounded-md">
                 POS
               </span>

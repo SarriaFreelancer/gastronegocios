@@ -18,8 +18,11 @@ export const Header: React.FC = () => {
   if (
     pathname === '/' ||
     pathname.startsWith('/admin') ||
+    pathname.includes('/admin') ||
     pathname.startsWith('/superadmin') ||
+    pathname.includes('/superadmin') ||
     pathname.startsWith('/login') ||
+    pathname.includes('/login') ||
     pathname.includes('/cocina') ||
     pathname.includes('/mesero') ||
     pathname.includes('/entregas') ||
@@ -57,7 +60,7 @@ export const Header: React.FC = () => {
           
           {/* Logo matching reference */}
           <div className="flex-shrink-0">
-            <Logo size="md" href={tenantSlug ? `/r/${tenantSlug}` : '/'} />
+            <Logo size="md" href={tenantSlug ? `/r/${tenantSlug}` : '/'} restaurant={tenant} />
           </div>
 
           {/* Desktop Navigation Links */}
