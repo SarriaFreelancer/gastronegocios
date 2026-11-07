@@ -230,33 +230,19 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               </p>
             </div>
 
-            {/* Right Hero Food Image */}
+            {/* Right Hero Food Image without box or border */}
             <div className="md:col-span-5 flex justify-center md:justify-end">
-              {isTransparentPng ? (
-                <div className="relative w-full max-w-[360px] h-[220px] sm:h-[260px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                  <Image
-                    key={heroImageSrc}
-                    src={heroImageSrc}
-                    alt={currentDisplayCategory.nombre}
-                    fill
-                    priority
-                    className="object-contain hover:scale-105 transition-transform duration-500"
-                    sizes="(max-width: 768px) 280px, 360px"
-                  />
-                </div>
-              ) : (
-                <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)] overflow-hidden rounded-2xl border border-[#262626]">
-                  <Image
-                    key={heroImageSrc}
-                    src={heroImageSrc}
-                    alt={currentDisplayCategory.nombre}
-                    fill
-                    priority
-                    className="object-cover rounded-2xl transition-all duration-500 hover:scale-105"
-                    sizes="(max-width: 768px) 280px, 340px"
-                  />
-                </div>
-              )}
+              <div className="relative w-full max-w-[360px] h-[220px] sm:h-[260px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)] flex items-center justify-center">
+                <Image
+                  key={heroImageSrc}
+                  src={heroImageSrc}
+                  alt={currentDisplayCategory.nombre}
+                  fill
+                  priority
+                  className="object-contain hover:scale-105 transition-transform duration-500"
+                  sizes="(max-width: 768px) 280px, 360px"
+                />
+              </div>
             </div>
 
           </div>

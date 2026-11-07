@@ -77,10 +77,13 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Hero Image (Crisp, ultra-clear gourmet burger & fries) */}
+          {/* Right Hero Image: Gourmet Burger floating naturally without any box or frame */}
           <div className="lg:col-span-6 relative flex justify-center items-center">
-            {/* "Sabor Real" callout script above fries */}
-            <div className="absolute -top-4 right-4 sm:right-10 z-20 text-right select-none pointer-events-none">
+            {/* Ambient warm glow directly behind the burger */}
+            <div className="absolute w-72 sm:w-96 md:w-[440px] h-72 sm:h-96 md:h-[440px] rounded-full bg-brand-yellow/20 blur-[110px] pointer-events-none" />
+
+            {/* "Sabor Real" callout script above burger */}
+            <div className="absolute -top-6 right-4 sm:right-10 z-20 text-right select-none pointer-events-none">
               <span className="font-script text-3xl sm:text-5xl text-white italic drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)] leading-none block">
                 Sabor
               </span>
@@ -90,18 +93,16 @@ export const HeroSection: React.FC = () => {
               <Sparkles className="w-5 h-5 text-brand-yellow animate-spin-slow ml-auto mt-1" />
             </div>
 
-            {/* Clear, High-Resolution Gastronomic Burger Composition */}
-            <div className="relative w-full max-w-[540px] aspect-square rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95)] border border-[#222]">
+            {/* Clean Burger silhouette without border, box, or frame */}
+            <div className="relative w-full max-w-[520px] h-[360px] sm:h-[460px] md:h-[500px] flex items-center justify-center">
               <Image
-                src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"
+                src="/images/assets/hero-burger.png"
                 alt="Hamburguesa Artesanal Punto G"
                 fill
                 priority
-                className="object-cover transform hover:scale-105 transition-transform duration-700"
-                sizes="(max-width: 1024px) 100vw, 540px"
+                className="object-contain filter drop-shadow-[0_25px_35px_rgba(0,0,0,0.95)] transform hover:scale-105 transition-transform duration-700 select-none"
+                sizes="(max-width: 1024px) 100vw, 520px"
               />
-              {/* Subtle dark vignette around edges */}
-              <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-black/60 pointer-events-none" />
             </div>
           </div>
 

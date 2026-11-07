@@ -69,6 +69,7 @@ function DynamicClientLanding({
   slug: string;
   searchParams: any;
 }) {
+  const isPuntoG = slug === 'punto-g' || slug === 'puntog';
   const { addToCart, setIsCartOpen } = useCart();
   const { restaurant, loading: tenantLoading } = useTenant();
 
@@ -202,7 +203,12 @@ function DynamicClientLanding({
   const heroSubtitle = restaurant.subtituloHero || restaurant.eslogan || 'TU MÁXIMO PLACER';
   const heroDesc = restaurant.descripcionHero || restaurant.descripcion || 'Sabores excepcionales preparados al momento con ingredientes frescos.';
   const heroBtnText = restaurant.textoBotonHero || 'VER MENÚ COMPLETO';
-  const heroImage = restaurant.bannerHero || restaurant.imagenHero || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200&auto=format&fit=crop';
+  const heroImage =
+    restaurant.bannerHero ||
+    restaurant.imagenHero ||
+    (isPuntoG
+      ? '/images/assets/hero-burger.png'
+      : 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200&auto=format&fit=crop');
 
   // If the restaurant has no products and no categories yet, show a polite branded welcome page
   const isBrandNew = categories.length === 0 && products.length === 0;
@@ -428,23 +434,21 @@ function DynamicClientLanding({
                 </div>
               </div>
 
-              {/* Hero Image */}
+              {/* Hero Image: Seamless food silhouette without box, border or frame */}
               <div className="lg:col-span-6 relative flex items-center justify-center">
-                <div className={`relative w-72 sm:w-96 md:w-[440px] lg:w-[480px] aspect-square ${
-                  plantilla === 'plantilla-minimalista' ? 'rounded-2xl' : 'rounded-3xl'
-                }`}>
-                  <div
-                    className="absolute inset-4 rounded-full filter blur-3xl opacity-35"
-                    style={{ backgroundColor: primary }}
-                  />
+                <div
+                  className="absolute w-72 sm:w-96 md:w-[420px] h-72 sm:h-96 md:h-[420px] rounded-full blur-[100px] opacity-30 pointer-events-none"
+                  style={{ backgroundColor: primary }}
+                />
+
+                <div className="relative w-full max-w-[500px] h-[340px] sm:h-[440px] md:h-[480px] flex items-center justify-center z-10">
                   <Image
                     src={heroImage}
                     alt={restaurant.nombre}
                     fill
-                    className={`object-cover shadow-2xl relative z-10 border border-white/10 ${
-                      plantilla === 'plantilla-minimalista' ? 'rounded-2xl' : 'rounded-3xl'
-                    }`}
+                    className="object-contain filter drop-shadow-[0_25px_40px_rgba(0,0,0,0.95)] transform hover:scale-105 transition-transform duration-700"
                     priority
+                    sizes="(max-width: 1024px) 100vw, 500px"
                   />
                 </div>
               </div>
