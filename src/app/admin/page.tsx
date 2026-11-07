@@ -220,8 +220,8 @@ export default function AdminPage() {
   const routeSlug = (params?.slug as string) || null;
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loginEmail, setLoginEmail] = useState('admin@puntog.com');
-  const [loginPassword, setLoginPassword] = useState('admin123');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
@@ -482,15 +482,15 @@ export default function AdminPage() {
 
   // ==================== 7. CONFIGURACIÓN STATE ====================
   const [config, setConfig] = useState({
-    nombre: 'PUNTO G',
-    eslogan: 'ANTOJOS QUE CONECTAN',
-    telefonoWhatsapp: '3229088736',
-    mensajeWhatsappDefault: '¡Hola! Quiero hacer un pedido por la web.',
-    email: 'contacto@puntog.com',
-    correoRemitente: 'pedidos@puntog.com',
-    correoDestinatario: 'novedades@puntog.com',
-    direccion: 'Calle 9 # 45-12, Barrio Granada, Cali',
-    horario: 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
+    nombre: '',
+    eslogan: '',
+    telefonoWhatsapp: '',
+    mensajeWhatsappDefault: '',
+    email: '',
+    correoRemitente: '',
+    correoDestinatario: '',
+    direccion: '',
+    horario: '',
     costoDomicilioBase: 5000,
     propinaSugeridaPct: 10,
   });
@@ -586,96 +586,81 @@ export default function AdminPage() {
   useEffect(() => {
     try {
       const auth = localStorage.getItem(LOCAL_STORAGE_AUTH);
-      if (auth) {
-        const userObj = JSON.parse(auth);
-        setIsAuthenticated(true);
-        setCurrentUser(userObj);
+      if (!auth) {
+        router.replace('/login');
+        return;
+      }
 
-        // Si el usuario pertenece a un restaurante específico (no Superadmin global),
-        // su único restaurante autorizado es su restaurantId
-        if (userObj.rol !== 'Superadmin' && userObj.restaurantId) {
-          if (userObj.restaurant) {
-            setActiveRestaurant(userObj.restaurant);
-            localStorage.setItem('punto_g_active_restaurant', JSON.stringify(userObj.restaurant));
+      const userObj = JSON.parse(auth);
+      setIsAuthenticated(true);
+      setCurrentUser(userObj);
+
+      // Si el usuario accede a /admin sin slug, redirigir inmediatamente a su panel aislado
+      if (!routeSlug) {
+        if (userObj.rol === 'Superadmin') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const qRestId = urlParams.get('restaurantId');
+          if (qRestId) {
+            fetch(`/api/restaurants?id=${qRestId}`)
+              .then((res) => (res.ok ? res.json() : null))
+              .then((data) => {
+                if (data?.slug) router.replace(`/r/${data.slug}/admin`);
+                else router.replace('/superadmin');
+              })
+              .catch(() => router.replace('/superadmin'));
+            return;
           }
+          router.replace('/superadmin');
+          return;
+        }
+
+        if (userObj.restaurant?.slug) {
+          router.replace(`/r/${userObj.restaurant.slug}/admin`);
+          return;
+        }
+
+        if (userObj.restaurantId) {
           fetch(`/api/restaurants?id=${userObj.restaurantId}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
-              if (data && data.id) {
-                setActiveRestaurant(data);
-                localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
-                if (data.branches && data.branches.length > 0) {
-                  setSelectedBranchId((prev) => {
-                    const hasBranch = data.branches.some((b: any) => String(b.id) === prev);
-                    return hasBranch ? prev : String(data.branches[0].id);
-                  });
-                }
-              }
+              if (data?.slug) router.replace(`/r/${data.slug}/admin`);
+              else router.replace('/login');
             })
-            .catch(console.error);
-        } else if (typeof window !== 'undefined') {
-          if (routeSlug) {
-            fetch(`/api/restaurants?slug=${routeSlug}`)
-              .then((res) => (res.ok ? res.json() : null))
-              .then((data) => {
-                if (data && data.id) {
-                  if (userObj.rol !== 'Superadmin' && userObj.restaurantId && userObj.restaurantId !== data.id) {
-                    showError('Acceso Denegado', 'No tienes permisos para administrar este restaurante.');
-                    router.replace('/login');
-                    return;
-                  }
-                  setActiveRestaurant(data);
-                  localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
-                  if (data.branches && data.branches.length > 0) {
-                    setSelectedBranchId((prev) => {
-                      const hasBranch = data.branches.some((b: any) => String(b.id) === prev);
-                      return hasBranch ? prev : String(data.branches[0].id);
-                    });
-                  }
-                }
-              })
-              .catch(console.error);
-          } else {
-            const urlParams = new URLSearchParams(window.location.search);
-            const qRestId = urlParams.get('restaurantId');
+            .catch(() => router.replace('/login'));
+          return;
+        }
 
-            const userRole = (userObj.rol || userObj.role || '').toLowerCase();
-            if (userRole === 'superadmin' && !qRestId) {
-              router.replace('/superadmin');
+        router.replace('/login');
+        return;
+      }
+
+      // Estamos en la ruta aislada /r/[slug]/admin: verificar permisos para este slug
+      fetch(`/api/restaurants?slug=${routeSlug}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.id) {
+            if (userObj.rol !== 'Superadmin' && userObj.restaurantId && userObj.restaurantId !== data.id) {
+              showError('Acceso Denegado', 'No tienes permisos para administrar este restaurante.');
+              router.replace('/login');
               return;
             }
-
-            const storedRest = localStorage.getItem('punto_g_active_restaurant');
-            if (qRestId) {
-              if (storedRest) {
-                try {
-                  const parsed = JSON.parse(storedRest);
-                  if (String(parsed.id) === String(qRestId)) {
-                    setActiveRestaurant(parsed);
-                  } else {
-                    setActiveRestaurant({ id: Number(qRestId), nombre: `Restaurante #${qRestId}`, slug: `r-${qRestId}` });
-                  }
-                } catch {
-                  setActiveRestaurant({ id: Number(qRestId), nombre: `Restaurante #${qRestId}`, slug: `r-${qRestId}` });
-                }
-              } else {
-                setActiveRestaurant({ id: Number(qRestId), nombre: `Restaurante #${qRestId}`, slug: `r-${qRestId}` });
-              }
-            } else if (userObj.restaurant) {
-              setActiveRestaurant(userObj.restaurant);
-              localStorage.setItem('punto_g_active_restaurant', JSON.stringify(userObj.restaurant));
-            } else if (storedRest && (userObj.rol === 'Superadmin' || userObj.rol === 'admin')) {
-              try {
-                setActiveRestaurant(JSON.parse(storedRest));
-              } catch (e) {
-                console.error(e);
-              }
+            setActiveRestaurant(data);
+            localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
+            if (data.branches && data.branches.length > 0) {
+              setSelectedBranchId((prev) => {
+                const hasBranch = data.branches.some((b: any) => String(b.id) === prev);
+                return hasBranch ? prev : String(data.branches[0].id);
+              });
             }
+          } else {
+            showError('Restaurante no encontrado', 'El restaurante especificado no existe o no está activo.');
+            router.replace('/login');
           }
-        }
-      } else {
-        router.replace('/login');
-      }
+        })
+        .catch((err) => {
+          console.error(err);
+          router.replace('/login');
+        });
     } catch (e) {
       console.error(e);
       router.replace('/login');
@@ -686,8 +671,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeRestaurant?.nombre) {
       document.title = `${activeRestaurant.nombre} | Panel de Administración`;
+    } else if (routeSlug) {
+      document.title = `${routeSlug.toUpperCase()} | Panel de Administración`;
+    } else {
+      document.title = 'GastroNegocios | Panel de Administración';
     }
-  }, [activeRestaurant?.nombre]);
+  }, [activeRestaurant?.nombre, routeSlug]);
 
   // Fetch initial data when authenticated or when active restaurant changes
   useEffect(() => {
@@ -2063,6 +2052,20 @@ export default function AdminPage() {
               <span>Regresar al Sitio Principal</span>
             </Link>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== REDIRECT IF ACCESSED VIA /admin WITHOUT SLUG ====================
+  if (!routeSlug) {
+    return (
+      <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+            Redirigiendo a tu panel de administración...
+          </span>
         </div>
       </div>
     );
