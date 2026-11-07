@@ -22,8 +22,10 @@ export const metadata: Metadata = {
     'Pedidos WhatsApp restaurante'
   ],
   authors: [{ name: 'GastroNegocios' }],
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
+    apple: '/favicon.ico',
   },
 };
 

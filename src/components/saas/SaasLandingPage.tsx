@@ -169,20 +169,18 @@ export function SaasLandingPage() {
 
           <div className="flex items-center gap-3">
             <Link
+              href="/registro"
+              className="px-4 py-2 bg-gradient-to-r from-amber-400 via-brand-yellow to-yellow-500 hover:brightness-110 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition hover:scale-105 active:scale-95 flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Crear Restaurante</span>
+            </Link>
+            <Link
               href="/login"
-              className="px-4 py-2 text-xs font-black uppercase tracking-wider text-gray-300 hover:text-white bg-[#161616] hover:bg-[#222] border border-[#2b2b2b] rounded-xl transition"
+              className="hidden sm:inline-block px-4 py-2 text-xs font-black uppercase tracking-wider text-gray-300 hover:text-white bg-[#161616] hover:bg-[#222] border border-[#2b2b2b] rounded-xl transition"
             >
               Ingreso Clientes
             </Link>
-            <a
-              href={whatsappSalesUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-400 via-brand-yellow to-yellow-500 hover:brightness-110 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition hover:scale-105 active:scale-95"
-            >
-              <MessageCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Hablar con Asesor</span>
-            </a>
           </div>
         </div>
       </header>
@@ -225,21 +223,19 @@ export function SaasLandingPage() {
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <a
-                  href="#demos"
+                <Link
+                  href="/registro"
                   className="w-full sm:w-auto py-4 px-8 rounded-2xl bg-gradient-to-r from-amber-400 via-brand-yellow to-yellow-500 hover:brightness-110 text-black font-black text-sm uppercase tracking-wider transition shadow-glow flex items-center justify-center gap-2 hover:scale-105 active:scale-95"
                 >
-                  <span>Probar Demos en Vivo</span>
-                  <ArrowRight className="w-4 h-4 stroke-[3]" />
-                </a>
+                  <Sparkles className="w-4 h-4 stroke-[3]" />
+                  <span>Crear Restaurante Gratis</span>
+                </Link>
                 <a
-                  href={whatsappSalesUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="#demos"
                   className="w-full sm:w-auto py-4 px-8 rounded-2xl bg-[#141414] hover:bg-[#1e1e1e] text-white font-black text-sm uppercase tracking-wider border border-[#2d2d2d] transition flex items-center justify-center gap-2"
                 >
-                  <MessageCircle className="w-4 h-4 text-emerald-400" />
-                  <span>Solicitar Demo Guiada</span>
+                  <ArrowRight className="w-4 h-4 text-brand-yellow" />
+                  <span>Ver Demos en Vivo</span>
                 </a>
               </div>
 

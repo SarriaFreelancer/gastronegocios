@@ -23,10 +23,12 @@ import {
   Printer,
   MessageCircle,
   Send,
-  Building2
+  Building2,
+  Bell
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { showError } from '@/lib/swal';
+import { requestNotificationPermission, sendBrowserNotification } from '@/lib/pwa-notifications';
 
 interface Branch {
   id: number;
@@ -267,11 +269,15 @@ export default function CocinaKDSPage() {
       const data = await res.json();
       const fetched: Order[] = data.orders || [];
 
-      // Check if new orders arrived to ring the kitchen bell
+      // Check if new orders arrived to ring the kitchen bell & trigger browser notification
       if (prevOrderCountRef.current > 0 && fetched.length > prevOrderCountRef.current) {
         if (soundEnabled) {
           playKitchenChime();
         }
+        sendBrowserNotification('👨‍🍳 ¡Nuevo Pedido en Cocina!', {
+          body: `Llegó un nuevo pedido. Hay ${fetched.length} pedidos en cola.`,
+          tag: 'kds-new-order',
+        });
       }
       prevOrderCountRef.current = fetched.length;
       setOrders(fetched);
@@ -435,6 +441,22 @@ export default function CocinaKDSPage() {
                 title={soundEnabled ? 'Silenciar campana' : 'Activar sonido'}
               >
                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
+
+              <button
+                onClick={async () => {
+                  enableSound();
+                  const granted = await requestNotificationPermission();
+                  if (granted) {
+                    sendBrowserNotification('✅ Notificaciones Activadas', {
+                      body: 'Recibirás avisos sonoros y en pantalla cuando lleguen nuevos pedidos a cocina.',
+                    });
+                  }
+                }}
+                className="p-2 rounded-xl bg-[#181818] border border-[#2b2b2b] text-gray-400 hover:text-emerald-400 transition"
+                title="Activar Notificaciones Push de Escritorio"
+              >
+                <Bell className="w-4 h-4" />
               </button>
 
               <button

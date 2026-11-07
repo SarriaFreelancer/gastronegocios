@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
+import { sendBrowserNotification, requestNotificationPermission } from '@/lib/pwa-notifications';
 
 // Audio sintetizado con Web Audio API para alertas de mesero
 function playAlertSound(type: 'call' | 'bill') {
@@ -275,8 +276,19 @@ export default function MeseroPage() {
             if (!prevAlertsRef.current.bills.has(id)) hasNewBill = true;
           });
 
-          if (hasNewCall) playAlertSound('call');
-          else if (hasNewBill) playAlertSound('bill');
+          if (hasNewCall) {
+            playAlertSound('call');
+            sendBrowserNotification('🛎️ ¡Llamado de Mesa!', {
+              body: 'Una mesa está solicitando atención del mesero.',
+              tag: 'mesero-call',
+            });
+          } else if (hasNewBill) {
+            playAlertSound('bill');
+            sendBrowserNotification('🧾 ¡Cuenta Solicitada!', {
+              body: 'Una mesa ha pedido la cuenta.',
+              tag: 'mesero-bill',
+            });
+          }
 
           prevAlertsRef.current = { calls: newCalls, bills: newBills };
         }
@@ -1033,6 +1045,23 @@ export default function MeseroPage() {
             title={soundEnabled ? 'Alertas sonoras activadas' : 'Alertas sonoras silenciadas'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
+          {/* Botón Notificaciones Push */}
+          <button
+            type="button"
+            onClick={async () => {
+              const granted = await requestNotificationPermission();
+              if (granted) {
+                sendBrowserNotification('✅ Alertas de Mesa Activadas', {
+                  body: 'Recibirás avisos en tu pantalla cuando una mesa llame al mesero o pida la cuenta.',
+                });
+              }
+            }}
+            className="p-2.5 rounded-xl bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] text-gray-300 hover:text-emerald-400 transition"
+            title="Activar Notificaciones de Mesa"
+          >
+            <Bell className="w-4 h-4" />
           </button>
 
           {/* Botón Refrescar */}

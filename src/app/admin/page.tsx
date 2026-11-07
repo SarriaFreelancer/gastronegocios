@@ -75,6 +75,7 @@ import {
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
 import { exportSalesReportToExcel, exportSalesReportToPDF } from '@/lib/reports';
+import { exportShiftClosureToPdf } from '@/lib/reports-export';
 import { showConfirm, showAlert, showSuccess, showError, showWarning } from '@/lib/swal';
 
 interface OrderItem {
@@ -1023,6 +1024,7 @@ export default function AdminPage() {
   const handleExportExcel = () => {
     exportSalesReportToExcel({
       orders,
+      restaurantName: activeRestaurant?.nombre || 'Restaurante',
       filters: {
         desde: filterDesde,
         hasta: filterHasta,
@@ -1041,6 +1043,7 @@ export default function AdminPage() {
   const handleExportPDF = () => {
     exportSalesReportToPDF({
       orders,
+      restaurantName: activeRestaurant?.nombre || 'Restaurante',
       filters: {
         desde: filterDesde,
         hasta: filterHasta,
@@ -3995,6 +3998,16 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      onClick={() => exportShiftClosureToPdf(activeShift, activeRestaurant?.nombre)}
+                      className="px-3.5 py-2.5 bg-[#202020] hover:bg-[#2b2b2b] text-neutral-200 border border-[#333] rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                      title="Descargar Arqueo Actual en PDF"
+                    >
+                      <FileText className="w-4 h-4 text-brand-yellow" />
+                      <span>PDF Arqueo</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         setCloseShiftData({
                           efectivoReal: String(activeShift.totalEfectivoEsperado || activeShift.baseInicial || 0),
@@ -4210,6 +4223,7 @@ export default function AdminPage() {
                         <th className="py-2 px-3 text-right">Total Ventas</th>
                         <th className="py-2 px-3 text-right">Efectivo Real</th>
                         <th className="py-2 px-3 text-right">Diferencia</th>
+                        <th className="py-2 px-3 text-center">Acta PDF</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#1e1e1e]">
@@ -4246,6 +4260,16 @@ export default function AdminPage() {
                             ) : (
                               '--'
                             )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => exportShiftClosureToPdf(s, activeRestaurant?.nombre)}
+                              className="p-1.5 bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 rounded-lg transition inline-flex items-center justify-center"
+                              title="Descargar Acta de Cierre en PDF"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
                           </td>
                         </tr>
                       ))}

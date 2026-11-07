@@ -1,0 +1,23 @@
+{
+  "name": "GastroNegocios - Software Gastronómico & POS",
+  "short_name": "GastroPOS",
+  "description": "Sistema operativo y comandas táctiles para restaurantes, cocinas y meseros.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/images/assets/burger-hero-transparent.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -19,6 +19,7 @@ export interface ReportFilterInfo {
 }
 
 export interface ExportReportData {
+  restaurantName?: string;
   orders: any[];
   filters: ReportFilterInfo;
   metrics: {
@@ -65,6 +66,7 @@ export const exportSalesReportToExcel = ({
   metrics,
   productSalesSummary,
   userName = 'Administrador',
+  restaurantName = 'Restaurante',
 }: ExportReportData) => {
   const wb = XLSX.utils.book_new();
   const today = new Date();
@@ -169,7 +171,7 @@ export const exportSalesReportToExcel = ({
   // ==========================================
   const summaryRows: any[][] = [
     // Banner principal con amarillo institucional
-    [{ v: 'PUNTO G - RESTAURANTE & COMIDAS RÁPIDAS', s: mainBannerStyle }],
+    [{ v: `${restaurantName.toUpperCase()} - INFORME OFICIAL DE VENTAS`, s: mainBannerStyle }],
     [{ v: 'INFORME OFICIAL DE VENTAS E INVENTARIO', s: sectionTitleStyle }],
     [
       { v: 'Fecha de Generación:', s: metaLabelStyle },
@@ -359,6 +361,7 @@ export const exportSalesReportToPDF = ({
   metrics,
   productSalesSummary,
   userName = 'Administrador',
+  restaurantName = 'Restaurante',
 }: ExportReportData) => {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -388,11 +391,11 @@ export const exportSalesReportToPDF = ({
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text('PUNTO G', 14, 16);
+  doc.text(restaurantName.toUpperCase(), 14, 16);
 
   doc.setFontSize(10);
   doc.setTextColor(234, 179, 8);
-  doc.text('RESTAURANTE & COMIDAS RÁPIDAS', 14, 22);
+  doc.text('PLATAFORMA GASTRONÓMICA & POS', 14, 22);
 
   doc.setTextColor(180, 180, 180);
   doc.setFont('helvetica', 'normal');
@@ -557,13 +560,13 @@ export const exportSalesReportToPDF = ({
       textColor: [40, 40, 40],
     },
     margin: { left: 14, right: 14 },
-    didDrawPage: (data) => {
+    didDrawPage: (pageHookData) => {
       // Footer page numbering
       const pageCount = (doc.internal as any).getNumberOfPages();
       doc.setFontSize(7.5);
       doc.setTextColor(150, 150, 150);
       doc.text(
-        `Punto G - Informe de Ventas | Página ${data.pageNumber} de ${pageCount}`,
+        `${restaurantName} - Informe de Ventas | Página ${pageHookData.pageNumber} de ${pageCount}`,
         14,
         290
       );
