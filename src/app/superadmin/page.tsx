@@ -37,6 +37,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
+import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 
 interface RestaurantItem {
   id: number;
@@ -1215,19 +1216,15 @@ export default function SuperadminPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-gray-400 font-bold uppercase text-[10px] mb-1">
-                      Banner Hero (Foto Fondo)
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={formData.bannerHero}
-                      onChange={(e) => setFormData({ ...formData, bannerHero: e.target.value })}
-                      className="w-full bg-[#121212] border border-[#333] rounded-lg px-2.5 py-2 text-white"
-                    />
-                  </div>
                 </div>
+
+                {/* Selector de Imagen Hero 3D / Portada */}
+                <FoodImagePresetSelector
+                  value={formData.bannerHero}
+                  onChange={(url) => setFormData({ ...formData, bannerHero: url })}
+                  label="Imagen Principal del Restaurante (Formato 3D o Fotografía)"
+                  helpText="Escoge un render 3D predeterminado con fondo transparente, sube un archivo desde tu dispositivo o ingresa un enlace web."
+                />
 
                 {/* Presets Rápidos de Colores */}
                 <div className="flex items-center gap-2 pt-1">
@@ -1577,32 +1574,15 @@ export default function SuperadminPage() {
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-gray-300 font-bold uppercase mb-1">
-                        URL Banner Hero (Cabecera)
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://..."
-                        value={formData.bannerHero}
-                        onChange={(e) => setFormData({ ...formData, bannerHero: e.target.value })}
-                        className="w-full bg-[#181818] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white"
-                      />
-                      {formData.bannerHero && (
-                        <div className="mt-2 flex items-center gap-2 bg-[#121212] p-2 rounded-xl border border-[#222]">
-                          <img
-                            src={formData.bannerHero}
-                            alt="Preview Banner"
-                            className="w-16 h-9 object-cover rounded-lg bg-black/40"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                          <span className="text-[10px] text-gray-400">Vista previa de portada</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
+
+                  {/* Selector de Imagen Hero 3D / Portada */}
+                  <FoodImagePresetSelector
+                    value={formData.bannerHero}
+                    onChange={(url) => setFormData({ ...formData, bannerHero: url })}
+                    label="Imagen Principal del Restaurante (Formato 3D o Fotografía)"
+                    helpText="Escoge un render 3D predeterminado con fondo transparente, sube un archivo desde tu dispositivo o ingresa un enlace web."
+                  />
 
                   {/* Contacto & Plan */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

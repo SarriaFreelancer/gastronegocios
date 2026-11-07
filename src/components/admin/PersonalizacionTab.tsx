@@ -22,6 +22,7 @@ import {
   Info
 } from 'lucide-react';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
+import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 
 interface PersonalizacionTabProps {
   restaurant: any;
@@ -397,39 +398,13 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
               </div>
             </div>
 
-            {/* Banner Hero URL & Preview */}
-            <div className="bg-[#181818] border border-[#262626] p-4 rounded-2xl space-y-3">
-              <label className="block text-gray-300 font-bold uppercase">
-                URL de Portada Principal (Banner Hero)
-              </label>
-              <input
-                type="url"
-                value={formData.bannerHero}
-                onChange={(e) => setFormData({ ...formData, bannerHero: e.target.value })}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="w-full bg-[#121212] border border-[#333] focus:border-brand-yellow rounded-xl px-3 py-2 text-white"
-              />
-              <div className="flex items-center gap-3 bg-[#0d0d0d] p-3 rounded-xl border border-[#202020]">
-                {formData.bannerHero ? (
-                  <img
-                    src={formData.bannerHero}
-                    alt="Banner preview"
-                    className="w-20 h-12 object-cover rounded-lg bg-black/40"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-20 h-12 rounded-xl bg-[#222] flex items-center justify-center text-gray-500">
-                    <ImageIcon className="w-5 h-5" />
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-bold text-white">Portada de Cabecera</p>
-                  <p className="text-[10px] text-gray-400">Fotografía principal de fondo</p>
-                </div>
-              </div>
-            </div>
+            {/* Banner Hero 3D / Preset Selector */}
+            <FoodImagePresetSelector
+              value={formData.bannerHero}
+              onChange={(url) => setFormData({ ...formData, bannerHero: url })}
+              label="Imagen Principal de la Landing (Formato 3D o Fotografía)"
+              helpText="Escoge un render 3D gastronómico predeterminado para tu restaurante, sube un archivo con fondo transparente o pega un enlace web."
+            />
 
             {/* Contacto & Ubicación */}
             <div>

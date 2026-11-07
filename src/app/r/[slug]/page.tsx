@@ -71,17 +71,102 @@ function DynamicClientLanding({
 }) {
   const isPuntoG = slug === 'punto-g' || slug === 'puntog';
   const { addToCart, setIsCartOpen } = useCart();
-  const { restaurant, loading: tenantLoading } = useTenant();
+  const { restaurant: contextRestaurant, setTenantData } = useTenant();
 
+  const [localRestaurant, setLocalRestaurant] = useState<any>(
+    contextRestaurant && (contextRestaurant.slug === slug || (contextRestaurant as any).subdominio === slug)
+      ? contextRestaurant
+      : null
+  );
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [customizerProduct, setCustomizerProduct] = useState<any | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Chat del Asistente Virtual Interactivo para el restaurante
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'bot' | 'user'; text: string; time: string }>>([]);
+
+  const restaurant = localRestaurant || contextRestaurant;
+
+  // Single reliable loader for tenant data
+  useEffect(() => {
+    let isCancelled = false;
+    setDataLoading(true);
+    setLoadError(null);
+
+    const loadAllData = async () => {
+      try {
+        let rest = contextRestaurant && (contextRestaurant.slug === slug || (contextRestaurant as any).subdominio === slug)
+          ? contextRestaurant
+          : null;
+
+        if (!rest) {
+          const resRest = await fetch(`/api/restaurants?slug=${encodeURIComponent(slug)}`);
+          if (!resRest.ok) {
+            if (!isCancelled) {
+              setLoadError('Restaurante no encontrado');
+              setDataLoading(false);
+            }
+            return;
+          }
+          rest = await resRest.json();
+          if (!isCancelled) {
+            setLocalRestaurant(rest);
+            if (setTenantData) setTenantData(rest);
+          }
+        } else {
+          setLocalRestaurant(rest);
+        }
+
+        if (!rest || !rest.id) {
+          if (!isCancelled) {
+            setLoadError('Restaurante no disponible');
+            setDataLoading(false);
+          }
+          return;
+        }
+
+        if (rest.branches && rest.branches.length > 0) {
+          setSelectedBranchId(rest.branches[0].id);
+        }
+
+        // Fetch categories and products concurrently
+        const [catsData, prodsData] = await Promise.all([
+          fetch(`/api/categories?restaurantId=${rest.id}&principales=true`)
+            .then((res) => (res.ok ? res.json() : []))
+            .catch(() => []),
+          fetch(`/api/products?restaurantId=${rest.id}`)
+            .then((res) => (res.ok ? res.json() : []))
+            .catch(() => []),
+        ]);
+
+        if (!isCancelled) {
+          setCategories(Array.isArray(catsData) ? catsData : []);
+          setProducts(Array.isArray(prodsData) ? prodsData : []);
+        }
+      } catch (err) {
+        console.error('Error cargando restaurante:', err);
+        if (!isCancelled) setLoadError('Error al conectar con el restaurante');
+      } finally {
+        if (!isCancelled) setDataLoading(false);
+      }
+    };
+
+    loadAllData();
+
+    // Safety timeout: loading state MUST clear within 5s
+    const failsafe = setTimeout(() => {
+      if (!isCancelled) setDataLoading(false);
+    }, 5000);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(failsafe);
+    };
+  }, [slug]);
 
   useEffect(() => {
     if (restaurant?.nombre) {
@@ -129,27 +214,7 @@ function DynamicClientLanding({
 
   const formatCOP = (num: number) => '$' + (num || 0).toLocaleString('es-CO');
 
-  useEffect(() => {
-    if (!restaurant) return;
-    if (restaurant.branches && restaurant.branches.length > 0 && !selectedBranchId) {
-      setSelectedBranchId(restaurant.branches[0].id);
-    }
-
-    setDataLoading(true);
-    const catReq = fetch(`/api/categories?restaurantId=${restaurant.id}&principales=true`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((cats) => setCategories(Array.isArray(cats) ? cats : []))
-      .catch(() => setCategories([]));
-
-    const prodReq = fetch(`/api/products?restaurantId=${restaurant.id}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((prods) => setProducts(Array.isArray(prods) ? prods : []))
-      .catch(() => setProducts([]));
-
-    Promise.all([catReq, prodReq]).finally(() => setDataLoading(false));
-  }, [restaurant]);
-
-  if (tenantLoading || dataLoading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
         <div className="text-center space-y-4">
@@ -165,7 +230,7 @@ function DynamicClientLanding({
     );
   }
 
-  if (!restaurant || !restaurant.activo) {
+  if (loadError || !restaurant || !restaurant.activo) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white p-6">
         <div className="bg-[#141414] border border-[#2a2a2a] p-8 rounded-3xl text-center max-w-md w-full space-y-4">
