@@ -2,7 +2,7 @@ import { RestaurantInfo } from '@/types';
 
 export const restaurantInfo: RestaurantInfo = {
   name: "PUNTO G",
-  slogan: "ANTOJOS QUE CONECTAN",
+  slogan: "TU MÁXIMO PLACER",
   phone: "+57 322 908 8736",
   whatsappNumber: "573229088736",
   whatsappFormatted: "+57 322 908 8736",

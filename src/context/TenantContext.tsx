@@ -111,7 +111,7 @@ const defaultTenantPuntoG: TenantData = {
   nombre: 'Punto G',
   slug: 'punto-g',
   subdominio: 'puntog',
-  eslogan: 'Antojos Que Conectan',
+  eslogan: 'Tu Máximo Placer',
   descripcion: 'Restaurante de comidas rápidas gourmet en Cali: hamburguesas artesanales, picadas, salchipapas, perros calientes y parrillas al carbón.',
   logo: null,
   bannerHero: null,

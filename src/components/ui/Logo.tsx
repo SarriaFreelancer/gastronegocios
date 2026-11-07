@@ -44,7 +44,12 @@ export const Logo: React.FC<LogoProps> = ({
 
   const activeTenant = restaurant || contextTenant;
   const targetName = (nombre || activeTenant?.nombre || 'Punto G').trim();
-  const targetSlogan = (eslogan || activeTenant?.eslogan || 'Antojos Que Conectan').trim();
+  const isPuntoG =
+    targetName.toLowerCase() === 'punto g' ||
+    targetName.toLowerCase() === 'puntog';
+
+  const defaultSlogan = isPuntoG ? 'Tu Máximo Placer' : 'Antojos Que Conectan';
+  const targetSlogan = (eslogan || (isPuntoG ? 'Tu Máximo Placer' : activeTenant?.eslogan) || defaultSlogan).trim();
   const targetLogo = logoUrl !== undefined ? logoUrl : activeTenant?.logo;
   const primaryColor = colorPrimario || activeTenant?.colorPrimario || '#ffc928';
 
@@ -52,10 +57,6 @@ export const Logo: React.FC<LogoProps> = ({
     ? `/r/${activeTenant.slug}`
     : '/';
   const targetHref = href || defaultHref;
-
-  const isPuntoG =
-    targetName.toLowerCase() === 'punto g' ||
-    targetName.toLowerCase() === 'puntog';
 
   const iconSizes = {
     sm: 'w-7 h-7',
