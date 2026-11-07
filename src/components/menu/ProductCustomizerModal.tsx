@@ -125,27 +125,6 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
     }
   }, [isOpen, product]);
 
-  if (!isOpen || !product || !mounted) return null;
-
-  const toggleAddon = (addon: ProductAddon) => {
-    setSelectedAddons((prev) => {
-      const exists = prev.some((a) => a.id === addon.id);
-      if (exists) {
-        return prev.filter((a) => a.id !== addon.id);
-      }
-      return [...prev, addon];
-    });
-  };
-
-  const handleChipClick = (chip: string) => {
-    setNotes((prev) => {
-      if (prev.includes(chip)) {
-        return prev.replace(chip, '').replace(/,\s*,/g, ',').replace(/^,\s*|\s*,$/g, '').trim();
-      }
-      return prev ? `${prev}, ${chip}` : chip;
-    });
-  };
-
   // Group addons by category with priority: Adiciones, Toppings, Salsas, Acompañamientos
   const groupedAddons = useMemo(() => {
     const map = addonsList.reduce((acc, a) => {
@@ -172,6 +151,27 @@ export const ProductCustomizerModal: React.FC<ProductCustomizerModalProps> = ({
 
     return sortedEntries;
   }, [addonsList]);
+
+  if (!isOpen || !product || !mounted) return null;
+
+  const toggleAddon = (addon: ProductAddon) => {
+    setSelectedAddons((prev) => {
+      const exists = prev.some((a) => a.id === addon.id);
+      if (exists) {
+        return prev.filter((a) => a.id !== addon.id);
+      }
+      return [...prev, addon];
+    });
+  };
+
+  const handleChipClick = (chip: string) => {
+    setNotes((prev) => {
+      if (prev.includes(chip)) {
+        return prev.replace(chip, '').replace(/,\s*,/g, ',').replace(/^,\s*|\s*,$/g, '').trim();
+      }
+      return prev ? `${prev}, ${chip}` : chip;
+    });
+  };
 
   const addonsTotal = selectedAddons.reduce((sum, a) => sum + (a.precio || 0), 0);
   const unitPrice = product.precio + addonsTotal;
