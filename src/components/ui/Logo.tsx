@@ -43,10 +43,18 @@ export const Logo: React.FC<LogoProps> = ({
   }
 
   const activeTenant = restaurant || contextTenant;
-  const targetName = (nombre || activeTenant?.nombre || 'Punto G').trim();
+  const targetName = (
+    nombre ||
+    activeTenant?.nombre ||
+    (activeTenant?.slug
+      ? activeTenant.slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      : 'Punto G')
+  ).trim();
   const isPuntoG =
     targetName.toLowerCase() === 'punto g' ||
-    targetName.toLowerCase() === 'puntog';
+    targetName.toLowerCase() === 'puntog' ||
+    activeTenant?.slug === 'punto-g' ||
+    activeTenant?.slug === 'puntog';
 
   const defaultSlogan = isPuntoG ? 'Tu Máximo Placer' : 'Antojos Que Conectan';
   const targetSlogan = (eslogan || (isPuntoG ? 'Tu Máximo Placer' : activeTenant?.eslogan) || defaultSlogan).trim();

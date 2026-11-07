@@ -42,15 +42,22 @@ export const Footer: React.FC = () => {
     return null;
   }
 
+  const tenantMatch = pathname.match(/^\/r\/([^\/]+)/);
+  const pathSlug = tenantMatch ? tenantMatch[1] : null;
+  const isPuntoG = !pathSlug || pathSlug === 'punto-g' || pathSlug === 'puntog';
+  const defaultName = isPuntoG
+    ? 'Punto G'
+    : (pathSlug ? pathSlug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Restaurante');
+
   const rawPhone = (tenant?.telefonoWhatsapp || restaurantInfo.whatsappNumber).replace(/\D/g, '');
   const cleanPhone = rawPhone.length === 10 ? `57${rawPhone}` : rawPhone;
-  const restName = tenant?.nombre || 'Punto G';
+  const restName = tenant?.nombre || defaultName;
   const restDesc = tenant?.descripcion || 'Comidas rápidas gourmet. Hamburguesas artesanales, picadas generosas y parrilla con el auténtico sabor de la casa.';
   const restSchedule = tenant?.horarioAtencion || restaurantInfo.schedule;
   const restAddress = tenant?.direccionCentral || restaurantInfo.address;
   const restCity = tenant?.ciudad || restaurantInfo.city;
   const restEmail = tenant?.email || 'contacto@puntog.com';
-  const tenantSlug = tenant?.slug || 'puntog';
+  const tenantSlug = tenant?.slug || pathSlug || 'puntog';
   const primaryColor = tenant?.colorPrimario || '#ffc928';
   const buttonColor = tenant?.colorBoton || primaryColor;
   const buttonTextColor = tenant?.colorBotonTexto || '#000000';

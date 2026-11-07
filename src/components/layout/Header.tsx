@@ -35,7 +35,21 @@ export const Header: React.FC = () => {
   // Detect if current path is under a tenant route /r/[slug]
   const tenantMatch = pathname.match(/^\/r\/([^\/]+)/);
   const tenantSlug = tenantMatch ? tenantMatch[1] : null;
+  const isPuntoG = !tenantSlug || tenantSlug === 'punto-g' || tenantSlug === 'puntog';
   const basePrefix = tenantSlug ? `/r/${tenantSlug}` : '';
+
+  const slugFallbackName = tenantSlug && !isPuntoG
+    ? tenantSlug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    : 'Punto G';
+
+  const resolvedTenant = tenant || (tenantSlug ? {
+    id: 0,
+    nombre: slugFallbackName,
+    slug: tenantSlug,
+    colorPrimario: '#ffc928',
+    colorFondo: '#080808',
+    activo: true,
+  } as any : null);
 
   const navLinks = [
     { name: 'Inicio', href: tenantSlug ? `/r/${tenantSlug}` : '/' },
@@ -60,7 +74,7 @@ export const Header: React.FC = () => {
           
           {/* Logo matching reference */}
           <div className="flex-shrink-0">
-            <Logo size="md" href={tenantSlug ? `/r/${tenantSlug}` : '/'} restaurant={tenant} />
+            <Logo size="md" href={tenantSlug ? `/r/${tenantSlug}` : '/'} restaurant={resolvedTenant} />
           </div>
 
           {/* Desktop Navigation Links */}

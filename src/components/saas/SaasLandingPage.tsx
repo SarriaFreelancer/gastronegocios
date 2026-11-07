@@ -80,12 +80,33 @@ const BRAND_SIMULATOR_PRESETS: BrandPreset[] = [
     image: '/images/assets/hotdog-3d.png',
     samplePrice: '$18.900',
   },
+  {
+    id: 'drinks',
+    name: 'BAR & CÓCTELES LOUNGE',
+    slogan: 'Bebidas Premium y Coctelería de Autor',
+    color: '#06B6D4',
+    category: 'Bebidas',
+    image: '/images/assets/drinks-3d.png',
+    samplePrice: '$24.000',
+  },
+];
+
+const HERO_PRODUCTS = [
+  { id: 'burger', name: 'Hamburguesas', img: '/images/assets/burger-hero-transparent.png', tag: 'Ticket +28%', color: '#FFC928' },
+  { id: 'salchipapa', name: 'Salchipapas', img: '/images/assets/salchipapa-3d.png', tag: 'Top Ventas', color: '#E53E3E' },
+  { id: 'parrilla', name: 'Parrilla BBQ', img: '/images/assets/parrilla-3d.png', tag: 'Cortes Finos', color: '#F97316' },
+  { id: 'hotdog', name: 'Hot Dogs', img: '/images/assets/hotdog-3d.png', tag: 'Despacho Rápido', color: '#10B981' },
+  { id: 'drinks', name: 'Bar & Bebidas', img: '/images/assets/drinks-3d.png', tag: 'Alto Margen', color: '#06B6D4' },
 ];
 
 export function SaasLandingPage() {
   const whatsappSalesUrl =
     'https://wa.me/573229088736?text=' +
-    encodeURIComponent('¡Hola! Me interesa adquirir la plataforma SaaS para mi restaurante. ¿Podrían brindarme información y una demostración guiada?');
+    encodeURIComponent('¡Hola! Me interesa adquirir la plataforma GastroNegocios para mi restaurante. ¿Podrían brindarme información y una demostración guiada?');
+
+  // Hero Interactive 3D Dish Switcher
+  const [heroProductIndex, setHeroProductIndex] = useState(0);
+  const currentHeroProduct = HERO_PRODUCTS[heroProductIndex];
 
   // Interactive Brand Simulator State
   const [activeBrand, setActiveBrand] = useState<BrandPreset>(BRAND_SIMULATOR_PRESETS[0]);
@@ -246,8 +267,14 @@ export function SaasLandingPage() {
             {/* Right Column: Floating 3D Interactive Terminal Showcase */}
             <div className="lg:col-span-5 relative flex flex-col items-center justify-center">
               
+              {/* Ambient Radial Halo */}
+              <div 
+                className="absolute w-72 sm:w-96 h-72 sm:h-96 rounded-full blur-[120px] opacity-25 pointer-events-none transition-colors duration-700"
+                style={{ backgroundColor: currentHeroProduct.color }}
+              />
+
               {/* Floating Live Metric: Sales increase */}
-              <div className="absolute -top-4 -left-4 sm:left-4 z-20 px-3.5 py-2 rounded-2xl bg-[#141414]/95 border border-emerald-500/40 text-white shadow-2xl backdrop-blur-md flex items-center gap-2.5 animate-pulse">
+              <div className="absolute -top-4 -left-4 sm:left-2 z-20 px-3.5 py-2 rounded-2xl bg-[#141414]/95 border border-emerald-500/40 text-white shadow-2xl backdrop-blur-md flex items-center gap-2.5 animate-pulse">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
                   <TrendingUp className="w-4 h-4" />
                 </div>
@@ -257,36 +284,64 @@ export function SaasLandingPage() {
                 </div>
               </div>
 
-              {/* Floating Live Kitchen Alert */}
+              {/* Floating Live Dynamic Badge */}
               <div className="absolute top-1/2 -right-4 sm:-right-6 z-20 px-3.5 py-2 rounded-2xl bg-[#141414]/95 border border-amber-500/40 text-white shadow-2xl backdrop-blur-md flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-brand-yellow flex items-center justify-center font-bold">
-                  <BellRing className="w-4 h-4" />
+                <div 
+                  className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-black"
+                  style={{ backgroundColor: currentHeroProduct.color }}
+                >
+                  <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-brand-yellow font-bold uppercase tracking-wider block">Cocina KDS</span>
-                  <span className="text-xs font-black text-white">Mesa 4 • Nueva Comanda</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
+                    {currentHeroProduct.name}
+                  </span>
+                  <span className="text-xs font-black text-white">
+                    {currentHeroProduct.tag}
+                  </span>
                 </div>
               </div>
 
               {/* 3D Product Float with Ground Shadow */}
               <div className="relative w-[300px] h-[270px] sm:w-[400px] sm:h-[360px] flex items-center justify-center animate-float">
-                <Image
-                  src="/images/assets/burger-hero-transparent.png"
-                  alt="Plataforma SaaS Restaurante 3D"
-                  fill
-                  priority
-                  className="object-contain drop-shadow-[0_28px_32px_rgba(0,0,0,0.95)]"
-                  sizes="(max-width: 1024px) 300px, 400px"
+                <img
+                  key={currentHeroProduct.img}
+                  src={currentHeroProduct.img}
+                  alt={currentHeroProduct.name}
+                  className="w-full h-full object-contain drop-shadow-[0_28px_32px_rgba(0,0,0,0.95)] transition-all duration-500 hover:scale-105 cursor-pointer select-none"
+                  onClick={() => setHeroProductIndex((prev) => (prev + 1) % HERO_PRODUCTS.length)}
+                  title="Haz clic para ver otro plato"
                 />
               </div>
 
               {/* Ground Shadow */}
               <div className="w-48 sm:w-64 h-3 bg-black/80 rounded-[100%] blur-sm -mt-2 pointer-events-none" />
 
+              {/* Interactive Food Switcher Pills */}
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 p-1 rounded-2xl bg-[#121212]/90 border border-[#262626] backdrop-blur-md z-20">
+                {HERO_PRODUCTS.map((prod, idx) => {
+                  const isActive = heroProductIndex === idx;
+                  return (
+                    <button
+                      key={prod.id}
+                      type="button"
+                      onClick={() => setHeroProductIndex(idx)}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? 'bg-white text-black shadow font-black scale-105'
+                          : 'text-gray-400 hover:text-white hover:bg-neutral-800'
+                      }`}
+                    >
+                      {prod.name}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Live Status Pill underneath */}
-              <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#181818] border border-[#2b2b2b] text-xs text-gray-300">
+              <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181818]/60 border border-[#2b2b2b] text-[11px] text-gray-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span className="font-mono text-[11px] font-bold">Plataforma Sincronizada en la Nube</span>
+                <span className="font-mono font-bold">Catálogo Interactivo 3D Integrado</span>
               </div>
             </div>
 
@@ -425,34 +480,36 @@ export function SaasLandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           
           {/* Tarjeta Demo 1: Punto G */}
-          <div className="bg-[#111] border-2 border-[#222] hover:border-brand-yellow/60 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-brand-yellow text-black flex items-center justify-center font-black text-xl shadow-glow">
-                  G
+          <div className="bg-[#111] border-2 border-[#222] hover:border-brand-yellow/60 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-yellow text-black flex items-center justify-center font-black text-xl shadow-glow">
+                    G
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase text-white font-display">
+                      Punto G Gourmet
+                    </h3>
+                    <span className="text-xs text-gray-400">Hamburguesas, picadas & parrilla</span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase text-white font-display">
-                    Punto G Gourmet
-                  </h3>
-                  <span className="text-xs text-gray-400">Hamburguesas, picadas & parrilla artesanal</span>
-                </div>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                  En Vivo
+                </span>
               </div>
-              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
-                Cliente Activo
-              </span>
-            </div>
 
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Restaurante con 4 sedes en Cali (Granada, Ciudad Jardín, Chipichape, San Antonio). Maneja menú digital, pedidos web, pantalla táctil de cocina y control de mesas.
-            </p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Restaurante gastronómico con sedes en Cali. Maneja menú digital interactivo, pantalla táctil de cocina (KDS) y control de mesas.
+              </p>
+            </div>
 
             <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
               <Link
-                href="/r/puntog"
+                href="/r/punto-g"
                 target="_blank"
                 className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
               >
@@ -460,7 +517,7 @@ export function SaasLandingPage() {
                 <ExternalLink className="w-3.5 h-3.5 text-brand-yellow" />
               </Link>
               <Link
-                href="/r/puntog/cocina"
+                href="/r/punto-g/cocina"
                 target="_blank"
                 className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
               >
@@ -468,7 +525,7 @@ export function SaasLandingPage() {
                 <ChefHat className="w-3.5 h-3.5 text-amber-400" />
               </Link>
               <Link
-                href="/r/puntog/mesero"
+                href="/r/punto-g/mesero"
                 target="_blank"
                 className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
               >
@@ -479,27 +536,29 @@ export function SaasLandingPage() {
           </div>
 
           {/* Tarjeta Demo 2: Salchi Ricurras */}
-          <div className="bg-[#111] border-2 border-[#222] hover:border-red-500/60 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl shadow-glow">
-                  S
+          <div className="bg-[#111] border-2 border-[#222] hover:border-red-500/60 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl shadow-glow">
+                    S
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase text-white font-display">
+                      Salchi Ricurras
+                    </h3>
+                    <span className="text-xs text-gray-400">Salchipapas artesanales & maíz</span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase text-white font-display">
-                    Salchi Ricurras
-                  </h3>
-                  <span className="text-xs text-gray-400">Salchipapas artesanales & desgranados</span>
-                </div>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-400 border border-red-500/30">
+                  En Vivo
+                </span>
               </div>
-              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-400 border border-red-500/30">
-                Cliente Activo
-              </span>
-            </div>
 
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Restaurante especializado en salchipapas gigantes, mazorcadas tiernas con queso gratinado y combos para compartir con identidad visual roja y negra.
-            </p>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Salchipapas gigantes, mazorcadas con queso gratinado y combos para compartir con identidad visual roja y pedidos por WhatsApp.
+              </p>
+            </div>
 
             <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
               <Link
@@ -520,6 +579,59 @@ export function SaasLandingPage() {
               </Link>
               <Link
                 href="/r/salchiricurras/mesero"
+                target="_blank"
+                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
+              >
+                <span>Mesero</span>
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Tarjeta Demo 3: Azados Bryan */}
+          <div className="bg-[#111] border-2 border-[#222] hover:border-amber-500/60 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center font-black text-xl shadow-glow">
+                    B
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase text-white font-display">
+                      Azados Bryan
+                    </h3>
+                    <span className="text-xs text-gray-400">Parrilla al carbón & asados</span>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  En Vivo
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Asados al carbón con carnes seleccionadas, costillas BBQ, picadas mixtas y carta digital con despacho rápido.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
+              <Link
+                href="/r/bryan"
+                target="_blank"
+                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
+              >
+                <span>Landing</span>
+                <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              </Link>
+              <Link
+                href="/r/bryan/cocina"
+                target="_blank"
+                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
+              >
+                <span>Cocina</span>
+                <ChefHat className="w-3.5 h-3.5 text-amber-400" />
+              </Link>
+              <Link
+                href="/r/bryan/mesero"
                 target="_blank"
                 className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
               >
