@@ -77,6 +77,12 @@ model Restaurant {
   propinaSugeridaPct Float             @default(10)
   plan               String            @default("Pro") // "Basico", "Pro", "Enterprise"
   activo             Boolean           @default(true)
+  fechaVencimiento   DateTime?
+  limiteSedes        Int               @default(3)
+  limiteProductos    Int               @default(100)
+  limiteUsuarios     Int               @default(10)
+  diasGracia         Int               @default(5)
+  estadoLicencia     String            @default("ACTIVA") // "ACTIVA", "POR_VENCER", "VENCIDA", "SUSPENDIDA"
 
   // Servidor de Base de Datos Dedicada / Migración Monolítica (Exclusivo Superadmin)
   databaseType       String            @default("SHARED") // "SHARED", "DEDICATED"

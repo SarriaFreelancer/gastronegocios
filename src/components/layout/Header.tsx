@@ -16,6 +16,7 @@ export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (
+    pathname === '/' ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/superadmin') ||
     pathname.startsWith('/login') ||

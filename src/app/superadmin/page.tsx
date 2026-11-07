@@ -55,6 +55,11 @@ interface RestaurantItem {
   ciudad: string;
   plan: string;
   activo: boolean;
+  fechaVencimiento?: string | null;
+  limiteSedes?: number;
+  limiteProductos?: number;
+  limiteUsuarios?: number;
+  estadoLicencia?: string;
   databaseType?: string;
   dbHost?: string;
   dbPort?: number;
@@ -518,7 +523,7 @@ export default function SuperadminPage() {
       const res = await fetch(`/api/restaurants/${rest.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activo: newState }),
+        body: JSON.stringify({ activo: newState, estadoLicencia: newState ? 'ACTIVA' : 'SUSPENDIDA' }),
       });
       if (res.ok) {
         showSuccess(
@@ -528,7 +533,35 @@ export default function SuperadminPage() {
         loadRestaurants();
       }
     } catch (e) {
-      showError('Error', 'No se pudo cambiar el estado');
+      showError('Error', 'Fallo al cambiar estado');
+    }
+  };
+
+  // Renovar / Extender Licencia SaaS
+  const handleExtendLicense = async (rest: RestaurantItem, days: number) => {
+    try {
+      const currentExp = rest.fechaVencimiento ? new Date(rest.fechaVencimiento) : new Date();
+      const baseDate = currentExp > new Date() ? currentExp : new Date();
+      baseDate.setDate(baseDate.getDate() + days);
+
+      const res = await fetch(`/api/restaurants/${rest.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fechaVencimiento: baseDate.toISOString(),
+          estadoLicencia: 'ACTIVA',
+          activo: true,
+        }),
+      });
+
+      if (res.ok) {
+        showSuccess('Licencia Extendida', `La licencia de ${rest.nombre} ha sido extendida por +${days} días hasta el ${baseDate.toLocaleDateString()}.`);
+        loadRestaurants();
+      } else {
+        showError('Error', 'No se pudo actualizar la licencia');
+      }
+    } catch {
+      showError('Error de red', 'Fallo al comunicarse con el servidor');
     }
   };
 
@@ -963,6 +996,44 @@ export default function SuperadminPage() {
                     <span>Administrar este Restaurante</span>
                     <ExternalLink className="w-4 h-4 ml-auto stroke-[2.5]" />
                   </Link>
+
+                  {/* Control de Licencia SaaS */}
+                  <div className="bg-[#181818] border border-[#282828] rounded-2xl p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400 font-bold uppercase text-[10px]">Plan & Licencia:</span>
+                      <span className="px-2 py-0.5 rounded-md font-black text-[10px] bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                        {rest.plan || 'Pro'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400 text-[11px]">Vencimiento:</span>
+                      <span className="font-bold text-white text-[11px]">
+                        {rest.fechaVencimiento
+                          ? new Date(rest.fechaVencimiento).toLocaleDateString()
+                          : 'Indefinida'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleExtendLicense(rest, 30)}
+                        className="flex-1 py-1 px-2 rounded-lg bg-[#222] hover:bg-[#333] text-gray-300 hover:text-white text-[10px] font-bold border border-[#333] transition text-center cursor-pointer"
+                        title="Extender 30 días"
+                      >
+                        +30 Días
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExtendLicense(rest, 365)}
+                        className="flex-1 py-1 px-2 rounded-lg bg-brand-yellow/15 hover:bg-brand-yellow/25 text-brand-yellow text-[10px] font-bold border border-brand-yellow/30 transition text-center cursor-pointer"
+                        title="Extender 1 año"
+                      >
+                        +1 Año
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Paleta de Color */}
                   <div className="flex items-center gap-2 pt-1 text-[11px] text-gray-400 font-bold">

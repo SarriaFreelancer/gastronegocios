@@ -114,6 +114,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.activo !== undefined) data.activo = Boolean(body.activo);
     if (body.dominio !== undefined) data.dominio = body.dominio || null;
 
+    // Control de Licencias y Suscripciones SaaS
+    if (body.fechaVencimiento !== undefined) data.fechaVencimiento = body.fechaVencimiento ? new Date(body.fechaVencimiento) : null;
+    if (body.limiteSedes !== undefined) data.limiteSedes = Number(body.limiteSedes);
+    if (body.limiteProductos !== undefined) data.limiteProductos = Number(body.limiteProductos);
+    if (body.limiteUsuarios !== undefined) data.limiteUsuarios = Number(body.limiteUsuarios);
+    if (body.diasGracia !== undefined) data.diasGracia = Number(body.diasGracia);
+    if (body.estadoLicencia !== undefined) data.estadoLicencia = body.estadoLicencia;
+
     // Database server configuration (Superadmin only)
     if (body.databaseType !== undefined) data.databaseType = body.databaseType;
     if (body.dbHost !== undefined) data.dbHost = body.dbHost || null;

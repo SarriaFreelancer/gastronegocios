@@ -13,6 +13,7 @@ export const Footer: React.FC = () => {
   const { tenant } = useTenant();
 
   if (
+    pathname === '/' ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/superadmin') ||
     pathname.startsWith('/login') ||
