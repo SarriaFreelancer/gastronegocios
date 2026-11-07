@@ -155,32 +155,19 @@ export default function MenuGeneralPage() {
                   {currentCategoryObj.descripcion || 'Descubre nuestras deliciosas opciones preparadas al momento.'}
                 </p>
               </div>
+              {/* 3D Product Highlight without box, border or circle */}
               <div className="md:col-span-5 flex justify-center md:justify-end">
-                <div className="relative w-[240px] h-[240px] sm:w-[300px] sm:h-[300px] flex items-center justify-center">
+                <div className="relative w-[260px] h-[220px] sm:w-[320px] sm:h-[260px] flex items-center justify-center">
                   <div className="absolute w-[200px] h-[200px] sm:w-[260px] sm:h-[260px] rounded-full blur-[80px] bg-brand-yellow/25 pointer-events-none" />
-                  <div
-                    className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
-                    style={{
-                      maskImage: 'radial-gradient(circle at center, black 46%, rgba(0,0,0,0.85) 58%, rgba(0,0,0,0.3) 68%, transparent 74%)',
-                      WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0,0,0,0.85) 58%, rgba(0,0,0,0.3) 68%, transparent 74%)',
-                    }}
-                  >
+                  <div className="relative w-full h-full select-none transition-transform duration-500 hover:scale-105">
                     <Image
-                      key={currentCategoryObj.imagen || currentCategoryObj.slug}
-                      src={
-                        currentCategoryObj.slug === 'hamburguesas' || currentCategoryObj.slug === 'comidas-rapidas'
-                          ? 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1200&auto=format&fit=crop'
-                          : currentCategoryObj.slug === 'parrilla-llanera' || currentCategoryObj.slug === 'picadas' || currentCategoryObj.slug === 'costillas'
-                          ? 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=85&w=1200&auto=format&fit=crop'
-                          : currentCategoryObj.slug === 'combos' || currentCategoryObj.slug === 'combos-especiales'
-                          ? 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=85&w=1200&auto=format&fit=crop'
-                          : currentCategoryObj.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop'
-                      }
+                      key={currentCategoryObj.slug}
+                      src="/images/assets/burger-hero-transparent.png"
                       alt={currentCategoryObj.nombre}
                       fill
                       priority
-                      className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
-                      sizes="(max-width: 768px) 240px, 300px"
+                      className="object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.9)] drop-shadow-[0_8px_16px_rgba(255,201,40,0.18)]"
+                      sizes="(max-width: 768px) 260px, 320px"
                     />
                   </div>
                 </div>

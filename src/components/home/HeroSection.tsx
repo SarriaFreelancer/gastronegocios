@@ -93,22 +93,16 @@ export const HeroSection: React.FC = () => {
               <Sparkles className="w-5 h-5 text-brand-yellow animate-spin-slow ml-auto mt-1" />
             </div>
 
-            {/* Circular mask with smooth feathered radial diffusion (no square, no box, no hard borders) */}
-            <div className="relative w-[320px] h-[320px] sm:w-[440px] sm:h-[440px] lg:w-[520px] lg:h-[520px] flex items-center justify-center">
-              <div
-                className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
-                style={{
-                  maskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
-                  WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
-                }}
-              >
+            {/* Realistic 3D Product Cutout (No box, no circle, pure burger floating directly on the page) */}
+            <div className="relative w-[320px] h-[300px] sm:w-[460px] sm:h-[440px] lg:w-[540px] lg:h-[500px] flex items-center justify-center">
+              <div className="relative w-full h-full transition-transform duration-500 hover:scale-105 select-none">
                 <Image
-                  src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1400&auto=format&fit=crop"
+                  src="/images/assets/burger-hero-transparent.png"
                   alt="Hamburguesa Gourmet Artesanal Punto G"
                   fill
                   priority
-                  className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
-                  sizes="(max-width: 1024px) 100vw, 520px"
+                  className="object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.9)] drop-shadow-[0_10px_20px_rgba(255,201,40,0.15)]"
+                  sizes="(max-width: 1024px) 100vw, 540px"
                 />
               </div>
             </div>

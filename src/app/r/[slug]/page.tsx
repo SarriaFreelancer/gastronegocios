@@ -207,8 +207,8 @@ function DynamicClientLanding({
     restaurant.bannerHero ||
     restaurant.imagenHero ||
     (isPuntoG
-      ? 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=85&w=1400&auto=format&fit=crop'
-      : 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200&auto=format&fit=crop');
+      ? '/images/assets/burger-hero-transparent.png'
+      : '/images/assets/burger-hero-transparent.png');
 
   // If the restaurant has no products and no categories yet, show a polite branded welcome page
   const isBrandNew = categories.length === 0 && products.length === 0;
@@ -441,21 +441,16 @@ function DynamicClientLanding({
                   style={{ backgroundColor: primary }}
                 />
 
-                <div className="relative w-[320px] h-[320px] sm:w-[420px] sm:h-[420px] lg:w-[480px] lg:h-[480px] flex items-center justify-center z-10">
-                  <div
-                    className="relative w-full h-full rounded-full overflow-hidden flex items-center justify-center pointer-events-none"
-                    style={{
-                      maskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
-                      WebkitMaskImage: 'radial-gradient(circle at center, black 46%, rgba(0, 0, 0, 0.85) 58%, rgba(0, 0, 0, 0.3) 68%, transparent 74%)',
-                    }}
-                  >
+                {/* 3D Product Highlight (No frame, no circle, natural floating on page) */}
+                <div className="relative w-[320px] h-[300px] sm:w-[440px] sm:h-[420px] lg:w-[500px] lg:h-[460px] flex items-center justify-center z-10">
+                  <div className="relative w-full h-full transition-transform duration-500 hover:scale-105 select-none">
                     <Image
                       src={heroImage}
                       alt={restaurant.nombre}
                       fill
-                      className="object-cover scale-110 hover:scale-115 transition-transform duration-700"
+                      className="object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.9)] drop-shadow-[0_10px_20px_rgba(255,201,40,0.15)]"
                       priority
-                      sizes="(max-width: 1024px) 100vw, 480px"
+                      sizes="(max-width: 1024px) 100vw, 500px"
                     />
                   </div>
                 </div>
