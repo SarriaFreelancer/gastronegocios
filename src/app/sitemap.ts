@@ -13,6 +13,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
+      url: `${baseUrl}/registro`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.95,
+    },
+    {
       url: `${baseUrl}/menu`,
       lastModified: new Date(),
       changeFrequency: 'daily',
@@ -37,13 +43,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${baseUrl}/r/${r.slug}`,
         lastModified: r.updatedAt,
         changeFrequency: 'daily',
-        priority: 0.8,
+        priority: 0.9,
       });
       routes.push({
         url: `${baseUrl}/r/${r.slug}/menu`,
         lastModified: r.updatedAt,
         changeFrequency: 'daily',
+        priority: 0.9,
+      });
+      routes.push({
+        url: `${baseUrl}/r/${r.slug}/promociones`,
+        lastModified: r.updatedAt,
+        changeFrequency: 'daily',
         priority: 0.8,
+      });
+      routes.push({
+        url: `${baseUrl}/r/${r.slug}/nosotros`,
+        lastModified: r.updatedAt,
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      });
+      routes.push({
+        url: `${baseUrl}/r/${r.slug}/contacto`,
+        lastModified: r.updatedAt,
+        changeFrequency: 'monthly',
+        priority: 0.6,
       });
       routes.push({
         url: `${baseUrl}/r/${r.slug}/rastreo`,

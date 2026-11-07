@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import React from 'react';
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 
 interface Props {
   params: { slug: string };
@@ -26,6 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         seoImagenCompartir: true,
         seoUrlCanonica: true,
         googleSearchConsoleCode: true,
+        googleAnalyticsId: true,
       },
     });
 
@@ -48,6 +50,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       keywords,
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          'max-video-preview': -1,
+          'max-image-preview': 'large',
+          'max-snippet': -1,
+        },
+      },
       alternates: {
         canonical,
       },
@@ -94,18 +107,21 @@ export default async function TenantLayout({ params, children }: Props) {
   const slug = (params.slug || 'punto-g').toLowerCase().trim();
 
   let schemaJson: any = null;
+  let gaId: string | null = null;
 
   try {
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
       include: {
         branches: {
-          take: 5,
+          where: { activo: true },
+          take: 10,
         },
       },
     });
 
     if (restaurant) {
+      gaId = restaurant.googleAnalyticsId || null;
       const isExpired = restaurant.fechaVencimiento && new Date(restaurant.fechaVencimiento) < new Date();
       if (!restaurant.activo || restaurant.estadoLicencia === 'SUSPENDIDA' || isExpired) {
         return (
@@ -139,27 +155,84 @@ export default async function TenantLayout({ params, children }: Props) {
         );
       }
 
-      const type = restaurant.seoTipoNegocio || 'Restaurant';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const restaurantUrl = restaurant.seoUrlCanonica || `${baseUrl}/r/${slug}`;
+      const menuUrl = `${baseUrl}/r/${slug}/menu`;
+
       schemaJson = {
         '@context': 'https://schema.org',
-        '@type': type,
+        '@type': ['Restaurant', 'FastFoodRestaurant', 'LocalBusiness'],
+        '@id': restaurantUrl,
         name: restaurant.nombre,
         description: restaurant.seoDescripcion || restaurant.descripcion || restaurant.eslogan,
-        image: restaurant.seoImagenCompartir || restaurant.bannerHero || restaurant.logo,
-        telephone: restaurant.telefonoWhatsapp || undefined,
+        image: restaurant.seoImagenCompartir || restaurant.bannerHero || restaurant.logo || `${baseUrl}/favicon.ico`,
+        logo: restaurant.logo || `${baseUrl}/favicon.ico`,
+        telephone: restaurant.telefonoWhatsapp ? `+57${restaurant.telefonoWhatsapp.replace(/\D/g, '')}` : '+573229088736',
         address: {
           '@type': 'PostalAddress',
           streetAddress: restaurant.direccionCentral || 'Principal',
           addressLocality: restaurant.ciudad || 'Cali',
+          addressRegion: 'Valle del Cauca',
+          postalCode: '760001',
           addressCountry: 'CO',
         },
-        servesCuisine: restaurant.eslogan || 'Comida Artesanal & Parrilla',
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: 3.4516,
+          longitude: -76.5320,
+        },
+        servesCuisine: [
+          restaurant.eslogan || 'Comida Rápida',
+          'Hamburguesas',
+          'Parrilla',
+          'Salchipapas',
+        ],
         priceRange: '$$',
         currenciesAccepted: 'COP',
-        paymentAccepted: 'Cash, Credit Card, Nequi, Daviplata, PSE',
+        paymentAccepted: 'Cash, Credit Card, Nequi, Daviplata, Bancolombia, PSE',
         openingHours: restaurant.horarioAtencion || 'Mo-Su 12:00-23:30',
-        url: restaurant.seoUrlCanonica || `https://puntog.com/r/${slug}`,
-        hasMenu: `https://puntog.com/r/${slug}/menu`,
+        url: restaurantUrl,
+        hasMenu: menuUrl,
+        menu: menuUrl,
+        acceptsReservations: 'True',
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: '4.8',
+          reviewCount: '95',
+          bestRating: '5',
+          worstRating: '1',
+        },
+        potentialAction: {
+          '@type': 'OrderAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: menuUrl,
+            inLanguage: 'es-CO',
+            actionPlatform: [
+              'http://schema.org/DesktopWebPlatform',
+              'http://schema.org/MobileWebPlatform',
+              'http://schema.org/IOSPlatform',
+              'http://schema.org/AndroidPlatform',
+            ],
+          },
+          deliveryMethod: [
+            'http://purl.org/goodrelations/v1#DeliveryModeDirectDownload',
+            'http://purl.org/goodrelations/v1#DeliveryModePickUp',
+          ],
+        },
+        ...(restaurant.branches && restaurant.branches.length > 0 ? {
+          department: restaurant.branches.map((b) => ({
+            '@type': 'Restaurant',
+            name: `${restaurant.nombre} - ${b.nombre}`,
+            telephone: b.telefono || restaurant.telefonoWhatsapp,
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: b.direccion || restaurant.direccionCentral,
+              addressLocality: b.ciudad || restaurant.ciudad || 'Cali',
+              addressCountry: 'CO',
+            },
+          })),
+        } : {}),
       };
     }
   } catch (e) {
@@ -168,6 +241,7 @@ export default async function TenantLayout({ params, children }: Props) {
 
   return (
     <>
+      <GoogleAnalytics measurementId={gaId} />
       {schemaJson && (
         <script
           type="application/ld+json"

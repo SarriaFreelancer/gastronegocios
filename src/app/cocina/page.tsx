@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { 
   ChefHat, 
   Clock, 
@@ -67,12 +67,15 @@ interface Order {
   metodoPago: string;
   repartidor?: string | null;
   createdAt: string;
+  branch?: { id: number; nombre: string; slug: string } | null;
   items: OrderItem[];
 }
 
 export default function CocinaKDSPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const tenantSlug = (params?.slug as string) || null;
+  const branchParam = searchParams?.get('branchId') || null;
   const [restaurant, setRestaurant] = useState<{ id: number; nombre: string; colorPrimario?: string; logo?: string; eslogan?: string } | null>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -86,13 +89,35 @@ export default function CocinaKDSPage() {
   const [mounted, setMounted] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(branchParam || 'all');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'comanda' | 'factura'>('comanda');
 
   const [availableRestaurants, setAvailableRestaurants] = useState<any[]>([]);
   const [isRedirecting, setIsRedirecting] = useState<boolean>(!tenantSlug);
+
+  // Sync branch selection with query param or localStorage
+  useEffect(() => {
+    if (branchParam) {
+      setSelectedBranchId(branchParam);
+      if (tenantSlug && typeof window !== 'undefined') {
+        localStorage.setItem(`kds_branch_${tenantSlug}`, branchParam);
+      }
+    } else if (tenantSlug && typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`kds_branch_${tenantSlug}`);
+      if (saved) {
+        setSelectedBranchId(saved);
+      }
+    }
+  }, [branchParam, tenantSlug]);
+
+  const handleBranchChange = (newBranchId: string) => {
+    setSelectedBranchId(newBranchId);
+    if (tenantSlug && typeof window !== 'undefined') {
+      localStorage.setItem(`kds_branch_${tenantSlug}`, newBranchId);
+    }
+  };
 
   // Fetch restaurant branding if tenantSlug exists
   useEffect(() => {
@@ -438,15 +463,20 @@ export default function CocinaKDSPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
             {availableRestaurants.map((r) => (
-              <Link
+              <div
                 key={r.id}
-                href={`/r/${r.slug}/cocina`}
-                className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#121212] border border-[#242424] hover:border-brand-yellow/70 transition-all duration-300 hover:shadow-glow hover:-translate-y-1"
+                className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#121212] border border-[#242424] hover:border-brand-yellow/70 transition-all duration-300 hover:shadow-glow"
               >
                 <div className="space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-[#1a1a1a] border border-[#333] flex items-center justify-center group-hover:scale-105 transition">
-                    <ChefHat className="w-7 h-7 text-brand-yellow" />
+                  <div className="flex items-center justify-between">
+                    <div className="w-14 h-14 rounded-2xl bg-[#1a1a1a] border border-[#333] flex items-center justify-center group-hover:scale-105 transition">
+                      <ChefHat className="w-7 h-7 text-brand-yellow" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Activo
+                    </span>
                   </div>
+
                   <div>
                     <h3 className="text-lg font-black text-white group-hover:text-brand-yellow transition">
                       {r.nombre}
@@ -455,13 +485,40 @@ export default function CocinaKDSPage() {
                       {r.eslogan || r.descripcion || 'Comandas y pedidos en tiempo real'}
                     </p>
                   </div>
+
+                  {/* Sede direct buttons */}
+                  <div className="pt-2 space-y-1.5">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                      Sedes de Cocina:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Link
+                        href={`/r/${r.slug}/cocina`}
+                        className="px-2.5 py-1 rounded-lg bg-[#202020] hover:bg-brand-yellow hover:text-black text-[11px] font-bold text-gray-200 transition"
+                      >
+                        Todas las Sedes
+                      </Link>
+                      {r.branches && r.branches.length > 0 && r.branches.map((b: any) => (
+                        <Link
+                          key={b.id}
+                          href={`/r/${r.slug}/cocina?branchId=${b.id}`}
+                          className="px-2.5 py-1 rounded-lg bg-brand-yellow/15 hover:bg-brand-yellow hover:text-black text-[11px] font-bold text-brand-yellow border border-brand-yellow/40 transition flex items-center gap-1"
+                        >
+                          <Building2 className="w-3 h-3" />
+                          <span>{b.nombre}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#222] flex items-center justify-between text-xs font-bold text-brand-yellow">
-                  <span>Abrir Cocina KDS</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                  <Link href={`/r/${r.slug}/cocina`} className="flex items-center gap-1 hover:underline">
+                    <span>Entrar a Cocina KDS</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                  </Link>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>
@@ -503,8 +560,13 @@ export default function CocinaKDSPage() {
                 <ChefHat className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h1 className="text-sm sm:text-lg md:text-xl font-black tracking-wider uppercase text-white flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-sm sm:text-lg md:text-xl font-black tracking-wider uppercase text-white flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <span>{restaurant?.nombre || (tenantSlug ? tenantSlug.toUpperCase() : 'RESTAURANTE')}</span> <span className="text-brand-yellow">KDS</span>
+                  {selectedBranchId !== 'all' && (
+                    <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/40">
+                      📍 Sede: {branches.find(b => String(b.id) === selectedBranchId)?.nombre || `Sede #${selectedBranchId}`}
+                    </span>
+                  )}
                 </h1>
                 <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -573,7 +635,7 @@ export default function CocinaKDSPage() {
                 <Building2 className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
                 <select
                   value={selectedBranchId}
-                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  onChange={(e) => handleBranchChange(e.target.value)}
                   className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer max-w-[120px] sm:max-w-[150px] truncate"
                 >
                   <option value="all" className="bg-[#181818] text-white">Todas las Sedes</option>
@@ -728,10 +790,10 @@ export default function CocinaKDSPage() {
                       </span>
                     </div>
 
-                    {order.sedeNombre && (
+                    {(order.sedeNombre || order.branch?.nombre) && (
                       <div className="flex items-center gap-1 text-[10px] font-bold text-brand-yellow/90 mt-1">
                         <Building2 className="w-3 h-3 text-brand-yellow" />
-                        <span className="truncate">{order.sedeNombre}</span>
+                        <span className="truncate">{order.sedeNombre || order.branch?.nombre}</span>
                       </div>
                     )}
 

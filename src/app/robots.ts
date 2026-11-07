@@ -7,24 +7,35 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/menu', '/r/*'],
+        allow: '/',
         disallow: [
           '/admin',
           '/admin/*',
           '/superadmin',
           '/superadmin/*',
           '/api/*',
-          '/login',
           '/checkout',
-          '/mesero',
-          '/cocina',
-          '/turnero',
           '/*/admin',
           '/*/admin/*',
-          '/*/login',
         ],
+      },
+      {
+        userAgent: 'Googlebot',
+        allow: '/',
+        disallow: [
+          '/admin',
+          '/admin/*',
+          '/superadmin',
+          '/superadmin/*',
+          '/api/*',
+        ],
+      },
+      {
+        userAgent: 'Googlebot-Image',
+        allow: ['/', '/images/*', '/*'],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   };
 }
