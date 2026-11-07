@@ -13,15 +13,13 @@ export const HeroSection: React.FC = () => {
   const menuHref = match ? `/r/${match[1]}/menu` : '/menu';
   return (
     <section className="relative pt-28 pb-16 bg-[#080808] overflow-hidden min-h-[90vh] flex items-center">
-      {/* Yellow brush glow in top-left corner */}
+      {/* Yellow brush accent in top-left corner */}
       <div 
-        className="absolute top-0 left-0 w-80 sm:w-[480px] h-80 sm:h-[480px] pointer-events-none opacity-25 mix-blend-screen"
+        className="absolute top-0 left-0 w-72 sm:w-[380px] h-72 sm:h-[380px] pointer-events-none opacity-20 mix-blend-screen"
         style={{
-          background: 'radial-gradient(circle at 10% 10%, #FFC928 0%, rgba(255, 201, 40, 0.3) 45%, transparent 70%)',
+          background: 'radial-gradient(circle at 10% 10%, #FFC928 0%, rgba(255, 201, 40, 0.2) 40%, transparent 65%)',
         }}
       />
-      {/* Background warm smoke accent */}
-      <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-brand-yellow/10 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-center">
@@ -77,35 +75,56 @@ export const HeroSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Hero Image: Large circular gourmet burger with soft radial feather fade into the black background */}
-          <div className="lg:col-span-6 relative flex justify-center items-center">
-            {/* Ambient golden restaurant spotlight glow behind the burger */}
-            <div className="absolute w-[300px] h-[300px] sm:w-[440px] sm:h-[440px] lg:w-[500px] lg:h-[500px] rounded-full bg-brand-yellow/25 blur-[120px] pointer-events-none" />
-
-            {/* "Sabor Real" callout script */}
-            <div className="absolute -top-4 right-4 sm:right-8 z-20 text-right select-none pointer-events-none">
-              <span className="font-script text-3xl sm:text-5xl text-white italic drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)] leading-none block">
-                Sabor
+          {/* Right Hero Image: 3D Burger Floating with Drawing/Doodle Accents (NO circular blur) */}
+          <div className="lg:col-span-6 relative flex flex-col justify-center items-center">
+            
+            {/* Top-Right: 100% Artesanal callout pill */}
+            <div className="absolute -top-6 right-2 sm:right-6 z-20 flex items-center gap-1.5 select-none pointer-events-none">
+              <span className="px-3 py-1 rounded-full bg-brand-yellow text-black font-black text-[10px] sm:text-xs uppercase tracking-widest shadow-md">
+                🔥 100% ARTESANAL
               </span>
-              <span className="font-script text-3xl sm:text-5xl text-brand-yellow italic drop-shadow-[0_4px_12px_rgba(255,201,40,0.5)] leading-none block -mt-1">
-                Real
-              </span>
-              <Sparkles className="w-5 h-5 text-brand-yellow animate-spin-slow ml-auto mt-1" />
             </div>
 
-            {/* Realistic 3D Product Cutout (No box, no circle, pure burger floating directly on the page) */}
-            <div className="relative w-[320px] h-[300px] sm:w-[460px] sm:h-[440px] lg:w-[540px] lg:h-[500px] flex items-center justify-center">
-              <div className="relative w-full h-full transition-transform duration-500 hover:scale-105 select-none">
+            {/* Top-Left: Decorative steam / grill aroma lines doodle */}
+            <div className="absolute -top-3 left-4 sm:left-12 z-10 pointer-events-none opacity-80">
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="text-brand-yellow animate-float">
+                <path d="M10 30C10 20 20 20 20 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="3 3"/>
+                <path d="M22 32C22 24 30 24 30 14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="3 3"/>
+              </svg>
+            </div>
+
+            {/* Floating 3D Burger with gentle float animation */}
+            <div className="relative w-[320px] h-[280px] sm:w-[460px] sm:h-[400px] lg:w-[520px] lg:h-[450px] flex items-center justify-center animate-float">
+              <div className="relative w-full h-full select-none transition-transform duration-500 hover:scale-105">
                 <Image
                   src="/images/assets/burger-hero-transparent.png"
                   alt="Hamburguesa Gourmet Artesanal Punto G"
                   fill
                   priority
-                  className="object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.9)] drop-shadow-[0_10px_20px_rgba(255,201,40,0.15)]"
-                  sizes="(max-width: 1024px) 100vw, 540px"
+                  className="object-contain drop-shadow-[0_28px_32px_rgba(0,0,0,0.95)]"
+                  sizes="(max-width: 1024px) 100vw, 520px"
                 />
               </div>
             </div>
+
+            {/* Bottom Gastronomic Badges */}
+            <div className="flex items-center gap-2.5 -mt-2 z-20 pointer-events-none select-none">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#141414] border border-[#2b2b2b] text-[11px] font-bold text-gray-300 shadow-md">
+                <Sparkles className="w-3.5 h-3.5 text-brand-yellow animate-spin-slow" />
+                <span>Pan Brioche</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#141414] border border-[#2b2b2b] text-[11px] font-bold text-gray-300 shadow-md">
+                <span className="text-brand-yellow font-black">★</span>
+                <span>Doble Smash</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#141414] border border-[#2b2b2b] text-[11px] font-bold text-gray-300 shadow-md">
+                <span className="text-amber-500 font-bold">🧀</span>
+                <span>Cheddar Fundido</span>
+              </div>
+            </div>
+
+            {/* Ground Contact Shadow (Slim Horizontal Ellipse on floor, NOT circular haze) */}
+            <div className="w-48 sm:w-72 lg:w-80 h-3 sm:h-4 bg-black/80 rounded-[100%] blur-sm mt-3 pointer-events-none" />
           </div>
 
         </div>

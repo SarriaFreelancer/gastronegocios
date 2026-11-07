@@ -434,26 +434,22 @@ function DynamicClientLanding({
                 </div>
               </div>
 
-              {/* Hero Image: Large round difuminado without box or square borders */}
-              <div className="lg:col-span-6 relative flex items-center justify-center">
-                <div
-                  className="absolute w-[300px] h-[300px] sm:w-[420px] sm:h-[420px] rounded-full blur-[110px] opacity-35 pointer-events-none"
-                  style={{ backgroundColor: primary }}
-                />
-
-                {/* 3D Product Highlight (No frame, no circle, natural floating on page) */}
-                <div className="relative w-[320px] h-[300px] sm:w-[440px] sm:h-[420px] lg:w-[500px] lg:h-[460px] flex items-center justify-center z-10">
+              {/* Hero Image: 3D Product Highlight Floating (No circular blur) */}
+              <div className="lg:col-span-6 relative flex flex-col items-center justify-center">
+                <div className="relative w-[320px] h-[280px] sm:w-[440px] sm:h-[380px] lg:w-[500px] lg:h-[440px] flex items-center justify-center z-10 animate-float">
                   <div className="relative w-full h-full transition-transform duration-500 hover:scale-105 select-none">
                     <Image
                       src={heroImage}
                       alt={restaurant.nombre}
                       fill
-                      className="object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.9)] drop-shadow-[0_10px_20px_rgba(255,201,40,0.15)]"
+                      className="object-contain drop-shadow-[0_28px_32px_rgba(0,0,0,0.95)]"
                       priority
                       sizes="(max-width: 1024px) 100vw, 500px"
                     />
                   </div>
                 </div>
+                {/* Horizontal ground shadow */}
+                <div className="w-48 sm:w-72 lg:w-80 h-3 sm:h-4 bg-black/80 rounded-[100%] blur-sm -mt-2 pointer-events-none" />
               </div>
 
             </div>

@@ -180,11 +180,6 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
       
       {/* 1. Dynamic Category Top Hero Banner */}
       <div className="relative bg-gradient-to-r from-[#0d0d0d] via-[#141414] to-[#080808] border-b border-[#202020] overflow-hidden mb-8 sm:mb-12 transition-all duration-300">
-        <div 
-          className="absolute top-0 right-1/4 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20"
-          style={{ backgroundColor: primaryColor }}
-        />
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
             
@@ -218,14 +213,9 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
               </p>
             </div>
 
-            {/* Right Hero Food Image: 3D Product Highlight without box, border or circle */}
-            <div className="md:col-span-5 flex justify-center md:justify-end">
-              <div className="relative w-[260px] h-[220px] sm:w-[320px] sm:h-[260px] flex items-center justify-center">
-                {/* Organic glow */}
-                <div 
-                  className="absolute w-[200px] h-[200px] sm:w-[260px] sm:h-[260px] rounded-full blur-[80px] opacity-35 pointer-events-none"
-                  style={{ backgroundColor: primaryColor }}
-                />
+            {/* Right Hero Food Image: 3D Product Highlight without any circular blur */}
+            <div className="md:col-span-5 flex flex-col items-center md:items-end">
+              <div className="relative w-[260px] h-[210px] sm:w-[320px] sm:h-[250px] flex items-center justify-center animate-float">
                 <div className="relative w-full h-full select-none transition-transform duration-500 hover:scale-105">
                   <Image
                     key={heroImageSrc}
@@ -233,11 +223,13 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
                     alt={currentDisplayCategory.nombre}
                     fill
                     priority
-                    className="object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.9)] drop-shadow-[0_8px_16px_rgba(255,201,40,0.18)]"
+                    className="object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.95)]"
                     sizes="(max-width: 768px) 260px, 320px"
                   />
                 </div>
               </div>
+              {/* Subtle ground shadow */}
+              <div className="w-40 sm:w-56 h-3 bg-black/80 rounded-[100%] blur-sm -mt-3 md:mr-6 pointer-events-none" />
             </div>
 
           </div>
