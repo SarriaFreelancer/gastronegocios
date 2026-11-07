@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -25,7 +25,9 @@ import {
   Store
 } from 'lucide-react';
 
-export default function TenantMenuGeneralPage() {
+export const dynamic = 'force-dynamic';
+
+function TenantMenuGeneralContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = ((params?.slug as string) || 'punto-g').toLowerCase().trim();
@@ -604,5 +606,19 @@ export default function TenantMenuGeneralPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function TenantMenuGeneralPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
+          <div className="w-8 h-8 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <TenantMenuGeneralContent />
+    </Suspense>
   );
 }

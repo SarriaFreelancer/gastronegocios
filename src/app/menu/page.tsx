@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -13,7 +13,9 @@ import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { Search, Sparkles, Filter } from 'lucide-react';
 import { getCategoryHeroImage } from '@/lib/category-images';
 
-export default function MenuGeneralPage() {
+export const dynamic = 'force-dynamic';
+
+function MenuGeneralContent() {
   const searchParams = useSearchParams();
   const catParam = searchParams ? searchParams.get('category') : null;
   const [allCategories, setAllCategories] = useState<any[]>(initialCategories);
@@ -368,5 +370,19 @@ export default function MenuGeneralPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function MenuGeneralPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
+          <div className="w-8 h-8 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <MenuGeneralContent />
+    </Suspense>
   );
 }

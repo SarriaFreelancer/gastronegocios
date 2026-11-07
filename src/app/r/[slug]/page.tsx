@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -38,7 +38,9 @@ import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
 import { getCategoryHeroImage } from '@/lib/category-images';
 
-export default function TenantLandingPage() {
+export const dynamic = 'force-dynamic';
+
+function TenantLandingContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = ((params?.slug as string) || 'punto-g').toLowerCase().trim();
@@ -1031,5 +1033,19 @@ function DynamicClientLanding({
         />
       )}
     </div>
+  );
+}
+
+export default function TenantLandingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
+          <div className="w-8 h-8 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <TenantLandingContent />
+    </Suspense>
   );
 }

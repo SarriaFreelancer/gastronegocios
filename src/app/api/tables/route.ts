@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 import { generateTableQRCode } from '@/lib/qrcode';
 
 export async function GET(req: Request) {
