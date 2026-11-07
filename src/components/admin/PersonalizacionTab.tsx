@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { showSuccess, showError, showConfirm } from '@/lib/swal';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
+import { LogoPresetSelector } from '@/components/admin/LogoPresetSelector';
 
 interface PersonalizacionTabProps {
   restaurant: any;
@@ -355,48 +356,12 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
               />
             </div>
 
-            {/* Logo URL & Preview */}
-            <div className="bg-[#181818] border border-[#262626] p-4 rounded-2xl space-y-3">
-              <label className="block text-gray-300 font-bold uppercase">
-                URL del Logotipo (Cuadrado / PNG Transparente)
-              </label>
-              <input
-                type="url"
-                value={formData.logo}
-                onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-                placeholder="https://tudominio.com/logo.png"
-                className="w-full bg-[#121212] border border-[#333] focus:border-brand-yellow rounded-xl px-3 py-2 text-white"
-              />
-              <div className="flex items-center gap-3 bg-[#0d0d0d] p-3 rounded-xl border border-[#202020]">
-                {formData.logo ? (
-                  <img
-                    src={formData.logo}
-                    alt="Logo preview"
-                    className="w-12 h-12 object-contain rounded-lg bg-black/40"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm border"
-                    style={{
-                      backgroundColor: `${formData.colorPrimario}20`,
-                      borderColor: `${formData.colorPrimario}60`,
-                      color: formData.colorPrimario,
-                    }}
-                  >
-                    {formData.nombre ? formData.nombre.slice(0, 2).toUpperCase() : 'RT'}
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-bold text-white">Vista Previa de Marca</p>
-                  <p className="text-[10px] text-gray-400">
-                    {formData.logo ? 'Imagen personalizada activa' : 'Insignia vectorial con iniciales activa (fallback)'}
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Logo Preset Selector */}
+            <LogoPresetSelector
+              value={formData.logo}
+              onChange={(url) => setFormData({ ...formData, logo: url })}
+              label="Logotipo Oficial de la Marca"
+            />
 
             {/* Banner Hero 3D / Preset Selector */}
             <FoodImagePresetSelector

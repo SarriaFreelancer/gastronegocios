@@ -8,6 +8,7 @@ import { Logo } from '@/components/ui/Logo';
 import { PersonalizacionTab } from '@/components/admin/PersonalizacionTab';
 import { SeoTab } from '@/components/admin/SeoTab';
 import { FacturasTab } from '@/components/admin/FacturasTab';
+import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 import { 
   ShoppingBag, 
   Layers, 
@@ -6314,13 +6315,11 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">URL Fotografía</label>
-                <input
-                  type="url"
-                  placeholder="https://..."
+                <FoodImagePresetSelector
                   value={catFormData.imagen}
-                  onChange={(e) => setCatFormData({ ...catFormData, imagen: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                  onChange={(url) => setCatFormData({ ...catFormData, imagen: url })}
+                  label="Render 3D o Fotografía de la Categoría"
+                  helpText="Escoge un render 3D (hamburguesa, salchipapa, parrilla, hot dog, etc.), sube un archivo o ingresa una URL."
                 />
               </div>
 
@@ -6510,6 +6509,16 @@ export default function AdminPage() {
                   value={subcatFormData.descripcion}
                   onChange={(e) => setSubcatFormData({ ...subcatFormData, descripcion: e.target.value })}
                   className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2 text-white text-xs resize-none"
+                />
+              </div>
+
+              {/* Subcategory Image / 3D Preset */}
+              <div>
+                <FoodImagePresetSelector
+                  value={subcatFormData.imagen || ''}
+                  onChange={(url) => setSubcatFormData({ ...subcatFormData, imagen: url })}
+                  label="Render 3D o Fotografía de la Subcategoría (Opcional)"
+                  helpText="Escoge un render 3D (hamburguesa, salchipapa, parrilla, hot dog, etc.), sube un archivo o ingresa una URL."
                 />
               </div>
 
@@ -6735,13 +6744,11 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">URL Imagen</label>
-                <input
-                  type="url"
-                  placeholder="https://..."
+                <FoodImagePresetSelector
                   value={productFormData.imagen}
-                  onChange={(e) => setProductFormData({ ...productFormData, imagen: e.target.value })}
-                  className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-white text-xs"
+                  onChange={(url) => setProductFormData({ ...productFormData, imagen: url })}
+                  label="Fotografía / Render 3D del Producto"
+                  helpText="Escoge un render 3D (hamburguesa, salchipapa, parrilla, hot dog, etc.), sube un archivo o ingresa una URL."
                 />
               </div>
 

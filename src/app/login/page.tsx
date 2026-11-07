@@ -91,7 +91,12 @@ function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          password,
+          restaurantSlug: tenant?.slug || undefined,
+          restaurantId: tenant?.id || undefined
+        }),
       });
 
       const data = await res.json();

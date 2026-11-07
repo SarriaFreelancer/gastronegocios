@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
+import { LogoPresetSelector } from '@/components/admin/LogoPresetSelector';
 
 interface RestaurantItem {
   id: number;
@@ -973,6 +974,35 @@ export default function SuperadminPage() {
                     </div>
                   </div>
 
+                  {/* Credenciales de Acceso Administrador */}
+                  {(() => {
+                    const adminUser = rest.users?.find(u => u.rol === 'Administrador' || u.rol === 'Superadmin') || rest.users?.[0];
+                    if (!adminUser) return null;
+                    return (
+                      <div className="bg-[#121212] border border-[#2a2a2a] rounded-2xl p-3 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-brand-yellow flex items-center gap-1.5 tracking-wider">
+                            <Key className="w-3.5 h-3.5 text-brand-yellow" />
+                            <span>Acceso Admin del Negocio</span>
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-mono truncate max-w-[120px]">
+                            {adminUser.nombre}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                          <div className="bg-[#181818] px-3 py-1.5 rounded-xl border border-[#2d2d2d] flex items-center justify-between gap-1 overflow-hidden">
+                            <span className="text-gray-400 text-[10px] uppercase font-bold shrink-0">Email:</span>
+                            <span className="text-gray-200 font-mono font-bold truncate select-all" title={adminUser.email}>{adminUser.email}</span>
+                          </div>
+                          <div className="bg-[#181818] px-3 py-1.5 rounded-xl border border-[#2d2d2d] flex items-center justify-between gap-1">
+                            <span className="text-gray-400 text-[10px] uppercase font-bold shrink-0">Clave:</span>
+                            <span className="text-emerald-400 font-mono font-black select-all">{adminUser.password || '••••••••'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Botón Principal: Administrar Restaurante */}
                   <Link
                     href={`/r/${rest.slug}/admin`}
@@ -1203,16 +1233,12 @@ export default function SuperadminPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-gray-400 font-bold uppercase text-[10px] mb-1">
-                      URL del Logo
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
+                  {/* Selector de Logo Prediseñado / Subir */}
+                  <div className="col-span-full">
+                    <LogoPresetSelector
                       value={formData.logo}
-                      onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-                      className="w-full bg-[#121212] border border-[#333] rounded-lg px-2.5 py-2 text-white"
+                      onChange={(url) => setFormData({ ...formData, logo: url })}
+                      label="Logo del Restaurante"
                     />
                   </div>
 
@@ -1546,34 +1572,13 @@ export default function SuperadminPage() {
                     </div>
                   </div>
 
-                  {/* Logo y Banner con previsualizaciones */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-gray-300 font-bold uppercase mb-1">
-                        URL Logo Cuadrado / Circular
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://..."
-                        value={formData.logo}
-                        onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-                        className="w-full bg-[#181818] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white"
-                      />
-                      {formData.logo && (
-                        <div className="mt-2 flex items-center gap-2 bg-[#121212] p-2 rounded-xl border border-[#222]">
-                          <img
-                            src={formData.logo}
-                            alt="Preview Logo"
-                            className="w-9 h-9 object-contain rounded-lg bg-black/40"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                          <span className="text-[10px] text-gray-400">Vista previa del logo</span>
-                        </div>
-                      )}
-                    </div>
-
+                  {/* Selector de Logo Prediseñado / Subir */}
+                  <div className="pt-1">
+                    <LogoPresetSelector
+                      value={formData.logo}
+                      onChange={(url) => setFormData({ ...formData, logo: url })}
+                      label="Logo del Restaurante"
+                    />
                   </div>
 
                   {/* Selector de Imagen Hero 3D / Portada */}

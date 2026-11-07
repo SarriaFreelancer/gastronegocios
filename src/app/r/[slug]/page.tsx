@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import {
   Utensils,
   UtensilsCrossed,
+  ChefHat,
   MapPin,
   Clock,
   Sparkles,
@@ -278,105 +279,7 @@ function DynamicClientLanding({
       ? '/images/assets/burger-hero-transparent.png'
       : '/images/assets/burger-hero-transparent.png');
 
-  // If the restaurant has no products and no categories yet, show a polite branded welcome page
   const isBrandNew = categories.length === 0 && products.length === 0;
-
-  if (isBrandNew) {
-    return (
-      <div className="min-h-screen bg-[#080808] text-white pt-28 pb-16 px-4">
-        <div className="max-w-4xl mx-auto space-y-8">
-          <div className="bg-[#121212] border border-[#242424] rounded-3xl p-8 sm:p-14 text-center shadow-2xl relative overflow-hidden">
-            <div 
-              className="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-20 pointer-events-none"
-              style={{ backgroundColor: primary }}
-            />
-            <div className="relative z-10 space-y-6">
-              <div className="flex justify-center">
-                <Logo restaurant={restaurant} showSubtext={false} size="lg" />
-              </div>
-
-              <div className="space-y-2">
-                <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tight font-display">
-                  ¡Bienvenidos a{' '}
-                  <span style={{ color: primary }}>{restaurant.nombre}</span>!
-                </h1>
-                <p className="text-lg text-gray-300 font-medium max-w-xl mx-auto">
-                  {heroSubtitle}
-                </p>
-                <p className="text-sm text-gray-400 max-w-2xl mx-auto">
-                  {heroDesc}
-                </p>
-              </div>
-
-              {/* Informative Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-left max-w-3xl mx-auto">
-                {restaurant.direccionCentral && (
-                  <div className="bg-[#1a1a1a] border border-[#262626] p-4 rounded-2xl flex items-start gap-3">
-                    <MapPin className="w-5 h-5 shrink-0 mt-0.5" style={{ color: primary }} />
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dirección</p>
-                      <p className="text-xs font-semibold text-white">{restaurant.direccionCentral}</p>
-                      <p className="text-[11px] text-gray-400">{restaurant.ciudad}</p>
-                    </div>
-                  </div>
-                )}
-
-                {restaurant.horarioAtencion && (
-                  <div className="bg-[#1a1a1a] border border-[#262626] p-4 rounded-2xl flex items-start gap-3">
-                    <Clock className="w-5 h-5 shrink-0 mt-0.5" style={{ color: primary }} />
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Horario</p>
-                      <p className="text-xs font-semibold text-white">{restaurant.horarioAtencion}</p>
-                    </div>
-                  </div>
-                )}
-
-                {phone && (
-                  <div className="bg-[#1a1a1a] border border-[#262626] p-4 rounded-2xl flex items-start gap-3">
-                    <MessageCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#25D366]" />
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pedidos Directos</p>
-                      <p className="text-xs font-semibold text-white">+57 {phone}</p>
-                      <p className="text-[11px] text-[#25D366]">WhatsApp Disponible</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
-                <Link
-                  href={`/r/${slug}/menu`}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full font-black text-xs uppercase tracking-wider shadow-lg transition transform hover:scale-105"
-                  style={{
-                    backgroundColor: 'var(--tenant-button, var(--tenant-primary, #EAA622))',
-                    color: 'var(--tenant-button-text, #000000)',
-                  }}
-                >
-                  <Utensils className="w-4 h-4" />
-                  <span>Ver Carta Digital</span>
-                </Link>
-
-                {phone && (
-                  <a
-                    href={`https://wa.me/57${phone}?text=${encodeURIComponent(
-                      `¡Hola ${restaurant.nombre}! Quisiera hacer un pedido o consultar su carta.`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-[#181818] hover:bg-[#222222] text-white font-bold text-xs uppercase tracking-wider px-7 py-4 rounded-full border border-gray-700 transition"
-                  >
-                    <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                    <span>Contactar por WhatsApp</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ========================================================
   // RENDER BASED ON TEMPLATE:
@@ -576,59 +479,99 @@ function DynamicClientLanding({
       {/* ======================================================== */}
       {/* 2. CATEGORIES SECTION */}
       {/* ======================================================== */}
-      {showCategories && categories.length > 0 && (
+      {showCategories && (
         <section id="categorias" className="relative py-14 sm:py-20 overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="text-center space-y-3 mb-10 sm:mb-14">
-              <div
-                className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/20"
-                style={{ color: primary }}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Nuestras Especialidades</span>
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-white font-display tracking-wider text-center">
-                EXPLORA NUESTRAS <span className="italic" style={{ color: primary }}>CATEGORÍAS</span>
-              </h2>
-
-              <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto">
-                Selecciona tu categoría favorita para ver los platos disponibles.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {categories.map((cat) => {
-                const catImg = (cat.imagen && !cat.imagen.includes('unsplash.com'))
-                  ? cat.imagen
-                  : getCategoryHeroImage(cat, null);
-                const is3D = catImg.includes('-3d.png') || catImg.includes('burger-hero-transparent.png');
-
-                return (
-                  <Link
-                    key={cat.id}
-                    href={`/r/${slug}/menu/${cat.slug}`}
-                    className="bg-[#121212] border border-[#222] hover:border-white/30 rounded-3xl p-5 space-y-3 transition-all group block cursor-pointer shadow-lg hover:shadow-2xl"
+            {categories.length > 0 ? (
+              <>
+                <div className="text-center space-y-3 mb-10 sm:mb-14">
+                  <div
+                    className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/20"
+                    style={{ color: primary }}
                   >
-                    <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-gradient-to-b from-[#181818] to-[#0d0d0d] flex items-center justify-center p-2">
-                      <Image
-                        src={catImg}
-                        alt={cat.nombre}
-                        fill
-                        className={`${is3D ? 'object-contain p-2 group-hover:scale-110 drop-shadow-[0_12px_20px_rgba(0,0,0,0.8)]' : 'object-cover group-hover:scale-105'} transition-transform duration-500`}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                      />
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Nuestras Especialidades</span>
+                  </div>
+
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase text-white font-display tracking-wider text-center">
+                    EXPLORA NUESTRAS <span className="italic" style={{ color: primary }}>CATEGORÍAS</span>
+                  </h2>
+
+                  <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto">
+                    Selecciona tu categoría favorita para ver los platos disponibles.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {categories.map((cat) => {
+                    const catImg = (cat.imagen && !cat.imagen.includes('unsplash.com'))
+                      ? cat.imagen
+                      : getCategoryHeroImage(cat, null);
+                    const is3D = catImg.includes('-3d.png') || catImg.includes('burger-hero-transparent.png');
+
+                    return (
+                      <Link
+                        key={cat.id}
+                        href={`/r/${slug}/menu/${cat.slug}`}
+                        className="bg-[#121212] border border-[#222] hover:border-white/30 rounded-3xl p-5 space-y-3 transition-all group block cursor-pointer shadow-lg hover:shadow-2xl"
+                      >
+                        <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-gradient-to-b from-[#181818] to-[#0d0d0d] flex items-center justify-center p-2">
+                          <Image
+                            src={catImg}
+                            alt={cat.nombre}
+                            fill
+                            className={`${is3D ? 'object-contain p-2 group-hover:scale-110 drop-shadow-[0_12px_20px_rgba(0,0,0,0.8)]' : 'object-cover group-hover:scale-105'} transition-transform duration-500`}
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          />
+                        </div>
+                        <h3 className="text-base font-black uppercase text-white font-display group-hover:text-tenant-primary transition-colors">
+                          {cat.nombre}
+                        </h3>
+                        <p className="text-xs text-gray-400 line-clamp-2">
+                          {cat.descripcion || 'Platos preparados artesanalmente con los mejores ingredientes.'}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="bg-[#121212] border border-[#262626] rounded-3xl p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-5 shadow-2xl relative overflow-hidden">
+                <div
+                  className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full blur-3xl opacity-20 pointer-events-none"
+                  style={{ backgroundColor: primary }}
+                />
+                <div className="relative z-10 space-y-4">
+                  <div 
+                    className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-[#1a1a1a] border border-[#333] shadow-glow"
+                    style={{ borderColor: primary }}
+                  >
+                    <ChefHat className="w-8 h-8" style={{ color: primary }} />
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-black uppercase text-white font-display tracking-wide">
+                    Estamos Cocinando Nuestra Carta Digital
+                  </h3>
+                  <p className="text-sm text-gray-400 max-w-lg mx-auto leading-relaxed">
+                    Muy pronto podrás consultar todas nuestras categorías y ordenar directamente desde aquí. Mientras tanto, ¡estamos tomando todos tus pedidos directamente por nuestra línea de atención!
+                  </p>
+                  {phone && (
+                    <div className="pt-2">
+                      <a
+                        href={`https://wa.me/57${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                          `¡Hola ${restaurant.nombre}! Quisiera hacer un pedido.`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full text-xs font-black uppercase tracking-wider bg-[#25D366] hover:bg-[#20ba59] text-black transition-all shadow-glow hover:scale-105"
+                      >
+                        <MessageCircle className="w-4 h-4 fill-current" />
+                        <span>Pedir por WhatsApp al +57 {phone}</span>
+                      </a>
                     </div>
-                    <h3 className="text-base font-black uppercase text-white font-display group-hover:text-tenant-primary transition-colors">
-                      {cat.nombre}
-                    </h3>
-                    <p className="text-xs text-gray-400 line-clamp-2">
-                      {cat.descripcion || 'Platos preparados artesanalmente con los mejores ingredientes.'}
-                    </p>
-                  </Link>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}
