@@ -105,6 +105,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.googleAnalyticsId !== undefined) data.googleAnalyticsId = body.googleAnalyticsId;
     if (body.favicon !== undefined) data.favicon = body.favicon;
     if (body.telefonoWhatsapp !== undefined) data.telefonoWhatsapp = body.telefonoWhatsapp;
+    if (body.mensajeWhatsappDefault !== undefined) data.mensajeWhatsappDefault = body.mensajeWhatsappDefault;
+    if (body.email !== undefined) data.email = body.email;
+    if (body.correoRemitente !== undefined) data.correoRemitente = body.correoRemitente;
+    if (body.correoDestinatario !== undefined) data.correoDestinatario = body.correoDestinatario;
     if (body.instagram !== undefined) data.instagram = body.instagram;
     if (body.direccionCentral !== undefined) data.direccionCentral = body.direccionCentral;
     if (body.ciudad !== undefined) data.ciudad = body.ciudad;

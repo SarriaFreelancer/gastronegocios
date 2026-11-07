@@ -482,6 +482,10 @@ export default function AdminPage() {
     nombre: 'PUNTO G',
     eslogan: 'ANTOJOS QUE CONECTAN',
     telefonoWhatsapp: '3229088736',
+    mensajeWhatsappDefault: '¡Hola! Quiero hacer un pedido por la web.',
+    email: 'contacto@puntog.com',
+    correoRemitente: 'pedidos@puntog.com',
+    correoDestinatario: 'novedades@puntog.com',
     direccion: 'Calle 9 # 45-12, Barrio Granada, Cali',
     horario: 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
     costoDomicilioBase: 5000,
@@ -845,7 +849,20 @@ export default function AdminPage() {
       const res = await fetch('/api/config');
       if (res.ok) {
         const data = await res.json();
-        if (data) setConfig(data);
+        if (data) {
+          setConfig((prev) => ({
+            ...prev,
+            ...data,
+            telefonoWhatsapp: activeRestaurant?.telefonoWhatsapp || data.telefonoWhatsapp || prev.telefonoWhatsapp,
+            mensajeWhatsappDefault: activeRestaurant?.mensajeWhatsappDefault || data.mensajeWhatsappDefault || prev.mensajeWhatsappDefault,
+            email: activeRestaurant?.email || data.email || prev.email,
+            correoRemitente: activeRestaurant?.correoRemitente || data.correoRemitente || prev.correoRemitente,
+            correoDestinatario: activeRestaurant?.correoDestinatario || data.correoDestinatario || prev.correoDestinatario,
+            nombre: activeRestaurant?.nombre || data.nombre || prev.nombre,
+            direccion: activeRestaurant?.direccionCentral || data.direccion || prev.direccion,
+            horario: activeRestaurant?.horarioAtencion || data.horario || prev.horario,
+          }));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -1655,9 +1672,34 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
+
+      if (activeRestaurant?.id) {
+        const restRes = await fetch(`/api/restaurants/${activeRestaurant.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: config.nombre,
+            telefonoWhatsapp: config.telefonoWhatsapp,
+            mensajeWhatsappDefault: config.mensajeWhatsappDefault,
+            email: config.email,
+            correoRemitente: config.correoRemitente,
+            correoDestinatario: config.correoDestinatario,
+            direccionCentral: config.direccion,
+            horarioAtencion: config.horario,
+            costoDomicilioBase: Number(config.costoDomicilioBase),
+            propinaSugeridaPct: Number(config.propinaSugeridaPct),
+          }),
+        });
+        if (restRes.ok) {
+          const updatedRest = await restRes.json();
+          setActiveRestaurant(updatedRest);
+          localStorage.setItem('punto_g_active_restaurant', JSON.stringify(updatedRest));
+        }
+      }
+
       setSavedSettings(true);
       setTimeout(() => setSavedSettings(false), 2500);
-      showSuccess('Configuración Guardada', 'Los ajustes del restaurante se actualizaron exitosamente.');
+      showSuccess('Configuración Guardada', 'Los canales de WhatsApp, correos y ajustes del restaurante se actualizaron exitosamente.');
     } catch (e) {
       console.error(e);
       showError('Error de conexión', 'No se pudo guardar la configuración');
@@ -5773,91 +5815,211 @@ export default function AdminPage() {
         {/* TAB 7: CONFIGURACIÓN                                     */}
         {/* ======================================================== */}
         {activeTab === 'configuracion' && (
-          <div className="max-w-2xl bg-[#121212] border border-[#222] rounded-2xl p-6 sm:p-8 space-y-6">
-            <div>
-              <h3 className="text-lg font-black uppercase text-white font-display">
-                CONFIGURACIÓN DEL RESTAURANTE
-              </h3>
-              <p className="text-xs text-gray-400">
-                Ajusta teléfonos, propinas sugeridas y costo de domicilio en MySQL.
-              </p>
+          <div className="max-w-4xl bg-[#121212] border border-[#222] rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#202020]">
+              <div>
+                <h3 className="text-xl font-black uppercase text-white font-display flex items-center gap-2.5">
+                  <Settings className="w-5 h-5 text-brand-yellow" />
+                  <span>CONFIGURACIÓN DEL RESTAURANTE & CANALES DE COMUNICACIÓN</span>
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  Gestiona los canales oficiales de WhatsApp, correos de envío y recepción de pedidos y novedades comerciales.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] font-black uppercase bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                {activeRestaurant?.nombre || config.nombre}
+              </span>
             </div>
 
             {savedSettings && (
-              <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs p-3 rounded-xl flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Configuración guardada exitosamente en la base de datos MySQL.</span>
+              <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs p-4 rounded-2xl flex items-center gap-3 animate-fadeIn">
+                <Check className="w-5 h-5 flex-shrink-0" />
+                <div>
+                  <p className="font-bold">¡Configuración guardada exitosamente!</p>
+                  <p className="text-[11px] text-emerald-400/80">Los canales de WhatsApp y correos remitente/destinatario se actualizaron en MySQL.</p>
+                </div>
               </div>
             )}
 
-            <form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">Nombre Comercial</label>
-                <input
-                  type="text"
-                  value={config.nombre}
-                  onChange={(e) => setConfig({ ...config, nombre: e.target.value })}
-                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">WhatsApp de Pedidos</label>
-                <input
-                  type="text"
-                  value={config.telefonoWhatsapp}
-                  onChange={(e) => setConfig({ ...config, telefonoWhatsapp: e.target.value })}
-                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">Dirección del Restaurante</label>
-                <input
-                  type="text"
-                  value={config.direccion}
-                  onChange={(e) => setConfig({ ...config, direccion: e.target.value })}
-                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-300 font-bold uppercase mb-1">Horario de Atención</label>
-                <input
-                  type="text"
-                  value={config.horario}
-                  onChange={(e) => setConfig({ ...config, horario: e.target.value })}
-                  className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-300 font-bold uppercase mb-1">Costo Domicilio Base (COP)</label>
-                  <input
-                    type="number"
-                    value={config.costoDomicilioBase}
-                    onChange={(e) => setConfig({ ...config, costoDomicilioBase: Number(e.target.value) })}
-                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                  />
+            <form onSubmit={handleSaveConfig} className="space-y-8 text-xs">
+              {/* SECCIÓN 1: CANALES DE ATENCIÓN Y WHATSAPP */}
+              <div className="bg-[#181818] border border-[#262626] rounded-2xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2 text-brand-yellow font-black uppercase tracking-wider text-xs pb-2 border-b border-[#2b2b2b]">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>1. CANALES DE WHATSAPP OFICIAL</span>
                 </div>
 
-                <div>
-                  <label className="block text-gray-300 font-bold uppercase mb-1">Propina Sugerida (%)</label>
-                  <input
-                    type="number"
-                    value={config.propinaSugeridaPct}
-                    onChange={(e) => setConfig({ ...config, propinaSugeridaPct: Number(e.target.value) })}
-                    className="w-full bg-[#181818] border border-[#2b2b2b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 font-bold uppercase mb-1">
+                      WhatsApp de Atención y Pedidos
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Ej: 3229088736 o 573229088736"
+                        value={config.telefonoWhatsapp}
+                        onChange={(e) => setConfig({ ...config, telefonoWhatsapp: e.target.value })}
+                        className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                      />
+                      <Phone className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Número al que los clientes son dirigidos para pedir o consultar.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 font-bold uppercase mb-1">
+                      Mensaje Predeterminado de WhatsApp
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Ej: ¡Hola! Quiero hacer un pedido por la web."
+                        value={config.mensajeWhatsappDefault || ''}
+                        onChange={(e) => setConfig({ ...config, mensajeWhatsappDefault: e.target.value })}
+                        className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                      />
+                      <MessageSquare className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Texto con el que se inicia el chat de WhatsApp desde la carta digital.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECCIÓN 2: CORREOS REMITENTE Y DESTINATARIO */}
+              <div className="bg-[#181818] border border-[#262626] rounded-2xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2 text-brand-yellow font-black uppercase tracking-wider text-xs pb-2 border-b border-[#2b2b2b]">
+                  <Mail className="w-4 h-4" />
+                  <span>2. ENTRADA Y SALIDA DE CORREOS (REMITENTE Y DESTINATARIOS)</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* Correo Remitente */}
+                  <div className="p-4 rounded-xl bg-[#121212] border border-[#2a2a2a] space-y-2">
+                    <div className="flex items-center gap-2 text-white font-bold uppercase text-[11px]">
+                      <Send className="w-3.5 h-3.5 text-brand-yellow" />
+                      <span>Correo Remitente de la Web (Emisor)</span>
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="ej: pedidos@mirestaurante.com"
+                      value={config.correoRemitente || ''}
+                      onChange={(e) => setConfig({ ...config, correoRemitente: e.target.value })}
+                      className="w-full bg-[#181818] border border-[#333] rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      Este es el correo que aparecerá como remitente cuando la web envíe confirmaciones de pedidos, novedades o mensajes a los clientes.
+                    </p>
+                  </div>
+
+                  {/* Correo Destinatario */}
+                  <div className="p-4 rounded-xl bg-[#121212] border border-[#2a2a2a] space-y-2">
+                    <div className="flex items-center gap-2 text-white font-bold uppercase text-[11px]">
+                      <Mail className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Correo Destinatario de Novedades (Receptor)</span>
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="ej: administracion@mirestaurante.com"
+                      value={config.correoDestinatario || ''}
+                      onChange={(e) => setConfig({ ...config, correoDestinatario: e.target.value })}
+                      className="w-full bg-[#181818] border border-[#333] rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      A este correo le llegarán las alertas de pedidos nuevos, solicitudes comerciales de clientes y novedades de la página web.
+                    </p>
+                  </div>
+
+                  {/* Correo de Contacto y Soporte */}
+                  <div className="sm:col-span-2 p-4 rounded-xl bg-[#121212] border border-[#2a2a2a] space-y-2">
+                    <div className="flex items-center gap-2 text-white font-bold uppercase text-[11px]">
+                      <BellRing className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Correo Público de Contacto / Soporte al Cliente</span>
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="ej: contacto@mirestaurante.com"
+                      value={config.email || ''}
+                      onChange={(e) => setConfig({ ...config, email: e.target.value })}
+                      className="w-full bg-[#181818] border border-[#333] rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      Correo visible para tus clientes en el pie de página y comprobantes de pedido.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECCIÓN 3: DATOS GENERALES DEL RESTAURANTE */}
+              <div className="bg-[#181818] border border-[#262626] rounded-2xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2 text-brand-yellow font-black uppercase tracking-wider text-xs pb-2 border-b border-[#2b2b2b]">
+                  <Store className="w-4 h-4" />
+                  <span>3. DATOS OPERATIVOS DEL RESTAURANTE</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 font-bold uppercase mb-1">Nombre Comercial</label>
+                    <input
+                      type="text"
+                      value={config.nombre}
+                      onChange={(e) => setConfig({ ...config, nombre: e.target.value })}
+                      className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 font-bold uppercase mb-1">Horario de Atención</label>
+                    <input
+                      type="text"
+                      value={config.horario}
+                      onChange={(e) => setConfig({ ...config, horario: e.target.value })}
+                      className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-gray-300 font-bold uppercase mb-1">Dirección Principal</label>
+                    <input
+                      type="text"
+                      value={config.direccion}
+                      onChange={(e) => setConfig({ ...config, direccion: e.target.value })}
+                      className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 font-bold uppercase mb-1">Costo Domicilio Base (COP)</label>
+                    <input
+                      type="number"
+                      value={config.costoDomicilioBase}
+                      onChange={(e) => setConfig({ ...config, costoDomicilioBase: Number(e.target.value) })}
+                      className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 font-bold uppercase mb-1">Propina Sugerida (%)</label>
+                    <input
+                      type="number"
+                      value={config.propinaSugeridaPct}
+                      onChange={(e) => setConfig({ ...config, propinaSugeridaPct: Number(e.target.value) })}
+                      className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all"
+                className="w-full py-4 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-2xl shadow-glow transition-all flex items-center justify-center gap-2 hover:scale-[1.01]"
               >
-                GUARDAR CAMBIOS EN BD
+                <Save className="w-4 h-4 stroke-[2.5]" />
+                <span>GUARDAR CONFIGURACIÓN Y CANALES EN MYSQL</span>
               </button>
             </form>
 

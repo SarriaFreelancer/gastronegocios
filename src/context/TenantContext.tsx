@@ -61,6 +61,10 @@ export interface TenantData {
   // Contact info
   telefono?: string | null;
   telefonoWhatsapp?: string | null;
+  mensajeWhatsappDefault?: string | null;
+  email?: string | null;
+  correoRemitente?: string | null;
+  correoDestinatario?: string | null;
   imagenHero?: string | null;
   instagram?: string | null;
   direccionCentral?: string | null;

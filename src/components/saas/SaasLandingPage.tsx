@@ -569,21 +569,27 @@ export function SaasLandingPage() {
       {/* ======================================================== */}
       {/* FOOTER SAAS                                              */}
       {/* ======================================================== */}
-      <footer className="py-12 px-4 sm:px-8 border-t border-[#181818] bg-[#060606] text-xs text-gray-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-brand-yellow text-black flex items-center justify-center font-black text-xs">
+      <footer className="py-12 px-4 sm:px-8 border-t border-[#181818] bg-[#060606] text-xs text-gray-400">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-brand-yellow text-black flex items-center justify-center font-black text-sm shadow-glow">
               G
             </div>
-            <span className="font-black text-white uppercase tracking-wider">Punto G SaaS Platform</span>
-            <span>— Todos los derechos reservados &copy; {new Date().getFullYear()}</span>
+            <div>
+              <span className="font-black text-white uppercase tracking-wider block">Punto G SaaS Platform</span>
+              <span className="text-[11px] text-gray-500">Software Gastronómico White-Label para Restaurantes</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="hover:text-white transition">
-              Panel Administrativo
+          <p className="text-xs text-gray-400 leading-relaxed font-medium">
+            Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+          </p>
+
+          <div className="flex items-center gap-5 text-xs font-semibold">
+            <Link href="/login" className="hover:text-brand-yellow transition">
+              Acceso Clientes
             </Link>
-            <a href={whatsappSalesUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white transition">
+            <a href={whatsappSalesUrl} target="_blank" rel="noopener noreferrer" className="hover:text-brand-yellow transition">
               Soporte & Ventas
             </a>
           </div>

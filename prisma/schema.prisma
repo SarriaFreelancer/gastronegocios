@@ -70,6 +70,10 @@ model Restaurant {
   googleSearchConsoleCode String?      @db.Text
   googleAnalyticsId  String?
   telefonoWhatsapp   String?           @default("3229088736")
+  mensajeWhatsappDefault String?       @default("¡Hola! Quiero hacer un pedido por la web.")
+  email              String?           @default("contacto@puntog.com")
+  correoRemitente    String?           @default("pedidos@puntog.com")
+  correoDestinatario String?           @default("novedades@puntog.com")
   instagram          String?
   direccionCentral   String?           @default("Calle 9 # 45-12, Granada, Cali")
   ciudad             String            @default("Cali")
@@ -395,6 +399,10 @@ model RestaurantConfig {
   nombre             String   @default("PUNTO G")
   eslogan            String   @default("ANTOJOS QUE CONECTAN")
   telefonoWhatsapp   String   @default("3229088736")
+  mensajeWhatsappDefault String? @default("¡Hola! Quiero hacer un pedido por la web.")
+  email              String?  @default("contacto@puntog.com")
+  correoRemitente    String?  @default("pedidos@puntog.com")
+  correoDestinatario String?  @default("novedades@puntog.com")
   direccion          String   @default("Calle 9 # 45-12, Barrio Granada, Cali")
   horario            String   @default("Lunes a Domingo: 12:00 m. a 11:30 p.m.")
   costoDomicilioBase Float    @default(5000)
