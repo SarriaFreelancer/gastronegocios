@@ -72,6 +72,8 @@ export default function PedidosListosPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [mounted, setMounted] = useState(false);
   const [deliveringId, setDeliveringId] = useState<number | null>(null);
+  const [availableRestaurants, setAvailableRestaurants] = useState<any[]>([]);
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(!tenantSlug);
 
   // Fetch restaurant branding if tenantSlug exists
   useEffect(() => {
@@ -95,23 +97,46 @@ export default function PedidosListosPage() {
   useEffect(() => {
     if (!tenantSlug && typeof window !== 'undefined') {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const userObj = JSON.parse(storedUser);
-          if (userObj.restaurantId) {
-            fetch(`/api/restaurants?id=${userObj.restaurantId}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((data) => {
-                if (data && data.slug) {
-                  window.location.replace(`/r/${data.slug}/pedidos-listos`);
-                }
-              })
-              .catch(console.error);
+        const activeRest = localStorage.getItem('punto_g_active_restaurant');
+        if (activeRest) {
+          const parsed = JSON.parse(activeRest);
+          if (parsed?.slug) {
+            window.location.replace(`/r/${parsed.slug}/turnero`);
+            return;
+          }
+        }
+        for (const key of ['punto_g_auth', 'puntog_user', 'punto_g_user', 'user']) {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u?.restaurant?.slug) {
+              window.location.replace(`/r/${u.restaurant.slug}/turnero`);
+              return;
+            }
+            if (u?.restaurantId) {
+              fetch(`/api/restaurants?id=${u.restaurantId}`)
+                .then((r) => (r.ok ? r.json() : null))
+                .then((data) => {
+                  if (data?.slug) {
+                    window.location.replace(`/r/${data.slug}/turnero`);
+                  }
+                });
+              return;
+            }
           }
         }
       } catch (e) {
         // Ignore JSON error
       }
+
+      fetch('/api/restaurants')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const list = data?.restaurants || [];
+          setAvailableRestaurants(list);
+          setIsRedirecting(false);
+        })
+        .catch(() => setIsRedirecting(false));
     }
   }, [tenantSlug]);
 
@@ -151,8 +176,8 @@ export default function PedidosListosPage() {
 
   // Fetch branches
   useEffect(() => {
-    const branchesUrl = tenantSlug ? `/api/branches?restaurantSlug=${tenantSlug}` : '/api/branches';
-    fetch(branchesUrl)
+    if (!tenantSlug) return;
+    fetch(`/api/branches?restaurantSlug=${tenantSlug}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) setBranches(data);
@@ -162,10 +187,9 @@ export default function PedidosListosPage() {
 
   // Fetch orders with estado = "Listo"
   const fetchOrders = useCallback(async () => {
+    if (!tenantSlug) return;
     try {
-      let url = tenantSlug 
-        ? `/api/orders?estado=Listo&restaurantSlug=${tenantSlug}` 
-        : '/api/orders?estado=Listo';
+      let url = `/api/orders?estado=Listo&restaurantSlug=${tenantSlug}`;
       if (selectedBranchId !== 'all') {
         url += `&branchId=${selectedBranchId}`;
       }
@@ -200,10 +224,11 @@ export default function PedidosListosPage() {
 
   // Polling every 4 seconds
   useEffect(() => {
+    if (!tenantSlug) return;
     fetchOrders();
     const interval = setInterval(fetchOrders, 4000);
     return () => clearInterval(interval);
-  }, [fetchOrders]);
+  }, [fetchOrders, tenantSlug]);
 
   // Live Clock
   useEffect(() => {
@@ -262,6 +287,74 @@ export default function PedidosListosPage() {
     const diff = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 60000);
     return Math.max(0, diff);
   };
+
+  // Multi-tenant check: if accessed via /pedidos-listos or /turnero without slug, render restaurant selector
+  if (!tenantSlug) {
+    if (isRedirecting) {
+      return (
+        <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+              Conectando con el turnero de pedidos listos de tu restaurante...
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-[#070707] text-white flex flex-col justify-between p-6">
+        <div className="max-w-4xl mx-auto w-full pt-12 space-y-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-black uppercase tracking-wider">
+              <BellRing className="w-4 h-4" />
+              <span>Aislamiento de Turnero de Pantalla</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white font-display">
+              Selecciona tu Restaurante
+            </h1>
+            <p className="text-sm text-neutral-400 max-w-lg mx-auto">
+              Cada restaurante opera su propio turnero de llamados y pedidos listos. Selecciona tu negocio para proyectar exclusivamente sus pedidos:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            {availableRestaurants.map((r) => (
+              <Link
+                key={r.id}
+                href={`/r/${r.slug}/pedidos-listos`}
+                className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#121212] border border-[#242424] hover:border-brand-yellow/70 transition-all duration-300 hover:shadow-glow hover:-translate-y-1"
+              >
+                <div className="space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#1a1a1a] border border-[#333] flex items-center justify-center group-hover:scale-105 transition">
+                    <BellRing className="w-7 h-7 text-brand-yellow" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white group-hover:text-brand-yellow transition">
+                      {r.nombre}
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1 line-clamp-2">
+                      {r.eslogan || r.descripcion || 'Turnero de llamados y pedidos listos'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[#222] flex items-center justify-between text-xs font-bold text-brand-yellow">
+                  <span>Abrir Turnero</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-center text-xs text-neutral-500 py-6">
+          Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#070707] text-white flex flex-col font-sans select-none overflow-x-hidden">

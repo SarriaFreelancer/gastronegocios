@@ -146,6 +146,8 @@ export default function MeseroPage() {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [availableRestaurants, setAvailableRestaurants] = useState<any[]>([]);
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(!tenantSlug);
 
   // Fetch restaurant branding if tenantSlug exists
   useEffect(() => {
@@ -169,23 +171,47 @@ export default function MeseroPage() {
   useEffect(() => {
     if (!tenantSlug && typeof window !== 'undefined') {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const userObj = JSON.parse(storedUser);
-          if (userObj.restaurantId) {
-            fetch(`/api/restaurants?id=${userObj.restaurantId}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((data) => {
-                if (data && data.slug) {
-                  window.location.replace(`/r/${data.slug}/mesero`);
-                }
-              })
-              .catch(console.error);
+        const activeRest = localStorage.getItem('punto_g_active_restaurant');
+        if (activeRest) {
+          const parsed = JSON.parse(activeRest);
+          if (parsed?.slug) {
+            window.location.replace(`/r/${parsed.slug}/mesero`);
+            return;
+          }
+        }
+        for (const key of ['punto_g_auth', 'puntog_user', 'punto_g_user', 'user']) {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u?.restaurant?.slug) {
+              window.location.replace(`/r/${u.restaurant.slug}/mesero`);
+              return;
+            }
+            if (u?.restaurantId) {
+              fetch(`/api/restaurants?id=${u.restaurantId}`)
+                .then((r) => (r.ok ? r.json() : null))
+                .then((data) => {
+                  if (data?.slug) {
+                    window.location.replace(`/r/${data.slug}/mesero`);
+                  }
+                });
+              return;
+            }
           }
         }
       } catch (e) {
         // Ignore JSON error
       }
+
+      // If no session found, fetch active restaurants for tenant selection
+      fetch('/api/restaurants')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const list = data?.restaurants || [];
+          setAvailableRestaurants(list);
+          setIsRedirecting(false);
+        })
+        .catch(() => setIsRedirecting(false));
     }
   }, [tenantSlug]);
 
@@ -229,20 +255,15 @@ export default function MeseroPage() {
 
   // Cargar mesas, productos y categorías
   const loadData = async (silent = false) => {
+    if (!tenantSlug) return;
     if (!silent) setLoading(true);
     try {
-      let tablesUrl = `/api/tables?`;
-      if (tenantSlug) tablesUrl += `restaurantSlug=${tenantSlug}&`;
+      let tablesUrl = `/api/tables?restaurantSlug=${tenantSlug}&`;
       if (selectedBranch !== 'all') tablesUrl += `branchId=${selectedBranch}&`;
 
-      let prodsUrl = `/api/products?`;
-      if (tenantSlug) prodsUrl += `restaurantSlug=${tenantSlug}&`;
-
-      let catsUrl = `/api/categories?all=true&`;
-      if (tenantSlug) catsUrl += `restaurantSlug=${tenantSlug}&`;
-
-      let branchesUrl = `/api/branches?activo=true&`;
-      if (tenantSlug) branchesUrl += `restaurantSlug=${tenantSlug}&`;
+      let prodsUrl = `/api/products?restaurantSlug=${tenantSlug}&`;
+      let catsUrl = `/api/categories?all=true&restaurantSlug=${tenantSlug}&`;
+      let branchesUrl = `/api/branches?activo=true&restaurantSlug=${tenantSlug}&`;
 
       const [resTables, resProds, resCats, resBranches] = await Promise.all([
         fetch(tablesUrl),
@@ -316,13 +337,14 @@ export default function MeseroPage() {
   };
 
   useEffect(() => {
+    if (!tenantSlug) return;
     loadData();
     // Sondeo en tiempo real cada 6 segundos para llamadas de mesas
     const interval = setInterval(() => {
       loadData(true);
     }, 6000);
     return () => clearInterval(interval);
-  }, [selectedBranch, soundEnabled]);
+  }, [selectedBranch, soundEnabled, tenantSlug]);
 
   // Manejo de Atender Llamado
   const handleAttendCall = async (tableId: number, tableNumber: string) => {
@@ -986,6 +1008,74 @@ export default function MeseroPage() {
     });
   }, [products, searchProduct, selectedCategory]);
 
+  // Multi-tenant check: if accessed via /mesero without slug, render restaurant selector
+  if (!tenantSlug) {
+    if (isRedirecting) {
+      return (
+        <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+              Conectando con el comandero de meseros de tu restaurante...
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-[#080808] text-white flex flex-col justify-between p-6">
+        <div className="max-w-4xl mx-auto w-full pt-12 space-y-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-black uppercase tracking-wider">
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>Aislamiento de Meseros POS</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white font-display">
+              Selecciona tu Restaurante
+            </h1>
+            <p className="text-sm text-neutral-400 max-w-lg mx-auto">
+              Cada restaurante opera su propio comandero de mesas de forma aislada. Selecciona tu negocio para atender sus mesas y comandas:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            {availableRestaurants.map((r) => (
+              <Link
+                key={r.id}
+                href={`/r/${r.slug}/mesero`}
+                className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#121212] border border-[#242424] hover:border-brand-yellow/70 transition-all duration-300 hover:shadow-glow hover:-translate-y-1"
+              >
+                <div className="space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#1a1a1a] border border-[#333] flex items-center justify-center group-hover:scale-105 transition">
+                    <UtensilsCrossed className="w-7 h-7 text-brand-yellow" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white group-hover:text-brand-yellow transition">
+                      {r.nombre}
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1 line-clamp-2">
+                      {r.eslogan || r.descripcion || 'Mesas, comandas y división de cuentas'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[#222] flex items-center justify-between text-xs font-bold text-brand-yellow">
+                  <span>Abrir Comandero Mesero</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-center text-xs text-neutral-500 py-6">
+          Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#080808] text-white flex flex-col font-sans pb-12 select-none">
       {/* ======================================================== */}
@@ -1002,7 +1092,7 @@ export default function MeseroPage() {
             </div>
             <div>
               <h1 className="text-base font-black uppercase text-white font-display tracking-wider flex items-center gap-1.5">
-                <span>{restaurant?.nombre || 'Punto G'}</span>
+                <span>{restaurant?.nombre || (tenantSlug ? tenantSlug.toUpperCase() : 'RESTAURANTE')}</span>
                 <span className="text-[10px] bg-brand-yellow text-black font-black px-1.5 py-0.5 rounded-md">
                   MESERO POS
                 </span>

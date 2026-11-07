@@ -91,6 +91,9 @@ export default function CocinaKDSPage() {
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'comanda' | 'factura'>('comanda');
 
+  const [availableRestaurants, setAvailableRestaurants] = useState<any[]>([]);
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(!tenantSlug);
+
   // Fetch restaurant branding if tenantSlug exists
   useEffect(() => {
     if (tenantSlug) {
@@ -113,23 +116,47 @@ export default function CocinaKDSPage() {
   useEffect(() => {
     if (!tenantSlug && typeof window !== 'undefined') {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const userObj = JSON.parse(storedUser);
-          if (userObj.restaurantId) {
-            fetch(`/api/restaurants?id=${userObj.restaurantId}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((data) => {
-                if (data && data.slug) {
-                  window.location.replace(`/r/${data.slug}/cocina`);
-                }
-              })
-              .catch(console.error);
+        const activeRest = localStorage.getItem('punto_g_active_restaurant');
+        if (activeRest) {
+          const parsed = JSON.parse(activeRest);
+          if (parsed?.slug) {
+            window.location.replace(`/r/${parsed.slug}/cocina`);
+            return;
+          }
+        }
+        for (const key of ['punto_g_auth', 'puntog_user', 'punto_g_user', 'user']) {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u?.restaurant?.slug) {
+              window.location.replace(`/r/${u.restaurant.slug}/cocina`);
+              return;
+            }
+            if (u?.restaurantId) {
+              fetch(`/api/restaurants?id=${u.restaurantId}`)
+                .then((r) => (r.ok ? r.json() : null))
+                .then((data) => {
+                  if (data?.slug) {
+                    window.location.replace(`/r/${data.slug}/cocina`);
+                  }
+                });
+              return;
+            }
           }
         }
       } catch (e) {
         // Ignore JSON error
       }
+
+      // If no session found, fetch active restaurants for tenant selection
+      fetch('/api/restaurants')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const list = data?.restaurants || [];
+          setAvailableRestaurants(list);
+          setIsRedirecting(false);
+        })
+        .catch(() => setIsRedirecting(false));
     }
   }, [tenantSlug]);
 
@@ -143,7 +170,7 @@ export default function CocinaKDSPage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     const cleanPhone = (order.telefono || '').replace(/\D/g, '');
     const phone = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
-    const restName = (restaurant?.nombre || 'PUNTO G').toUpperCase();
+    const restName = (restaurant?.nombre || (tenantSlug ? tenantSlug : 'RESTAURANTE')).toUpperCase();
     const trackingSlug = (order as any)?.restaurant?.slug || tenantSlug || 'punto-g';
     const trackingUrl = `${origin}/r/${trackingSlug}/pedido/${order.codigo}`;
     const msg = `¡Hola ${order.cliente}! 🔥 Te escribimos de *${restName}*.\nTu pedido *#${order.codigo}* está actualmente en estado: *${order.estado.toUpperCase()}* 🍔✨\n\nPuedes ver el estado de preparación y despacho en vivo aquí:\n👉 ${trackingUrl}\n\n¡Muchas gracias por elegirnos!`;
@@ -153,7 +180,7 @@ export default function CocinaKDSPage() {
   const dispatchToDeliveryWhatsApp = (order: Order) => {
     const addressQuery = encodeURIComponent(`${order.direccion || ''}, Cali, Colombia`);
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${addressQuery}`;
-    const restName = (restaurant?.nombre || 'PUNTO G').toUpperCase();
+    const restName = (restaurant?.nombre || (tenantSlug ? tenantSlug : 'RESTAURANTE')).toUpperCase();
     const msg = `🛵 *PEDIDO PARA DOMICILIO - ${restName}* 🛵\n\n` +
       `📦 Orden: *#${order.codigo}*\n` +
       `👤 Cliente: *${order.cliente}*\n` +
@@ -243,9 +270,8 @@ export default function CocinaKDSPage() {
 
   // Fetch branches on mount
   useEffect(() => {
-    let url = '/api/branches?activo=true';
-    if (tenantSlug) url += `&restaurantSlug=${tenantSlug}`;
-    fetch(url)
+    if (!tenantSlug) return;
+    fetch(`/api/branches?activo=true&restaurantSlug=${tenantSlug}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data)) setBranches(data);
@@ -255,12 +281,10 @@ export default function CocinaKDSPage() {
 
   // Fetch kitchen orders
   const fetchOrders = useCallback(async (isInitial = false) => {
+    if (!tenantSlug) return;
     try {
       if (isInitial) setLoading(true);
-      let url = '/api/orders?cocina=true';
-      if (tenantSlug) {
-        url += `&restaurantSlug=${tenantSlug}`;
-      }
+      let url = `/api/orders?cocina=true&restaurantSlug=${tenantSlug}`;
       if (selectedBranchId !== 'all') {
         url += `&branchId=${selectedBranchId}`;
       }
@@ -291,12 +315,13 @@ export default function CocinaKDSPage() {
 
   // Initial fetch and 3-second auto-polling
   useEffect(() => {
+    if (!tenantSlug) return;
     fetchOrders(true);
     const interval = setInterval(() => {
       fetchOrders(false);
     }, 3500);
     return () => clearInterval(interval);
-  }, [fetchOrders]);
+  }, [fetchOrders, tenantSlug]);
 
   // Update order status with immediate optimistic UI update
   const handleUpdateStatus = async (orderId: number, nuevoEstado: string) => {
@@ -380,6 +405,74 @@ export default function CocinaKDSPage() {
     return o.estado === filterEstado;
   });
 
+  // Multi-tenant check: if accessed via /cocina without slug, render restaurant selector
+  if (!tenantSlug) {
+    if (isRedirecting) {
+      return (
+        <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+              Conectando con la cocina KDS de tu restaurante...
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-[#070707] text-white flex flex-col justify-between p-6">
+        <div className="max-w-4xl mx-auto w-full pt-12 space-y-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-xs font-black uppercase tracking-wider">
+              <ChefHat className="w-4 h-4" />
+              <span>Aislamiento de Cocinas KDS</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white font-display">
+              Selecciona tu Restaurante
+            </h1>
+            <p className="text-sm text-neutral-400 max-w-lg mx-auto">
+              Cada restaurante opera su propia pantalla KDS en una ruta aislada. Selecciona tu negocio para visualizar exclusivamente sus pedidos:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            {availableRestaurants.map((r) => (
+              <Link
+                key={r.id}
+                href={`/r/${r.slug}/cocina`}
+                className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#121212] border border-[#242424] hover:border-brand-yellow/70 transition-all duration-300 hover:shadow-glow hover:-translate-y-1"
+              >
+                <div className="space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#1a1a1a] border border-[#333] flex items-center justify-center group-hover:scale-105 transition">
+                    <ChefHat className="w-7 h-7 text-brand-yellow" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white group-hover:text-brand-yellow transition">
+                      {r.nombre}
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1 line-clamp-2">
+                      {r.eslogan || r.descripcion || 'Comandas y pedidos en tiempo real'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[#222] flex items-center justify-between text-xs font-bold text-brand-yellow">
+                  <span>Abrir Cocina KDS</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-center text-xs text-neutral-500 py-6">
+          Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#070707] text-white flex flex-col font-sans select-none">
       
@@ -411,7 +504,7 @@ export default function CocinaKDSPage() {
               </div>
               <div>
                 <h1 className="text-sm sm:text-lg md:text-xl font-black tracking-wider uppercase text-white flex items-center gap-1.5 sm:gap-2">
-                  <span>{restaurant?.nombre || 'PUNTO G'}</span> <span className="text-brand-yellow">KDS</span>
+                  <span>{restaurant?.nombre || (tenantSlug ? tenantSlug.toUpperCase() : 'RESTAURANTE')}</span> <span className="text-brand-yellow">KDS</span>
                 </h1>
                 <p className="text-[9px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
