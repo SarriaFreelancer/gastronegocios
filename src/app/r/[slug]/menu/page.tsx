@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams, useSearchParams } from 'next/navigation';
 import { categories as initialCategories } from '@/data/categories';
 import { products as initialProducts } from '@/data/products';
@@ -310,33 +311,92 @@ export default function TenantMenuGeneralPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       
-      {/* Hero Header */}
-      <div className="relative bg-gradient-to-r from-[#0c0c0c] via-[#141414] to-[#080808] border-b border-[#202020] py-10 mb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
+      {/* Dynamic Category Hero Header */}
+      {currentCategoryObj ? (
+        <div className="relative bg-gradient-to-r from-[#0d0d0d] via-[#141414] to-[#080808] border-b border-[#202020] overflow-hidden mb-8 py-8 transition-all duration-300">
           <div 
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
-            style={{ 
-              backgroundColor: 'rgba(234, 166, 34, 0.1)', 
-              borderColor: 'var(--tenant-primary, #EAA622)', 
-              color: 'var(--tenant-primary, #EAA622)' 
-            }}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Carta Oficial • {restaurantName}</span>
+            className="absolute top-0 right-1/4 w-96 h-96 rounded-full blur-3xl opacity-15 pointer-events-none"
+            style={{ backgroundColor: 'var(--tenant-primary, #EAA622)' }}
+          />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              <div className="md:col-span-7 space-y-2">
+                <div 
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+                  style={{ 
+                    backgroundColor: 'rgba(234, 166, 34, 0.1)', 
+                    borderColor: 'var(--tenant-primary, #EAA622)', 
+                    color: 'var(--tenant-primary, #EAA622)' 
+                  }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>NUESTRO MENÚ • {restaurantName}</span>
+                </div>
+                <div className="relative inline-block">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase text-white font-display tracking-tight">
+                    {currentCategoryObj.nombre}
+                  </h1>
+                  <div 
+                    className="w-full h-2.5 sm:h-3 rounded-full -mt-1 opacity-90 shadow-glow"
+                    style={{ backgroundColor: 'var(--tenant-primary, #EAA622)' }}
+                  />
+                </div>
+                <p className="text-sm sm:text-base text-gray-300 max-w-xl pt-2 font-medium">
+                  {currentCategoryObj.descripcion || 'Descubre nuestras deliciosas opciones preparadas con los mejores ingredientes.'}
+                </p>
+              </div>
+              <div className="md:col-span-5 flex justify-center md:justify-end">
+                <div className="relative w-full max-w-[340px] h-[200px] sm:h-[240px] drop-shadow-[0_20px_35px_rgba(0,0,0,0.9)] flex items-center justify-center">
+                  <Image
+                    key={currentCategoryObj.imagen || currentCategoryObj.slug}
+                    src={
+                      currentCategoryObj.slug === 'hamburguesas' || currentCategoryObj.slug === 'comidas-rapidas'
+                        ? '/images/assets/menu-hero-burger.png'
+                        : currentCategoryObj.slug === 'parrilla-llanera' || currentCategoryObj.slug === 'picadas' || currentCategoryObj.slug === 'costillas'
+                        ? '/images/assets/parrilla-steaks.png'
+                        : currentCategoryObj.slug === 'combos' || currentCategoryObj.slug === 'combos-especiales'
+                        ? '/images/assets/combo-promo.png'
+                        : currentCategoryObj.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop'
+                    }
+                    alt={currentCategoryObj.nombre}
+                    fill
+                    priority
+                    className="object-contain"
+                    sizes="(max-width: 768px) 280px, 340px"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase text-white font-display tracking-tight">
-            NUESTRO MENÚ{' '}
-            <span className="italic" style={{ color: 'var(--tenant-primary, #EAA622)' }}>
-              {restaurantName}
-            </span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto">
-            {restaurant?.descripcion || 'Descubre nuestras mejores recetas, preparadas artesanalmente con ingredientes de primera calidad.'}
-          </p>
         </div>
-      </div>
+      ) : (
+        <div className="relative bg-gradient-to-r from-[#0c0c0c] via-[#141414] to-[#080808] border-b border-[#202020] py-10 mb-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
+            <div 
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+              style={{ 
+                backgroundColor: 'rgba(234, 166, 34, 0.1)', 
+                borderColor: 'var(--tenant-primary, #EAA622)', 
+                color: 'var(--tenant-primary, #EAA622)' 
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Carta Oficial • {restaurantName}</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black uppercase text-white font-display tracking-tight">
+              NUESTRO MENÚ{' '}
+              <span className="italic" style={{ color: 'var(--tenant-primary, #EAA622)' }}>
+                {restaurantName}
+              </span>
+            </h1>
+
+            <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto">
+              {restaurant?.descripcion || 'Descubre nuestras mejores recetas, preparadas artesanalmente con ingredientes de primera calidad.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         

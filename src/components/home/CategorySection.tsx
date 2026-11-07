@@ -11,12 +11,13 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 export const CategorySection: React.FC = () => {
   const pathname = usePathname();
   const match = pathname ? pathname.match(/^\/r\/([^\/]+)/) : null;
+  const tenantSlug = match ? match[1] : 'punto-g';
   const basePrefix = match ? `/r/${match[1]}` : '';
   const [categoriesList, setCategoriesList] = useState<any[]>(defaultCategories);
 
-  // Fetch real categories from database
+  // Fetch real categories from database scoped to current tenant
   useEffect(() => {
-    fetch('/api/categories')
+    fetch(`/api/categories?restaurantSlug=${tenantSlug}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -24,7 +25,7 @@ export const CategorySection: React.FC = () => {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [tenantSlug]);
 
   // Only active main categories (parentId == null and activo !== false)
   const mainCategories = categoriesList.filter((c) => !c.parentId && c.activo !== false);
@@ -78,7 +79,7 @@ export const CategorySection: React.FC = () => {
             return (
               <Link
                 key={cat.slug}
-                href={basePrefix ? `${basePrefix}/menu?category=${cat.slug}` : `/menu/${cat.slug}`}
+                href={basePrefix ? `${basePrefix}/menu/${cat.slug}` : `/menu/${cat.slug}`}
                 className="group relative flex flex-col justify-end h-[360px] sm:h-[400px] rounded-3xl overflow-hidden border-2 border-[#222] hover:border-brand-yellow transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_45px_rgba(255,201,40,0.3)] bg-[#111]"
               >
                 {/* Background Food Photography */}

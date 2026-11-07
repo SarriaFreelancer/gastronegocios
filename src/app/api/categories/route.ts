@@ -17,6 +17,8 @@ export async function GET(req: Request) {
       where.restaurantId = Number(restaurantId);
     } else if (restaurantSlug) {
       where.restaurant = { slug: restaurantSlug };
+    } else if (!includeAll) {
+      where.restaurantId = 1;
     }
     if (soloPrincipales) {
       where.parentId = null;

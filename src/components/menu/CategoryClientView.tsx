@@ -78,6 +78,23 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
     return main || initialCategory;
   }, [activeMainSlug, activeSubSlug, initialCategory, categoriesList]);
 
+  // Featured hero image for the category banner (high-res transparent cutout or photographic card)
+  const heroImageSrc = useMemo(() => {
+    const slug = currentDisplayCategory.slug;
+    if (slug === 'hamburguesas' || slug === 'comidas-rapidas') {
+      return '/images/assets/menu-hero-burger.png';
+    }
+    if (slug === 'parrilla-llanera' || slug === 'picadas' || slug === 'costillas') {
+      return '/images/assets/parrilla-steaks.png';
+    }
+    if (slug === 'combos' || slug === 'combos-especiales') {
+      return '/images/assets/combo-promo.png';
+    }
+    return currentDisplayCategory.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop';
+  }, [currentDisplayCategory]);
+
+  const isTransparentPng = heroImageSrc.includes('.png') || heroImageSrc.includes('assets/');
+
   // Main category object
   const activeMainCategory = useMemo(() => {
     return categoriesList.find((c) => c.slug === activeMainSlug) || initialCategory;
@@ -215,17 +232,31 @@ export const CategoryClientView: React.FC<CategoryClientViewProps> = ({
 
             {/* Right Hero Food Image */}
             <div className="md:col-span-5 flex justify-center md:justify-end">
-              <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)] overflow-hidden rounded-2xl border border-[#262626]">
-                <Image
-                  key={currentDisplayCategory.imagen}
-                  src={currentDisplayCategory.imagen || 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=900&auto=format&fit=crop'}
-                  alt={currentDisplayCategory.nombre}
-                  fill
-                  priority
-                  className="object-cover rounded-2xl transition-all duration-500 hover:scale-105"
-                  sizes="(max-width: 768px) 280px, 340px"
-                />
-              </div>
+              {isTransparentPng ? (
+                <div className="relative w-full max-w-[360px] h-[220px] sm:h-[260px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)] flex items-center justify-center">
+                  <Image
+                    key={heroImageSrc}
+                    src={heroImageSrc}
+                    alt={currentDisplayCategory.nombre}
+                    fill
+                    priority
+                    className="object-contain hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 280px, 360px"
+                  />
+                </div>
+              ) : (
+                <div className="relative w-full max-w-[340px] aspect-[16/10] drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)] overflow-hidden rounded-2xl border border-[#262626]">
+                  <Image
+                    key={heroImageSrc}
+                    src={heroImageSrc}
+                    alt={currentDisplayCategory.nombre}
+                    fill
+                    priority
+                    className="object-cover rounded-2xl transition-all duration-500 hover:scale-105"
+                    sizes="(max-width: 768px) 280px, 340px"
+                  />
+                </div>
+              )}
             </div>
 
           </div>
