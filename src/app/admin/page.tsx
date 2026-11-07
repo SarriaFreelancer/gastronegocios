@@ -7,6 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
 import { PersonalizacionTab } from '@/components/admin/PersonalizacionTab';
 import { SeoTab } from '@/components/admin/SeoTab';
+import { FacturasTab } from '@/components/admin/FacturasTab';
 import { 
   ShoppingBag, 
   Layers, 
@@ -107,6 +108,9 @@ interface Order {
   sedeNombre?: string | null;
   createdAt: string;
   items: OrderItem[];
+  cuentaDividida?: boolean;
+  numFacturas?: number;
+  invoices?: any[];
 }
 
 interface RestaurantTable {
@@ -221,7 +225,7 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo'
+    'pedidos' | 'facturas' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo'
   >('pedidos');
 
   // Loading States
@@ -510,10 +514,39 @@ export default function AdminPage() {
   const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [receiptType, setReceiptType] = useState<'factura' | 'comanda'>('factura');
+  const [splitInvoicesModalOrder, setSplitInvoicesModalOrder] = useState<any | null>(null);
 
   const openReceipt = (order: any, type: 'factura' | 'comanda' = 'factura') => {
     setReceiptOrder(order);
     setReceiptType(type);
+    setIsReceiptModalOpen(true);
+  };
+
+  const openInvoiceReceipt = (inv: any) => {
+    let parsedItems: any[] = [];
+    try {
+      if (typeof inv.itemsJson === 'string') {
+        parsedItems = JSON.parse(inv.itemsJson);
+      } else if (Array.isArray(inv.itemsJson)) {
+        parsedItems = inv.itemsJson;
+      }
+    } catch {}
+
+    setReceiptOrder({
+      codigo: inv.numeroFactura,
+      cliente: inv.cliente || inv.dinerNombre,
+      telefono: inv.telefono || '0000000000',
+      tipo: inv.tipo || 'mesa',
+      numeroMesa: inv.numeroMesa,
+      subtotal: inv.subtotal,
+      propina: inv.propina,
+      total: inv.total,
+      metodoPago: inv.metodoPago,
+      notasCliente: inv.notas,
+      createdAt: inv.createdAt,
+      items: parsedItems,
+    });
+    setReceiptType('factura');
     setIsReceiptModalOpen(true);
   };
 
@@ -2060,7 +2093,8 @@ export default function AdminPage() {
         {(() => {
           const isMesero = currentUser?.rol === 'Mesero';
           const allTabs = [
-            { id: 'pedidos', label: 'Pedidos & Filtros', icon: ShoppingBag, count: orders.length },
+            { id: 'pedidos', label: 'Pedidos & Comandas', icon: ShoppingBag, count: orders.length },
+            { id: 'facturas', label: 'Facturas & Cuentas Divididas', icon: Receipt, badge: 'N Facturas' },
             { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF' },
             { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
             { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length },
@@ -2701,6 +2735,17 @@ export default function AdminPage() {
                                     🛵 Rep: {o.repartidor}
                                   </span>
                                 )}
+                                {(o.cuentaDividida || (o.invoices && o.invoices.length > 1)) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSplitInvoicesModalOrder(o)}
+                                    className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 mt-1 cursor-pointer hover:bg-purple-500/30 transition"
+                                    title="Ver facturas individuales emitidas"
+                                  >
+                                    <Users className="w-2.5 h-2.5" />
+                                    <span>Dividida ({o.invoices?.length || o.numFacturas} Facturas)</span>
+                                  </button>
+                                )}
                               </td>
 
                               {/* Sede */}
@@ -2846,9 +2891,15 @@ export default function AdminPage() {
                               <td className="p-3.5 align-top text-right space-x-1 whitespace-nowrap">
                                 <button
                                   type="button"
-                                  onClick={() => openReceipt(o, 'factura')}
-                                  className="p-1.5 rounded-lg bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#303030] transition"
-                                  title="Imprimir Ticket POS"
+                                  onClick={() => {
+                                    if (o.invoices && o.invoices.length > 1) {
+                                      setSplitInvoicesModalOrder(o);
+                                    } else {
+                                      openReceipt(o, 'factura');
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#303030] transition cursor-pointer"
+                                  title={o.invoices && o.invoices.length > 1 ? `Ver las ${o.invoices.length} Facturas Divididas` : "Imprimir Ticket / Factura POS"}
                                 >
                                   <Printer className="w-3.5 h-3.5 text-brand-yellow" />
                                 </button>
@@ -3193,6 +3244,18 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB FACTURAS: FACTURACIÓN & CUENTAS DIVIDIDAS (N FACTURAS)*/}
+        {/* ======================================================== */}
+        {activeTab === 'facturas' && (
+          <FacturasTab
+            restaurant={activeRestaurant}
+            selectedBranchId={selectedBranchId}
+            formatPrice={formatPrice}
+            onPrintInvoice={(inv) => openInvoiceReceipt(inv)}
+          />
         )}
 
         {/* ======================================================== */}
@@ -7263,6 +7326,120 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Ver y Gestionar Facturas Divididas de una Comanda */}
+      {splitInvoicesModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#121212] border border-[#2a2a2a] rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between border-b border-[#222] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center">
+                    <Receipt className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <h3 className="text-base font-black uppercase text-white font-display">
+                    Facturas de Comanda #{splitInvoicesModalOrder.codigo}
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  1 Comanda Operativa en Cocina ({splitInvoicesModalOrder.numeroMesa || 'Mesa'}) liquidada en{' '}
+                  <strong className="text-white">
+                    {splitInvoicesModalOrder.invoices?.length || splitInvoicesModalOrder.numFacturas || 1} Facturas Individuales
+                  </strong>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSplitInvoicesModalOrder(null)}
+                className="p-2 text-gray-400 hover:text-white rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {(splitInvoicesModalOrder.invoices || []).map((inv: any, idx: number) => {
+                let items: any[] = [];
+                try {
+                  if (typeof inv.itemsJson === 'string') items = JSON.parse(inv.itemsJson);
+                  else if (Array.isArray(inv.itemsJson)) items = inv.itemsJson;
+                } catch {}
+
+                return (
+                  <div
+                    key={inv.id || idx}
+                    className="bg-[#181818] border border-[#262626] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-black text-brand-yellow">
+                          {inv.numeroFactura}
+                        </span>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          {inv.dinerNombre || `Comensal ${idx + 1}`}
+                        </span>
+                        <span className="text-[10px] font-bold text-gray-400">
+                          • {inv.metodoPago}
+                        </span>
+                      </div>
+
+                      {/* Items */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {items.length > 0 ? (
+                          items.map((it: any, itIdx: number) => (
+                            <span
+                              key={itIdx}
+                              className="text-[10px] bg-[#121212] border border-[#282828] text-gray-300 px-2 py-0.5 rounded-md"
+                            >
+                              <strong className="text-brand-yellow">{it.cantidad || 1}x</strong> {it.nombre}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] text-gray-500 italic">
+                            Consumo proporcional
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center sm:flex-col sm:items-end justify-between gap-2 shrink-0 border-t sm:border-t-0 border-[#252525] pt-2 sm:pt-0">
+                      <div className="text-right">
+                        <span className="text-xs text-gray-400 block text-[10px]">Total Factura:</span>
+                        <span className="text-base font-black text-white font-display">
+                          {formatPrice(inv.total)}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => openInvoiceReceipt(inv)}
+                        className="py-1.5 px-3 rounded-xl bg-brand-yellow hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider transition flex items-center gap-1.5 shadow-glow cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Imprimir</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-[#222] pt-4">
+              <span className="text-xs text-gray-400">
+                Total consolidado de la mesa:{' '}
+                <strong className="text-white">{formatPrice(splitInvoicesModalOrder.total)}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setSplitInvoicesModalOrder(null)}
+                className="py-2.5 px-5 bg-[#202020] hover:bg-[#282828] text-white text-xs font-bold uppercase rounded-xl transition cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

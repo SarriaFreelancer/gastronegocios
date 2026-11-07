@@ -104,6 +104,7 @@ model Restaurant {
   products           Product[]
   tables             RestaurantTable[]
   orders             Order[]
+  invoices           Invoice[]
   addons             ProductAddon[]
   shifts             CashShift[]
   reviews            Review[]
@@ -143,6 +144,7 @@ model Branch {
   updatedAt    DateTime          @updatedAt
   users        User[]
   orders       Order[]
+  invoices     Invoice[]
   tables       RestaurantTable[]
   shifts       CashShift[]
 
@@ -251,6 +253,9 @@ model Order {
   updatedAt     DateTime         @updatedAt
   items         OrderItem[]
   reviews       Review[]
+  cuentaDividida Boolean         @default(false)
+  numFacturas    Int             @default(1)
+  invoices       Invoice[]
 
   @@index([createdAt])
   @@index([tipo])
@@ -274,6 +279,42 @@ model OrderItem {
   createdAt   DateTime @default(now())
 
   @@map("order_items")
+}
+
+model Invoice {
+  id            Int          @id @default(autoincrement())
+  numeroFactura String       @unique // e.g. "FAC-PG-1045" o "FAC-PG-1045-1"
+  orderId       Int?
+  order         Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  cliente       String
+  telefono      String?
+  tipo          String       @default("mesa") // mesa, domicilio, recoger
+  numeroMesa    String?
+  subtotal      Float        @default(0)
+  propina       Float        @default(0)
+  costoEnvio    Float        @default(0)
+  total         Float        @default(0)
+  metodoPago    String       @default("Efectivo") // Efectivo, Nequi, Daviplata, Datáfono, Transferencia
+  estado        String       @default("Pagada") // Pagada, Anulada, Pendiente
+  itemsJson     String       @db.Text // [{ nombre, precio, cantidad, notas, adicionales }]
+  esDividida    Boolean      @default(false)
+  dinerNombre   String?      // e.g. "Comensal 1", "Juan", etc.
+  dinerIndex    Int?         @default(1)
+  totalDiners   Int?         @default(1)
+  notas         String?      @db.Text
+  cajero        String?      @default("Mesero / Caja")
+  branchId      Int?
+  branch        Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  restaurantId  Int?
+  restaurant    Restaurant?  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([branchId])
+  @@index([restaurantId])
+  @@index([createdAt])
+  @@map("invoices")
 }
 
 model ProductAddon {

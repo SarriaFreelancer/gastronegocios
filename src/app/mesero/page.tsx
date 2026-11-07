@@ -829,6 +829,103 @@ export default function MeseroPage() {
     setIsReceiptOpen(true);
   };
 
+  // Liquidar comanda de mesa generando N facturas individuales
+  const handleLiquidateSplitBill = async () => {
+    if (!selectedTable || !selectedTable.orders || selectedTable.orders.length === 0) {
+      showError('Error', 'No hay comanda activa para liquidar.');
+      return;
+    }
+
+    const activeOrder = selectedTable.orders[0];
+    let dinersPayload: any[] = [];
+
+    if (splitMode === 'items') {
+      dinersPayload = diners.map((d, idx) => {
+        const subtotal = d.items.reduce((s: number, i: any) => s + i.precio * i.cantidad, 0);
+        const propina = d.propina || 0;
+        const total = subtotal + propina;
+        return {
+          nombre: d.nombre || `Comensal ${idx + 1}`,
+          items: d.items,
+          subtotal,
+          propina,
+          total,
+          metodoPago: d.metodoPago || 'Efectivo',
+          pagado: true,
+        };
+      });
+    } else {
+      const totalTable = selectedTable.orders.reduce((s, o) => s + o.total, 0);
+      const subtotalTable = selectedTable.orders.reduce((s, o) => s + o.subtotal, 0);
+      const eachSubtotal = Math.round(subtotalTable / equalPersons);
+      const eachTip = Math.round((eachSubtotal * equalTipPercent) / 100);
+      const eachTotal = eachSubtotal + eachTip;
+
+      dinersPayload = Array.from({ length: equalPersons }).map((_, idx) => ({
+        nombre: `Persona ${idx + 1} de ${equalPersons}`,
+        items: [
+          {
+            nombre: `Consumo proporcional (${idx + 1}/${equalPersons})`,
+            precio: eachSubtotal,
+            cantidad: 1,
+            notas: `División en partes iguales de ${selectedTable.numero}`,
+          },
+        ],
+        subtotal: eachSubtotal,
+        propina: eachTip,
+        total: eachTotal,
+        metodoPago: 'Efectivo / Tarjeta',
+        pagado: true,
+      }));
+    }
+
+    const confirmed = await showConfirm({
+      title: `¿LIQUIDAR CUENTA DE ${selectedTable.numero.toUpperCase()}?`,
+      text: `Se mantendrá 1 sola comanda para cocina (#${activeOrder.codigo}) y se registrarán ${dinersPayload.length} FACTURAS individuales en administración y caja. La mesa quedará liberada.`,
+      confirmButtonText: `Sí, Generar ${dinersPayload.length} Facturas`,
+      cancelButtonText: 'Cancelar',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      let cajeroName = 'Mesero';
+      try {
+        if (typeof window !== 'undefined') {
+          const raw = localStorage.getItem('punto_g_admin_logged_in') || localStorage.getItem('puntog_user');
+          if (raw) {
+            const u = JSON.parse(raw);
+            if (u?.nombre) cajeroName = u.nombre;
+          }
+        }
+      } catch {}
+
+      const res = await fetch(`/api/orders/${activeOrder.id}/split-billing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          diners: dinersPayload,
+          liberarMesa: true,
+          cajero: cajeroName,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showSuccess(
+          '¡Cuenta Liquidada con Éxito!',
+          `Se generaron ${data.invoices?.length || dinersPayload.length} facturas individuales. La mesa quedó libre para nuevos clientes.`
+        );
+        loadData();
+        setCurrentView('mesas');
+      } else {
+        showError('Error', data.error || 'No se pudo liquidar la cuenta dividida.');
+      }
+    } catch (e) {
+      showError('Error de conexión', 'Fallo al procesar las facturas.');
+    }
+  };
+
   // Filtro de productos para el comandero
   const filteredProducts = useMemo(() => {
     const q = searchProduct.toLowerCase().trim();
@@ -1714,14 +1811,24 @@ export default function MeseroPage() {
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleReleaseTable(selectedTable.id, selectedTable.numero)}
-                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition active:scale-95 flex items-center gap-2"
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Liberar Mesa Ahora</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleLiquidateSplitBill}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition active:scale-95 flex items-center gap-2 cursor-pointer shadow-glow"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Liquidar y Emitir {diners.length} Facturas</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleReleaseTable(selectedTable.id, selectedTable.numero)}
+                    className="px-4 py-3 bg-[#222] hover:bg-[#333] text-gray-300 font-bold text-xs uppercase rounded-2xl border border-[#333] transition cursor-pointer"
+                  >
+                    Solo Liberar
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1817,14 +1924,14 @@ export default function MeseroPage() {
                       </div>
                     </div>
 
-                    {/* Liberar Mesa */}
+                    {/* Liquidar y Emitir Facturas */}
                     <button
                       type="button"
-                      onClick={() => handleReleaseTable(selectedTable.id, selectedTable.numero)}
-                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2"
+                      onClick={handleLiquidateSplitBill}
+                      className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer shadow-glow"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
-                      <span>Cobro Completado • Liberar Mesa</span>
+                      <span>Liquidar y Emitir {equalPersons} Facturas Divididas</span>
                     </button>
                   </div>
                 );

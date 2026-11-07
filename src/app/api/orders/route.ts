@@ -98,6 +98,23 @@ export async function GET(req: Request) {
       where,
       include: {
         items: true,
+        invoices: {
+          select: {
+            id: true,
+            numeroFactura: true,
+            cliente: true,
+            subtotal: true,
+            propina: true,
+            total: true,
+            metodoPago: true,
+            dinerNombre: true,
+            dinerIndex: true,
+            totalDiners: true,
+            esDividida: true,
+            itemsJson: true,
+            createdAt: true,
+          },
+        },
         mesa: {
           select: { id: true, numero: true, ubicacion: true },
         },
