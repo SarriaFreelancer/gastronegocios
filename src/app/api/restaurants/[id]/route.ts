@@ -93,6 +93,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.radioBordes !== undefined) data.radioBordes = body.radioBordes;
     if (body.estiloTarjetas !== undefined) data.estiloTarjetas = body.estiloTarjetas;
     if (body.columnasMenu !== undefined) data.columnasMenu = Number(body.columnasMenu);
+    if (body.aparienciaMenu !== undefined) data.aparienciaMenu = body.aparienciaMenu;
+    if (body.politicaStockNegativo !== undefined) data.politicaStockNegativo = body.politicaStockNegativo;
+    if (body.diasAnticipacionVencimiento !== undefined) data.diasAnticipacionVencimiento = Number(body.diasAnticipacionVencimiento);
+    if (body.modulosHabilitados !== undefined) data.modulosHabilitados = typeof body.modulosHabilitados === 'string' ? body.modulosHabilitados : JSON.stringify(body.modulosHabilitados);
 
     // SEO y Posicionamiento
     if (body.seoTitulo !== undefined) data.seoTitulo = body.seoTitulo;

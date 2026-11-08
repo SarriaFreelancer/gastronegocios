@@ -48,6 +48,7 @@ import {
   Power,
   QrCode,
   UtensilsCrossed,
+  Layout,
   Bell,
   Heart,
   MessageSquare,
@@ -503,6 +504,7 @@ export default function AdminPage() {
     horario: '',
     costoDomicilioBase: 5000,
     propinaSugeridaPct: 10,
+    aparienciaMenu: 'clasico',
   });
   const [savedSettings, setSavedSettings] = useState(false);
 
@@ -931,6 +933,7 @@ export default function AdminPage() {
           setConfig((prev) => ({
             ...prev,
             ...data,
+            aparienciaMenu: activeRestaurant?.aparienciaMenu || data.aparienciaMenu || prev.aparienciaMenu || 'clasico',
             telefonoWhatsapp: activeRestaurant?.telefonoWhatsapp || data.telefonoWhatsapp || prev.telefonoWhatsapp,
             mensajeWhatsappDefault: activeRestaurant?.mensajeWhatsappDefault || data.mensajeWhatsappDefault || prev.mensajeWhatsappDefault,
             email: activeRestaurant?.email || data.email || prev.email,
@@ -1781,12 +1784,24 @@ export default function AdminPage() {
             horarioAtencion: config.horario,
             costoDomicilioBase: Number(config.costoDomicilioBase),
             propinaSugeridaPct: Number(config.propinaSugeridaPct),
+            aparienciaMenu: config.aparienciaMenu,
           }),
         });
         if (restRes.ok) {
           const updatedRest = await restRes.json();
           setActiveRestaurant(updatedRest);
           localStorage.setItem('punto_g_active_restaurant', JSON.stringify(updatedRest));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('punto-g:tenant-updated', {
+                detail: {
+                  restaurantId: activeRestaurant.id,
+                  slug: updatedRest.slug,
+                  aparienciaMenu: config.aparienciaMenu,
+                },
+              })
+            );
+          }
         }
       }
 
@@ -2161,6 +2176,15 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+
+            <Link
+              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/menu` : '/menu'}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
+            >
+              <BookOpenCheck className="w-4 h-4" />
+              <span>Ver Menú Digital 📖</span>
+            </Link>
 
             <Link
               href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/pedidos-listos` : '/pedidos-listos'}
@@ -6155,6 +6179,75 @@ export default function AdminPage() {
                       className="w-full bg-[#121212] border border-[#2e2e2e] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-yellow text-xs"
                     />
                   </div>
+                </div>
+              </div>
+
+                            {/* SECCIÓN 4: APARIENCIA DEL MENÚ DIGITAL */}
+              <div className="bg-[#181818] border border-[#262626] rounded-2xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-[#2b2b2b]">
+                  <div className="flex items-center gap-2 text-brand-yellow font-black uppercase tracking-wider text-xs">
+                    <Layout className="w-4 h-4" />
+                    <span>4. APARIENCIA DEL MENÚ DIGITAL</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400">Modalidad de Carta Activa</span>
+                </div>
+
+                <p className="text-xs text-gray-400">
+                  Selecciona cómo quieres que tus clientes interactúen con la carta digital de tu restaurante.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label
+                    className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                      config.aparienciaMenu === 'clasico'
+                        ? 'bg-brand-yellow/10 border-brand-yellow text-white shadow-glow'
+                        : 'bg-[#121212] border-[#2a2a2a] text-gray-400 hover:border-gray-600'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="aparienciaMenuRadio"
+                      value="clasico"
+                      checked={config.aparienciaMenu === 'clasico'}
+                      onChange={() => setConfig({ ...config, aparienciaMenu: 'clasico' })}
+                      className="mt-1 text-brand-yellow focus:ring-brand-yellow"
+                    />
+                    <div className="space-y-1">
+                      <div className="font-black text-sm text-white">Opción A — Menú Actual</div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed">
+                        Presentación clásica con banner superior hero, pestañas de categorías arriba y filtros interactivos de platos.
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-bold text-brand-yellow uppercase">
+                        Diseño Tradicional
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                      config.aparienciaMenu === 'lateral'
+                        ? 'bg-brand-yellow/10 border-brand-yellow text-white shadow-glow'
+                        : 'bg-[#121212] border-[#2a2a2a] text-gray-400 hover:border-gray-600'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="aparienciaMenuRadio"
+                      value="lateral"
+                      checked={config.aparienciaMenu === 'lateral'}
+                      onChange={() => setConfig({ ...config, aparienciaMenu: 'lateral' })}
+                      className="mt-1 text-brand-yellow focus:ring-brand-yellow"
+                    />
+                    <div className="space-y-1">
+                      <div className="font-black text-sm text-white">Opción B — Menú Lateral</div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed">
+                        Barra lateral con categorías fijas en escritorio, barra chip en móviles, fotos completas, etiquetas de destacados y navegación optimizada.
+                      </p>
+                      <span className="inline-block mt-1 text-[10px] font-bold text-emerald-400 uppercase">
+                        Recomendado para Móviles y Domicilios
+                      </span>
+                    </div>
+                  </label>
                 </div>
               </div>
 

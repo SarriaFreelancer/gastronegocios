@@ -51,6 +51,7 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
 
     // Plantilla
     plantilla: 'plantilla-actual',
+    aparienciaMenu: 'clasico',
 
     // Design Tokens - Colores
     colorPrimario: '#ffc928',
@@ -108,6 +109,7 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
         horarioAtencion: restaurant.horarioAtencion || 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
 
         plantilla: restaurant.plantilla || 'plantilla-actual',
+        aparienciaMenu: restaurant.aparienciaMenu || 'clasico',
 
         colorPrimario: restaurant.colorPrimario || '#ffc928',
         colorSecundario: restaurant.colorSecundario || '#E94B24',
@@ -164,6 +166,17 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
       if (res.ok) {
         const updated = await res.json();
         onUpdate(updated);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('punto-g:tenant-updated', {
+              detail: {
+                restaurantId: restaurant.id,
+                slug: updated.slug,
+                aparienciaMenu: updated.aparienciaMenu,
+              },
+            })
+          );
+        }
         showSuccess(
           'Personalización Publicada',
           'Los cambios de diseño, colores y textos fueron aplicados y están visibles públicamente.'
@@ -601,6 +614,59 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
                 >
                   {formData.plantilla === 'plantilla-comercial' ? 'Plantilla Seleccionada' : 'Elegir esta Plantilla'}
                 </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Selector de Apariencia del Menú Digital */}
+          <div className="pt-6 border-t border-[#222] space-y-4">
+            <div>
+              <h4 className="text-sm font-black uppercase text-white font-display flex items-center gap-2">
+                <Layout className="w-4 h-4 text-brand-yellow" />
+                <span>Apariencia del Menú Digital (Modo de Navegación)</span>
+              </h4>
+              <p className="text-xs text-gray-400 mt-1">
+                Escoge cómo deseas que los clientes exploren los platos de tu carta digital.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                onClick={() => setFormData({ ...formData, aparienciaMenu: 'clasico' })}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all space-y-2 ${
+                  formData.aparienciaMenu === 'clasico'
+                    ? 'border-brand-yellow bg-brand-yellow/10 shadow-glow'
+                    : 'border-[#262626] bg-[#161616] hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-sm text-white">Opción A — Menú Actual</span>
+                  {formData.aparienciaMenu === 'clasico' && (
+                    <span className="bg-brand-yellow text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Activo</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Diseño clásico con hero banner dinámico, barra superior de categorías y filtros interactivos.
+                </p>
+              </div>
+
+              <div
+                onClick={() => setFormData({ ...formData, aparienciaMenu: 'lateral' })}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all space-y-2 ${
+                  formData.aparienciaMenu === 'lateral'
+                    ? 'border-brand-yellow bg-brand-yellow/10 shadow-glow'
+                    : 'border-[#262626] bg-[#161616] hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-sm text-white">Opción B — Menú Lateral</span>
+                  {formData.aparienciaMenu === 'lateral' && (
+                    <span className="bg-brand-yellow text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Activo</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Barra lateral con categorías fijas en escritorio, barra chip en móviles, fotos completas y navegación por secciones.
+                </p>
               </div>
             </div>
           </div>
