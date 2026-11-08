@@ -1,8 +1,11 @@
 import { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://puntog.app';
 
   // Base public routes
   const routes: MetadataRoute.Sitemap = [
@@ -32,52 +35,56 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  // Dynamically query active restaurants from the live database at runtime
   try {
-    const restaurants = await prisma.restaurant.findMany({
-      where: { activo: true },
-      select: { slug: true, updatedAt: true },
-    });
+    if (process.env.DATABASE_URL) {
+      const restaurants = await prisma.restaurant.findMany({
+        where: { activo: true },
+        select: { slug: true, updatedAt: true },
+      });
 
-    for (const r of restaurants) {
-      routes.push({
-        url: `${baseUrl}/r/${r.slug}`,
-        lastModified: r.updatedAt,
-        changeFrequency: 'daily',
-        priority: 0.9,
-      });
-      routes.push({
-        url: `${baseUrl}/r/${r.slug}/menu`,
-        lastModified: r.updatedAt,
-        changeFrequency: 'daily',
-        priority: 0.9,
-      });
-      routes.push({
-        url: `${baseUrl}/r/${r.slug}/promociones`,
-        lastModified: r.updatedAt,
-        changeFrequency: 'daily',
-        priority: 0.8,
-      });
-      routes.push({
-        url: `${baseUrl}/r/${r.slug}/nosotros`,
-        lastModified: r.updatedAt,
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      });
-      routes.push({
-        url: `${baseUrl}/r/${r.slug}/contacto`,
-        lastModified: r.updatedAt,
-        changeFrequency: 'monthly',
-        priority: 0.6,
-      });
-      routes.push({
-        url: `${baseUrl}/r/${r.slug}/rastreo`,
-        lastModified: r.updatedAt,
-        changeFrequency: 'weekly',
-        priority: 0.4,
-      });
+      for (const r of restaurants) {
+        if (!r.slug) continue;
+        routes.push({
+          url: `${baseUrl}/r/${r.slug}`,
+          lastModified: r.updatedAt || new Date(),
+          changeFrequency: 'daily',
+          priority: 0.9,
+        });
+        routes.push({
+          url: `${baseUrl}/r/${r.slug}/menu`,
+          lastModified: r.updatedAt || new Date(),
+          changeFrequency: 'daily',
+          priority: 0.9,
+        });
+        routes.push({
+          url: `${baseUrl}/r/${r.slug}/promociones`,
+          lastModified: r.updatedAt || new Date(),
+          changeFrequency: 'daily',
+          priority: 0.8,
+        });
+        routes.push({
+          url: `${baseUrl}/r/${r.slug}/nosotros`,
+          lastModified: r.updatedAt || new Date(),
+          changeFrequency: 'monthly',
+          priority: 0.6,
+        });
+        routes.push({
+          url: `${baseUrl}/r/${r.slug}/contacto`,
+          lastModified: r.updatedAt || new Date(),
+          changeFrequency: 'monthly',
+          priority: 0.6,
+        });
+        routes.push({
+          url: `${baseUrl}/r/${r.slug}/rastreo`,
+          lastModified: r.updatedAt || new Date(),
+          changeFrequency: 'weekly',
+          priority: 0.4,
+        });
+      }
     }
   } catch (e) {
-    console.error('Error generating sitemap:', e);
+    console.error('Error generating dynamic sitemap from database:', e);
   }
 
   return routes;

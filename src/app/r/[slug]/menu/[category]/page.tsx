@@ -5,6 +5,8 @@ import { categories as defaultCategories } from '@/data/categories';
 import { products as defaultProducts } from '@/data/products';
 import { CategoryClientView } from '@/components/menu/CategoryClientView';
 
+export const dynamic = 'force-dynamic';
+
 interface TenantCategoryDetailPageProps {
   params: {
     slug: string;

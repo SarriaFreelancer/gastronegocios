@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { 
@@ -71,7 +71,7 @@ interface Order {
   items: OrderItem[];
 }
 
-export default function CocinaKDSPage() {
+function CocinaKDSContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const tenantSlug = (params?.slug as string) || null;
@@ -1014,5 +1014,24 @@ export default function CocinaKDSPage() {
       />
 
     </div>
+  );
+}
+
+export default function CocinaKDSPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#070707] flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
+              Conectando con la cocina KDS de tu restaurante...
+            </span>
+          </div>
+        </div>
+      }
+    >
+      <CocinaKDSContent />
+    </Suspense>
   );
 }
