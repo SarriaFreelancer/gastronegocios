@@ -47,13 +47,22 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
         fetch(`/api/supplies/kardex?restaurantId=${restaurantId}`),
       ]);
 
-      if (ordersRes.ok) setOrders(await ordersRes.json());
+      if (ordersRes.ok) {
+        const oData = await ordersRes.json();
+        setOrders(Array.isArray(oData) ? oData : (oData.orders || []));
+      }
       if (suppliesRes.ok) {
         const sData = await suppliesRes.json();
-        setSupplies(sData.supplies || []);
+        setSupplies(Array.isArray(sData) ? sData : (sData.supplies || []));
       }
-      if (recipesRes.ok) setRecipes(await recipesRes.json());
-      if (kardexRes.ok) setKardex(await kardexRes.json());
+      if (recipesRes.ok) {
+        const rData = await recipesRes.json();
+        setRecipes(Array.isArray(rData) ? rData : (rData.recipes || []));
+      }
+      if (kardexRes.ok) {
+        const kData = await kardexRes.json();
+        setKardex(Array.isArray(kData) ? kData : (kData.movements || []));
+      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -69,9 +78,10 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
 
   // Filter orders by period
   const filteredOrders = useMemo(() => {
+    if (!Array.isArray(orders)) return [];
     const now = new Date();
     return orders.filter((o) => {
-      if (o.status === 'CANCELLED' || o.status === 'CANCELADO') return false;
+      if (o.status === 'CANCELLED' || o.status === 'CANCELADO' || o.estado === 'Cancelado') return false;
       const orderDate = new Date(o.createdAt);
       if (period === 'today') {
         return orderDate.toDateString() === now.toDateString();
@@ -92,18 +102,23 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
 
   // Financial KPIs
   const kpis = useMemo(() => {
+    const ordersList = Array.isArray(filteredOrders) ? filteredOrders : [];
+    const suppliesList = Array.isArray(supplies) ? supplies : [];
+    const recipesList = Array.isArray(recipes) ? recipes : [];
+    const kardexList = Array.isArray(kardex) ? kardex : [];
+
     // 1. Total Sales
-    const totalSales = filteredOrders.reduce((acc, o) => acc + Number(o.total || 0), 0);
+    const totalSales = ordersList.reduce((acc, o) => acc + Number(o.total || 0), 0);
 
     // 2. Cost of Goods Sold (CMV) calculated from recipe cost of each sold product
-    const recipeMap = new Map(recipes.map((r) => [r.productId, r]));
+    const recipeMap = new Map(recipesList.map((r) => [r.productId, r]));
     let totalSupplyCost = 0;
 
-    filteredOrders.forEach((order) => {
+    ordersList.forEach((order) => {
       (order.items || []).forEach((item: any) => {
         const recipe = recipeMap.get(item.productId);
-        const portionCost = Number(recipe?.costoPorPorcion || 0);
-        totalSupplyCost += portionCost * (Number(item.quantity) || 1);
+        const portionCost = Number(recipe?.costoTotal || recipe?.costoPorPorcion || 0);
+        totalSupplyCost += portionCost * (Number(item.cantidad || item.quantity) || 1);
       });
     });
 
@@ -112,22 +127,22 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
     const grossMarginPercent = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
 
     // 4. Inventory Valuation
-    const totalValuation = supplies.reduce(
-      (acc, s) => acc + s.stockActual * (s.costoPromedio || s.costoUnitario || 0),
+    const totalValuation = suppliesList.reduce(
+      (acc, s) => acc + Number(s.stockActual || 0) * Number(s.costoUnitario || s.costoPromedio || 0),
       0
     );
 
     // 5. Total Waste/Merma Cost in period
-    const wasteMovements = kardex.filter((m) =>
-      ['SALIDA_MERMA', 'SALIDA_DESPERDICIO', 'SALIDA_VENCIMIENTO'].includes(m.tipo)
+    const wasteMovements = kardexList.filter((m) =>
+      ['MERMA', 'DESPERDICIO', 'CONSUMO_INTERNO', 'SALIDA_MERMA', 'SALIDA_DESPERDICIO'].includes(m.tipoMovimiento || m.tipo)
     );
     const totalWasteCost = wasteMovements.reduce((acc, m) => acc + Number(m.costoTotal || 0), 0);
 
     // 6. Critical Alerts Counts
-    const lowStockCount = supplies.filter((s) => s.isLowStock && !s.isNegative).length;
-    const negativeStockCount = supplies.filter((s) => s.isNegative).length;
-    const expiringSoonCount = supplies.filter((s) => s.isExpiringSoon).length;
-    const expiredCount = supplies.filter((s) => s.isExpired).length;
+    const lowStockCount = suppliesList.filter((s) => s.isLowStock && !s.isNegative).length;
+    const negativeStockCount = suppliesList.filter((s) => s.isNegative).length;
+    const expiringSoonCount = suppliesList.filter((s) => s.isExpiringSoon).length;
+    const expiredCount = suppliesList.filter((s) => s.isExpired).length;
 
     return {
       totalSales,
@@ -146,12 +161,14 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
   // Top Selling Items
   const topSelling = useMemo(() => {
     const map = new Map<string, { name: string; count: number; total: number }>();
-    filteredOrders.forEach((order) => {
+    const ordersList = Array.isArray(filteredOrders) ? filteredOrders : [];
+
+    ordersList.forEach((order) => {
       (order.items || []).forEach((item: any) => {
-        const id = item.productId || item.product?.id || item.name;
-        const name = item.name || item.product?.name || 'Plato';
-        const qty = Number(item.quantity) || 1;
-        const price = Number(item.unitPrice || item.price || 0);
+        const id = item.productId || item.productoId || item.product?.id || item.nombre || item.name;
+        const name = item.nombre || item.name || item.product?.nombre || 'Plato';
+        const qty = Number(item.cantidad || item.quantity || 1);
+        const price = Number(item.precio || item.unitPrice || item.price || 0);
 
         if (!map.has(id)) {
           map.set(id, { name, count: 0, total: 0 });
