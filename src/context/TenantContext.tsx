@@ -57,6 +57,8 @@ export interface TenantData {
   radioBordes?: string | null;
   estiloTarjetas?: string | null;
   columnasMenu?: number;
+  aparienciaMenu?: string | null;
+  politicaStockNegativo?: string | null;
 
   // Contact info
   telefono?: string | null;

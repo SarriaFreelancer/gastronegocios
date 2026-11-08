@@ -10,6 +10,7 @@ import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
+import { SidebarMenu } from '@/components/menu/SidebarMenu';
 import { Logo } from '@/components/ui/Logo';
 import { useTenant } from '@/context/TenantContext';
 import { getCategoryHeroImage } from '@/lib/category-images';
@@ -306,7 +307,29 @@ function TenantMenuGeneralContent() {
     );
   }
 
-  // 3. Normal Menu Page when products exist
+  // 3. Alternate Presentation: Opción B — Menú Lateral
+  const isLateralLayout = 
+    restaurant?.aparienciaMenu === 'lateral' || 
+    searchParams.get('layout') === 'lateral';
+
+  if (isLateralLayout) {
+    return (
+      <div className="pt-20">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <SidebarMenu
+          categories={allCategories}
+          products={allProducts}
+          restaurantName={restaurantName}
+          slug={slug}
+        />
+      </div>
+    );
+  }
+
+  // 4. Normal Menu Page when products exist (Opción A — Menú Actual)
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16">
       <script

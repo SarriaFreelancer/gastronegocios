@@ -33,7 +33,8 @@ import {
   MonitorPlay,
   Settings,
   DollarSign,
-  Building2
+  Building2,
+  Barcode
 } from 'lucide-react';
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
@@ -127,6 +128,8 @@ interface ProductItem {
   stockMinimo?: number | null;
   controlarStock?: boolean;
   costo?: number | null;
+  codigoBarras?: string | null;
+  sku?: string | null;
 }
 
 interface ComandaItem {
@@ -991,6 +994,37 @@ export default function MeseroPage() {
     }
   };
 
+  // Manejo de lector de código de barras o búsqueda rápida en Comandero
+  const handleProductKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = searchProduct.trim().toLowerCase();
+      if (!query) return;
+
+      // 1. Buscar coincidencia exacta por código de barras o SKU
+      const exactBarcodeMatch = products.find(
+        (p) =>
+          (p.codigoBarras && p.codigoBarras.trim().toLowerCase() === query) ||
+          (p.sku && p.sku.trim().toLowerCase() === query)
+      );
+
+      if (exactBarcodeMatch) {
+        handleAddItemToComanda(exactBarcodeMatch);
+        setSearchProduct('');
+        playAlertSound('call');
+        return;
+      }
+
+      // 2. Si no hay código exacto pero la búsqueda filtrada arroja exactamente 1 resultado
+      if (filteredProducts.length === 1) {
+        handleAddItemToComanda(filteredProducts[0]);
+        setSearchProduct('');
+        playAlertSound('call');
+        return;
+      }
+    }
+  };
+
   // Filtro de productos para el comandero
   const filteredProducts = useMemo(() => {
     const q = searchProduct.toLowerCase().trim();
@@ -1004,7 +1038,9 @@ export default function MeseroPage() {
       return (
         p.nombre.toLowerCase().includes(q) ||
         (p.descripcion || '').toLowerCase().includes(q) ||
-        (p.etiqueta || '').toLowerCase().includes(q)
+        (p.etiqueta || '').toLowerCase().includes(q) ||
+        (p.codigoBarras || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q)
       );
     });
   }, [products, searchProduct, selectedCategory]);
@@ -1468,25 +1504,31 @@ export default function MeseroPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* Columna Izquierda: Menú de Platos (8 cols en desktop) */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-3">
-              {/* Buscador de Platos */}
+              {/* Buscador de Platos / Lector de Código de Barras */}
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar plato, hamburguesa, bebida, carne..."
+                  placeholder="Buscar plato, o escanear código de barras / SKU con lector..."
                   value={searchProduct}
                   onChange={(e) => setSearchProduct(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2b2b2b] focus:border-brand-yellow text-white text-xs rounded-2xl pl-10 pr-9 py-3 outline-none transition"
+                  onKeyDown={handleProductKeyDown}
+                  className="w-full bg-[#161616] border border-[#2b2b2b] focus:border-brand-yellow text-white text-xs rounded-2xl pl-10 pr-28 py-3 outline-none transition"
                 />
                 <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                {searchProduct && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchProduct('')}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="absolute right-3 top-2.5 flex items-center gap-1.5">
+                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#222] border border-[#333] text-[9px] font-bold text-gray-400 rounded">
+                    <Barcode className="w-3 h-3 text-brand-yellow" /> Barcode POS
+                  </span>
+                  {searchProduct && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchProduct('')}
+                      className="text-gray-400 hover:text-white ml-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Categorías Rápidas */}

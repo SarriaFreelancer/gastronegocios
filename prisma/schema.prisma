@@ -59,6 +59,12 @@ model Restaurant {
   radioBordes        String            @default("rounded-2xl") // "rounded-none", "rounded-lg", "rounded-2xl", "rounded-full"
   estiloTarjetas     String            @default("card-glass") // "card-glass", "card-solid", "card-bordered"
   columnasMenu       Int               @default(3) // 2, 3, 4
+  aparienciaMenu     String            @default("clasico") // "clasico" (Opción A: Actual), "lateral" (Opción B: Menú lateral con barra de categorías)
+
+  // Políticas de Inventario y Módulos
+  politicaStockNegativo String          @default("BLOQUEAR") // "BLOQUEAR", "PERMITIR_NEGATIVO"
+  diasAnticipacionVencimiento Int      @default(7) // Días para alertar lotes próximos a vencer
+  modulosHabilitados String?           @db.Text // JSON string: ["dashboard", "ventas", "productos", "inventario", "recetas", "compras", "proveedores", "clientes", "usuarios", "caja", "gastos", "reportes", "analitica", "menu_digital", "importaciones"]
 
   // Sistema de SEO Técnico y Posicionamiento
   seoTitulo          String?           @db.Text
@@ -112,6 +118,13 @@ model Restaurant {
   addons             ProductAddon[]
   shifts             CashShift[]
   reviews            Review[]
+  supplies           Supply[]
+  suppliers          Supplier[]
+  recipes            Recipe[]
+  inventoryMovements InventoryMovement[]
+  purchases          Purchase[]
+  customers          Customer[]
+  roles              Role[]
 
   @@map("restaurants")
 }
@@ -122,16 +135,33 @@ model User {
   email        String      @unique
   password     String      @default("admin123")
   rol          String      @default("Cajero") // Superadmin, Administrador, Supervisor, Cajero, Cocinero, Mesero
+  permisos     String?     @db.Text // JSON con matriz de permisos y capacidades especiales
   estado       String      @default("Activo") // Activo, Inactivo
   branchId     Int?
   sedeId       Int?
   branch       Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
   restaurantId Int?
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  roleId       Int?
+  customRole   Role?       @relation(fields: [roleId], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   @@map("users")
+}
+
+model Role {
+  id           Int         @id @default(autoincrement())
+  nombre       String      // Propietario, Administrador, Gerente, Cajero, Mesero, Cocinero, Encargado de inventario, Auxiliar, Auditor
+  descripcion  String?
+  permisos     String      @db.Text // JSON con matriz de permisos por módulo
+  restaurantId Int?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  users        User[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("roles")
 }
 
 model Branch {
@@ -147,10 +177,13 @@ model Branch {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   users        User[]
-  orders       Order[]
-  invoices     Invoice[]
-  tables       RestaurantTable[]
-  shifts       CashShift[]
+  orders             Order[]
+  invoices           Invoice[]
+  tables             RestaurantTable[]
+  shifts             CashShift[]
+  supplies           Supply[]
+  inventoryMovements InventoryMovement[]
+  purchases          Purchase[]
 
   @@map("branches")
 }
@@ -194,12 +227,15 @@ model Product {
   stockMinimo    Int?        @default(5) // Alerta de stock bajo
   controlarStock Boolean     @default(false)
   costo          Float?      // Costo de insumos / Food Cost
+  codigoBarras   String?     // Código EAN / Código de barras opcional
+  sku            String?     // Código SKU interno opcional
   orden          Int         @default(0)
   restaurantId   Int?
   restaurant     Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   orderItems     OrderItem[]
+  recipe         Recipe?
 
   @@map("products")
 }
@@ -411,4 +447,219 @@ model RestaurantConfig {
   updatedAt          DateTime @updatedAt
 
   @@map("restaurant_config")
+}
+
+// ==========================================
+// MÓDULO ERP: PROVEEDORES
+// ==========================================
+model Supplier {
+  id           Int         @id @default(autoincrement())
+  nombre       String
+  nit          String?
+  contacto     String?
+  telefono     String?
+  email        String?
+  direccion    String?     @db.Text
+  ciudad       String?     @default("Cali")
+  categoria    String?     @default("General") // Carnes, Abarrotes, Frutas y Verduras, Lácteos, Empaques
+  activo       Boolean     @default(true)
+  restaurantId Int
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  supplies     Supply[]
+  purchases    Purchase[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([restaurantId])
+  @@map("suppliers")
+}
+
+// ==========================================
+// MÓDULO ERP: MATERIAS PRIMAS E INSUMOS
+// ==========================================
+model Supply {
+  id               Int                 @id @default(autoincrement())
+  codigoInterno    String              // e.g. "MP-001"
+  codigoBarras     String?             // Código EAN opcional
+  nombre           String              // e.g. "Tomate Chonto", "Carne de Res Molida"
+  descripcion      String?             @db.Text
+  categoria        String              @default("General") // Verduras, Carnes, Lácteos, Panadería, Salsas, Empaques
+  unidadMedida     String              @default("g") // Unidad de consumo/receta: g, kg, ml, l, und, porc, paq, caja, lb
+  unidadCompra     String?             @default("kg") // Unidad en la que compra al proveedor
+  factorConversion Float               @default(1.0) // 1 unidadCompra = X unidadMedida (ej: 1 kg = 1000 g)
+  stockActual      Float               @default(0) // Existencia actual en unidadMedida
+  stockMinimo      Float               @default(0) // Umbral alerta de stock bajo
+  stockMaximo      Float               @default(0) // Umbral alerta exceso de stock
+  costoUnitario    Float               @default(0) // Costo por unidadMedida base (ej: $5 por gramo)
+  costoPromedio    Float               @default(0) // Costo promedio ponderado
+  proveedorId      Int?
+  proveedor        Supplier?           @relation(fields: [proveedorId], references: [id], onDelete: SetNull)
+  restaurantId     Int
+  restaurant       Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branchId         Int?
+  branch           Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  fechaVencimiento DateTime?           // Próximo vencimiento
+  lote             String?             // Lote actual
+  estado           String              @default("Activo") // Activo, Inactivo, Agotado
+  observaciones    String?             @db.Text
+  movements        InventoryMovement[]
+  recipeItems      RecipeItem[]
+  purchaseItems    PurchaseItem[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([restaurantId])
+  @@index([branchId])
+  @@index([codigoInterno])
+  @@map("supplies")
+}
+
+// ==========================================
+// MÓDULO ERP: KARDEX Y MOVIMIENTOS DE INVENTARIO
+// ==========================================
+model InventoryMovement {
+  id                 Int         @id @default(autoincrement())
+  supplyId           Int
+  supply             Supply      @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  tipoMovimiento     String      // ENTRADA_COMPRA, SALIDA_VENTA, SALIDA_PREPARACION, AJUSTE_POSITIVO, AJUSTE_NEGATIVO, MERMA, DESPERDICIO, DEVOLUCION, TRASLADO, CORRECCION
+  cantidad           Float       // En unidadMedida de la materia prima
+  unidad             String
+  stockAnterior      Float
+  stockResultante    Float
+  costoUnitario      Float       @default(0)
+  costoTotal         Float       @default(0)
+  esNegativo         Boolean     @default(false) // Flag si operó con stock negativo
+  autorizadoPor      String?     // Usuario que autorizó la operación en stock negativo o ajuste
+  motivo             String?     @db.Text
+  referencia         String?     // e.g. "ORD-PG-1045", "FAC-001", "AJUSTE-MANUAL"
+  usuarioResponsable String?     @default("Sistema")
+  restaurantId       Int
+  restaurant         Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branchId           Int?
+  branch             Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt          DateTime    @default(now())
+
+  @@index([supplyId])
+  @@index([restaurantId])
+  @@index([branchId])
+  @@index([createdAt])
+  @@map("inventory_movements")
+}
+
+// ==========================================
+// MÓDULO ERP: RECETAS Y FICHAS TÉCNICAS
+// ==========================================
+model Recipe {
+  id                Int          @id @default(autoincrement())
+  nombre            String       // e.g. "Receta Hamburguesa Especial"
+  productId         Int          @unique
+  product           Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  porciones         Float        @default(1)
+  rendimiento       Float        @default(100) // %
+  tiempoPreparacion Int?         @default(15) // minutos
+  costoTotal        Float        @default(0) // Suma calculada de costos de insumos
+  costoPorcion      Float        @default(0) // costoTotal / porciones
+  margenUtilidad    Float?       // Margen bruto porcentual estimado vs precio venta
+  instrucciones     String?      @db.Text
+  observaciones     String?      @db.Text
+  activo            Boolean      @default(true)
+  restaurantId      Int
+  restaurant        Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items             RecipeItem[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([restaurantId])
+  @@map("recipes")
+}
+
+model RecipeItem {
+  id                     Int     @id @default(autoincrement())
+  recipeId               Int
+  recipe                 Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  supplyId               Int
+  supply                 Supply  @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  cantidad               Float   // Cantidad requerida de insumo
+  unidad                 String  // Unidad de la receta (g, ml, und, etc.)
+  costoUnitarioCalculado Float   @default(0)
+  costoSubtotal          Float   @default(0)
+  notas                  String?
+
+  @@index([recipeId])
+  @@index([supplyId])
+  @@map("recipe_items")
+}
+
+// ==========================================
+// MÓDULO ERP: COMPRAS Y ENTRADAS
+// ==========================================
+model Purchase {
+  id             Int            @id @default(autoincrement())
+  numeroFactura  String         // e.g. "FAC-PROV-987"
+  supplierId     Int?
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  fecha          DateTime       @default(now())
+  total          Float          @default(0)
+  estado         String         @default("Recibido") // Recibido, Pendiente, Anulado
+  metodoPago     String         @default("Efectivo") // Efectivo, Transferencia, Crédito
+  observaciones  String?        @db.Text
+  registradoPor  String?        @default("Admin")
+  restaurantId   Int
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  branchId       Int?
+  branch         Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items          PurchaseItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([restaurantId])
+  @@index([supplierId])
+  @@index([branchId])
+  @@index([createdAt])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id               Int       @id @default(autoincrement())
+  purchaseId       Int
+  purchase         Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  supplyId         Int
+  supply           Supply    @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  cantidad         Float     // Cantidad comprada
+  unidad           String    // Unidad de compra o base
+  precioUnitario   Float     // Precio por unidad
+  subtotal         Float
+  lote             String?
+  fechaVencimiento DateTime?
+
+  @@index([purchaseId])
+  @@index([supplyId])
+  @@map("purchase_items")
+}
+
+// ==========================================
+// MÓDULO ERP: CLIENTES DEL RESTAURANTE
+// ==========================================
+model Customer {
+  id            Int         @id @default(autoincrement())
+  nombre        String
+  documento     String?     // Cédula o NIT
+  telefono      String?
+  email         String?
+  direccion     String?     @db.Text
+  ciudad        String?     @default("Cali")
+  barrio        String?
+  totalComprado Float       @default(0)
+  totalPedidos  Int         @default(0)
+  ultimaCompra  DateTime?
+  notas         String?     @db.Text
+  activo        Boolean     @default(true)
+  restaurantId  Int
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([restaurantId])
+  @@index([telefono])
+  @@map("customers")
 }

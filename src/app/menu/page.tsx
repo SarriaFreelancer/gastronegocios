@@ -10,6 +10,7 @@ import { ProductCard } from '@/components/ui/ProductCard';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
+import { SidebarMenu } from '@/components/menu/SidebarMenu';
 import { Search, Sparkles, Filter } from 'lucide-react';
 import { getCategoryHeroImage } from '@/lib/category-images';
 
@@ -133,6 +134,19 @@ function MenuGeneralContent() {
     }
     return null;
   }, [allCategories, selectedCategory, selectedSubcategory]);
+
+  if (searchParams?.get('layout') === 'lateral') {
+    return (
+      <div className="pt-20">
+        <SidebarMenu
+          categories={allCategories}
+          products={allProducts}
+          restaurantName="PUNTO G"
+          slug="punto-g"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#080808] pt-24 pb-16">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { restoreRecipeStockOnOrderCancellation } from '@/lib/inventory-engine';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -69,6 +70,23 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         restaurant: true,
       },
     });
+
+    // ERP: Reintegrar inventario al Kardex si la orden es cancelada o anulada
+    if (estado === 'Cancelado' || estado === 'Anulado') {
+      try {
+        if (updated.restaurantId) {
+          await restoreRecipeStockOnOrderCancellation(
+            orderToUpdateId,
+            updated.codigo,
+            updated.restaurantId,
+            updated.branchId || null,
+            'Anulación / Cancelación'
+          );
+        }
+      } catch (restErr) {
+        console.error('Error restaurando insumos por cancelación:', restErr);
+      }
+    }
 
     // If order is finished or cancelled and attached to a table, check if any other active orders exist on that table
     if (estado && ['Entregado', 'Cancelado'].includes(estado)) {

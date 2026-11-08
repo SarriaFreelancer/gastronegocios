@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { deductRecipeStockOnOrder } from '@/lib/inventory-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -259,6 +260,7 @@ export async function POST(req: Request) {
         restaurantId: finalRestaurantId,
         items: {
           create: items.map((i: any) => ({
+            productId: i.productId ? Number(i.productId) : i.productoId ? Number(i.productoId) : null,
             nombre: i.nombre,
             precio: Number(i.precio),
             cantidad: Number(i.cantidad) || 1,
@@ -281,7 +283,65 @@ export async function POST(req: Request) {
       });
     }
 
-    // Descontar inventario/stock de los productos con control de stock activado
+    // ERP: Registrar o actualizar Cliente del Restaurante de forma consistente
+    try {
+      if (cliente && telefono && finalRestaurantId) {
+        const cleanPhone = telefono.trim();
+        const existingCust = await prisma.customer.findFirst({
+          where: {
+            telefono: cleanPhone,
+            restaurantId: finalRestaurantId,
+          },
+        });
+
+        if (existingCust) {
+          await prisma.customer.update({
+            where: { id: existingCust.id },
+            data: {
+              totalComprado: (existingCust.totalComprado || 0) + Number(total),
+              totalPedidos: (existingCust.totalPedidos || 0) + 1,
+              ultimaCompra: new Date(),
+              direccion: tipo === 'domicilio' ? (direccion || existingCust.direccion) : existingCust.direccion,
+              barrio: tipo === 'domicilio' ? (barrio || existingCust.barrio) : existingCust.barrio,
+            },
+          });
+        } else {
+          await prisma.customer.create({
+            data: {
+              nombre: cliente.trim(),
+              telefono: cleanPhone,
+              direccion: tipo === 'domicilio' ? direccion : null,
+              barrio: tipo === 'domicilio' ? barrio : null,
+              totalComprado: Number(total),
+              totalPedidos: 1,
+              ultimaCompra: new Date(),
+              restaurantId: finalRestaurantId,
+            },
+          });
+        }
+      }
+    } catch (custErr) {
+      console.error('Error registrando cliente del restaurante:', custErr);
+    }
+
+    // ERP: Descontar materias primas e insumos mediante fichas técnicas / recetas
+    try {
+      if (finalRestaurantId) {
+        await deductRecipeStockOnOrder(
+          newOrder.id,
+          newOrder.codigo,
+          finalRestaurantId,
+          newOrder.branchId || null,
+          items,
+          null,
+          'Venta POS / Web'
+        );
+      }
+    } catch (recipeDeductErr) {
+      console.error('Error descontando insumos de receta:', recipeDeductErr);
+    }
+
+    // Descontar inventario/stock de los productos con control de stock directo activado
     try {
       for (const item of items) {
         const qty = Number(item.cantidad) || 1;
@@ -312,7 +372,7 @@ export async function POST(req: Request) {
         }
       }
     } catch (stockErr) {
-      console.error('Error actualizando stock de productos:', stockErr);
+      console.error('Error actualizando stock de productos comerciales:', stockErr);
     }
 
     return NextResponse.json(newOrder, { status: 201 });

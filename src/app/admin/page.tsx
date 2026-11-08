@@ -8,7 +8,16 @@ import { Logo } from '@/components/ui/Logo';
 import { PersonalizacionTab } from '@/components/admin/PersonalizacionTab';
 import { SeoTab } from '@/components/admin/SeoTab';
 import { FacturasTab } from '@/components/admin/FacturasTab';
+import { InventarioTab } from '@/components/admin/InventarioTab';
+import { RecetasTab } from '@/components/admin/RecetasTab';
+import { ComprasTab } from '@/components/admin/ComprasTab';
+import { ClientesTab } from '@/components/admin/ClientesTab';
+import { ModulosTab } from '@/components/admin/ModulosTab';
+import { UsuariosRolesTab } from '@/components/admin/UsuariosRolesTab';
+import { ImportacionTab } from '@/components/admin/ImportacionTab';
+import { DashboardEjecutivoTab } from '@/components/admin/DashboardEjecutivoTab';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
+import { Boxes, BookOpenCheck, Truck } from 'lucide-react';
 import { 
   ShoppingBag, 
   Layers, 
@@ -229,7 +238,7 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'facturas' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo'
+    'pedidos' | 'facturas' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo' | 'dashboard_ejecutivo' | 'inventario' | 'recetas' | 'compras' | 'clientes' | 'modulos' | 'roles' | 'importacion'
   >('pedidos');
 
   // Loading States
@@ -2234,7 +2243,15 @@ export default function AdminPage() {
         {(() => {
           const isMesero = currentUser?.rol === 'Mesero';
           const allTabs = [
+            { id: 'dashboard_ejecutivo', label: '📊 Dashboard Ejecutivo', icon: TrendingUp, badge: 'KPIs' },
             { id: 'pedidos', label: 'Pedidos & Comandas', icon: ShoppingBag, count: orders.length },
+            { id: 'inventario', label: 'Insumos & Kardex', icon: Boxes, badge: 'Smart' },
+            { id: 'recetas', label: 'Recetas & Costeo', icon: BookOpenCheck, badge: 'BOM' },
+            { id: 'compras', label: 'Compras & Proveedores', icon: Truck },
+            { id: 'clientes', label: 'Clientes & Fidelización', icon: Users },
+            { id: 'modulos', label: 'Gestión de Módulos', icon: Settings, badge: 'Tenant' },
+            { id: 'roles', label: 'Roles & Permisos', icon: ShieldCheck },
+            { id: 'importacion', label: 'Importación Masiva', icon: FileSpreadsheet, badge: 'Excel' },
             { id: 'facturas', label: 'Facturación', icon: Receipt, badge: 'POS' },
             { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF' },
             { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
@@ -6198,6 +6215,87 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: DASHBOARD EJECUTIVO Y OPERATIVO                     */}
+        {/* ======================================================== */}
+        {activeTab === 'dashboard_ejecutivo' && (
+          <DashboardEjecutivoTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+            onNavigateTab={(tab) => setActiveTab(tab as any)}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: INVENTARIO INTELIGENTE, INSUMOS Y KARDEX            */}
+        {/* ======================================================== */}
+        {activeTab === 'inventario' && (
+          <InventarioTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: RECETAS TÉCNICAS Y COSTEO (BOM)                     */}
+        {/* ======================================================== */}
+        {activeTab === 'recetas' && (
+          <RecetasTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: COMPRAS Y PROVEEDORES                               */}
+        {/* ======================================================== */}
+        {activeTab === 'compras' && (
+          <ComprasTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: CLIENTES Y FIDELIZACIÓN                             */}
+        {/* ======================================================== */}
+        {activeTab === 'clientes' && (
+          <ClientesTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: GESTIÓN Y HABILITACIÓN DE MÓDULOS                   */}
+        {/* ======================================================== */}
+        {activeTab === 'modulos' && (
+          <ModulosTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: MATRIZ DE ROLES Y PERMISOS (RBAC)                   */}
+        {/* ======================================================== */}
+        {activeTab === 'roles' && (
+          <UsuariosRolesTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB: IMPORTACIÓN MASIVA (EXCEL / CSV)                    */}
+        {/* ======================================================== */}
+        {activeTab === 'importacion' && (
+          <ImportacionTab
+            restaurantId={activeRestaurant?.id || String(currentUser?.restaurantId || '')}
+            restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+          />
         )}
 
       </div>
