@@ -145,6 +145,8 @@ const defaultTenantPuntoG: TenantData = {
   mostrarPromociones: true,
   mostrarResenas: true,
   mostrarHorarios: true,
+  aparienciaMenu: 'clasico',
+  politicaStockNegativo: 'BLOQUEAR',
   telefonoWhatsapp: '3229088736',
   direccionCentral: 'Calle 9 # 45-12, Granada, Cali',
   ciudad: 'Cali',
@@ -243,8 +245,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--tenant-radius', radiusMap[t?.radioBordes || 'rounded-2xl'] || '1rem');
   };
 
-  const fetchTenant = async (slugToFetch: string) => {
-    if (tenantCache[slugToFetch]) {
+  const fetchTenant = async (slugToFetch: string, force = false) => {
+    if (!force && tenantCache[slugToFetch]) {
       setTenant(tenantCache[slugToFetch]);
       applyThemeTokens(tenantCache[slugToFetch]);
       return;
@@ -252,7 +254,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/restaurants?slug=${slugToFetch}`);
+      const res = await fetch(`/api/restaurants?slug=${slugToFetch}&_t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (res.ok) {
         const data = await res.json();
         if (data && data.id) {
@@ -279,16 +283,34 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       fetchTenant(detectedSlug);
     } else {
       // We are on root '/' or non-tenant route
-      setTenant(defaultTenantPuntoG);
-      applyThemeTokens(defaultTenantPuntoG);
+      // Initial theme with default, then fetch fresh configuration from database
+      if (!tenant) {
+        setTenant(defaultTenantPuntoG);
+        applyThemeTokens(defaultTenantPuntoG);
+      }
+      fetchTenant('punto-g');
+    }
+  }, [detectedSlug]);
+
+  // Listen for global tenant updates (e.g. when configurations are updated in admin)
+  useEffect(() => {
+    const handleTenantUpdate = (e: any) => {
+      const targetSlug = e?.detail?.slug || detectedSlug || 'punto-g';
+      delete tenantCache[targetSlug];
+      delete tenantCache['punto-g'];
+      fetchTenant(targetSlug, true);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punto-g:tenant-updated', handleTenantUpdate);
+      return () => window.removeEventListener('punto-g:tenant-updated', handleTenantUpdate);
     }
   }, [detectedSlug]);
 
   const refreshTenant = async () => {
-    if (detectedSlug) {
-      delete tenantCache[detectedSlug];
-      await fetchTenant(detectedSlug);
-    }
+    const slugToRefresh = detectedSlug || 'punto-g';
+    delete tenantCache[slugToRefresh];
+    await fetchTenant(slugToRefresh, true);
   };
 
   const setTenantData = (data: TenantData | null) => {

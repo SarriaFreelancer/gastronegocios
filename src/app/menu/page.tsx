@@ -11,12 +11,14 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { CategorySidebar } from '@/components/menu/CategorySidebar';
 import { CategoryComboBanner } from '@/components/menu/CategoryComboBanner';
 import { SidebarMenu } from '@/components/menu/SidebarMenu';
+import { useTenant } from '@/context/TenantContext';
 import { Search, Sparkles, Filter } from 'lucide-react';
 import { getCategoryHeroImage } from '@/lib/category-images';
 
 export const dynamic = 'force-dynamic';
 
 function MenuGeneralContent() {
+  const { restaurant } = useTenant();
   const searchParams = useSearchParams();
   const catParam = searchParams ? searchParams.get('category') : null;
   const [allCategories, setAllCategories] = useState<any[]>(initialCategories);
@@ -24,6 +26,13 @@ function MenuGeneralContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>(catParam || 'todos');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [apariencia, setApariencia] = useState<string>(restaurant?.aparienciaMenu || 'clasico');
+
+  useEffect(() => {
+    if (restaurant?.aparienciaMenu) {
+      setApariencia(restaurant.aparienciaMenu);
+    }
+  }, [restaurant?.aparienciaMenu]);
 
   useEffect(() => {
     if (catParam) {
@@ -31,9 +40,30 @@ function MenuGeneralContent() {
     }
   }, [catParam]);
 
-  // Fetch from database API
+  // Fetch from database API and sync tenant appearance
   useEffect(() => {
-    fetch('/api/categories')
+    const fetchDirectTenant = () => {
+      fetch(`/api/restaurants?slug=punto-g&_t=${Date.now()}`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.aparienciaMenu) {
+            setApariencia(data.aparienciaMenu);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchDirectTenant();
+
+    const handleUpdate = () => {
+      fetchDirectTenant();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punto-g:tenant-updated', handleUpdate);
+    }
+
+    fetch('/api/categories?restaurantSlug=punto-g')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -42,7 +72,7 @@ function MenuGeneralContent() {
       })
       .catch(() => {});
 
-    fetch('/api/products')
+    fetch('/api/products?restaurantSlug=punto-g')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -50,6 +80,12 @@ function MenuGeneralContent() {
         }
       })
       .catch(() => {});
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('punto-g:tenant-updated', handleUpdate);
+      }
+    };
   }, []);
 
   // Main categories (parentId == null and activo !== false)
@@ -135,14 +171,19 @@ function MenuGeneralContent() {
     return null;
   }, [allCategories, selectedCategory, selectedSubcategory]);
 
-  if (searchParams?.get('layout') === 'lateral') {
+  const isLateralLayout =
+    apariencia === 'lateral' ||
+    restaurant?.aparienciaMenu === 'lateral' ||
+    searchParams?.get('layout') === 'lateral';
+
+  if (isLateralLayout) {
     return (
       <div className="pt-20">
         <SidebarMenu
           categories={allCategories}
           products={allProducts}
-          restaurantName="PUNTO G"
-          slug="punto-g"
+          restaurantName={restaurant?.nombre || "PUNTO G"}
+          slug={restaurant?.slug || "punto-g"}
         />
       </div>
     );

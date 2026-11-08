@@ -38,6 +38,7 @@ function TenantMenuGeneralContent() {
   const { restaurant } = useTenant();
 
   const [restaurantName, setRestaurantName] = useState<string>(restaurant?.nombre || (isPuntoG ? 'PUNTO G' : 'Restaurante'));
+  const [apariencia, setApariencia] = useState<string>(restaurant?.aparienciaMenu || 'clasico');
   const [allCategories, setAllCategories] = useState<any[]>(isPuntoG ? initialCategories : []);
   const [allProducts, setAllProducts] = useState<any[]>(isPuntoG ? initialProducts : []);
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryParam);
@@ -45,16 +46,44 @@ function TenantMenuGeneralContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Sync restaurant name if tenant loads
+  // Sync restaurant name & appearance if tenant loads
   useEffect(() => {
     if (restaurant?.nombre) {
       setRestaurantName(restaurant.nombre);
     }
+    if (restaurant?.aparienciaMenu) {
+      setApariencia(restaurant.aparienciaMenu);
+    }
   }, [restaurant]);
 
-  // Fetch categories & products strictly scoped to this tenant
+  // Fetch categories, products & direct restaurant appearance strictly scoped to this tenant
   useEffect(() => {
     setLoading(true);
+
+    const fetchDirectTenant = () => {
+      fetch(`/api/restaurants?slug=${slug}&_t=${Date.now()}`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.aparienciaMenu) {
+            setApariencia(data.aparienciaMenu);
+          }
+          if (data?.nombre) {
+            setRestaurantName(data.nombre);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchDirectTenant();
+
+    const handleUpdate = () => {
+      fetchDirectTenant();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punto-g:tenant-updated', handleUpdate);
+    }
+
     let catsPromise = fetch(`/api/categories?restaurantSlug=${slug}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
@@ -84,6 +113,12 @@ function TenantMenuGeneralContent() {
     Promise.all([catsPromise, prodsPromise]).finally(() => {
       setLoading(false);
     });
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('punto-g:tenant-updated', handleUpdate);
+      }
+    };
   }, [slug, isPuntoG]);
 
   // Main categories (parentId == null and activo !== false)
@@ -309,6 +344,7 @@ function TenantMenuGeneralContent() {
 
   // 3. Alternate Presentation: Opción B — Menú Lateral
   const isLateralLayout = 
+    apariencia === 'lateral' ||
     restaurant?.aparienciaMenu === 'lateral' || 
     searchParams.get('layout') === 'lateral';
 

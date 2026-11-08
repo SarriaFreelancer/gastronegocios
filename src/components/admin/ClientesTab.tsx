@@ -509,12 +509,12 @@ export const ClientesTab: React.FC<ClientesTabProps> = ({ restaurantId, restaura
                 viewingCustomer.orders.map((order: any) => (
                   <div key={order.id} className="p-3 bg-[#181b26] rounded-xl border border-slate-800 text-xs space-y-1">
                     <div className="flex justify-between items-center">
-                      <span className="font-mono font-bold text-white">Pedido #{order.orderNumber || order.id.slice(-6)}</span>
+                      <span className="font-mono font-bold text-white">Pedido #{order.codigo || order.orderNumber || String(order.id)}</span>
                       <span className="font-mono text-emerald-400 font-bold">${Number(order.total).toLocaleString('es-CO')}</span>
                     </div>
                     <div className="flex justify-between text-slate-400 text-[11px]">
                       <span>{new Date(order.createdAt).toLocaleString('es-CO')}</span>
-                      <span className="px-1.5 py-0.2 rounded bg-slate-700 text-slate-200 uppercase font-black text-[9px]">{order.status}</span>
+                      <span className="px-1.5 py-0.2 rounded bg-slate-700 text-slate-200 uppercase font-black text-[9px]">{order.estado || order.status || 'Completado'}</span>
                     </div>
                   </div>
                 ))

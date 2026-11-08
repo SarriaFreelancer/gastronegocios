@@ -742,7 +742,8 @@ export default function AdminPage() {
 
   const fetchCurrentShift = async () => {
     try {
-      let url = '/api/shifts?current=true';
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
+      let url = `/api/shifts?current=true&restaurantId=${targetRestId}`;
       if (selectedBranchId && selectedBranchId !== 'all') {
         url += `&branchId=${selectedBranchId}`;
       }
@@ -758,9 +759,10 @@ export default function AdminPage() {
 
   const fetchShiftHistory = async () => {
     try {
-      let url = '/api/shifts';
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
+      let url = `/api/shifts?restaurantId=${targetRestId}`;
       if (selectedBranchId && selectedBranchId !== 'all') {
-        url += `?branchId=${selectedBranchId}`;
+        url += `&branchId=${selectedBranchId}`;
       }
       const res = await fetch(url);
       if (res.ok) {
@@ -1798,9 +1800,11 @@ export default function AdminPage() {
   };
 
   // ==================== CASH SHIFT ACTIONS ====================
-  const handleOpenShiftSubmit = async (e: React.FormEvent) => {
+  const handleOpenShiftSubmit = async (e: React.FormEvent, forceClose = false) => {
     e.preventDefault();
     try {
+      const bId = selectedBranchId && selectedBranchId !== 'all' ? Number(selectedBranchId) : null;
+      const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
       const res = await fetch('/api/shifts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1808,6 +1812,9 @@ export default function AdminPage() {
           cajero: openShiftData.cajero || currentUser?.nombre || 'Admin',
           baseInicial: Number(openShiftData.baseInicial) || 0,
           notas: openShiftData.notas,
+          branchId: bId,
+          restaurantId: targetRestId,
+          forceClosePrevious: forceClose,
         }),
       });
       if (res.ok) {

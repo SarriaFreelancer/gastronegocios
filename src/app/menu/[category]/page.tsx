@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { categories as defaultCategories } from '@/data/categories';
@@ -36,6 +36,15 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const categoryParam = params.category;
   const subParam = searchParams?.sub;
   const restaurantId = 1;
+
+  // Si el restaurante configuró el menú lateral, redirigir al menú lateral con la categoría seleccionada
+  const restConfig = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    select: { aparienciaMenu: true },
+  });
+  if (restConfig?.aparienciaMenu === 'lateral') {
+    redirect(`/menu?category=${encodeURIComponent(categoryParam)}${subParam ? `&sub=${encodeURIComponent(subParam)}` : ''}`);
+  }
 
   // Categorías de Punto G
   const dbCategories = await prisma.category.findMany({

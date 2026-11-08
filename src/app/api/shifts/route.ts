@@ -8,16 +8,29 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const isCurrent = searchParams.get('current') === 'true';
     const branchId = searchParams.get('branchId');
+    const restaurantId = searchParams.get('restaurantId');
+    const restId = restaurantId ? Number(restaurantId) : undefined;
 
     const branchFilter: any = {};
     if (branchId && branchId !== 'all') {
       branchFilter.branchId = Number(branchId);
     }
+    if (restId) {
+      branchFilter.restaurantId = restId;
+    }
 
     if (isCurrent) {
-      // Find currently active open shift
+      // Find currently active open shift (matching branch or general, and restaurant)
+      const openShiftWhere: any = {
+        estado: 'Abierto',
+        ...(restId ? { restaurantId: restId } : {}),
+        ...(branchId && branchId !== 'all'
+          ? { OR: [{ branchId: Number(branchId) }, { branchId: null }] }
+          : {}),
+      };
+
       let shift = await prisma.cashShift.findFirst({
-        where: { estado: 'Abierto', ...branchFilter },
+        where: openShiftWhere,
         include: { egresos: { orderBy: { createdAt: 'desc' } }, branch: true },
         orderBy: { createdAt: 'desc' },
       });
@@ -108,10 +121,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cajero = 'Admin', baseInicial = 0, notas = '', branchId } = body;
+    const { cajero = 'Admin', baseInicial = 0, notas = '', branchId, restaurantId, forceClosePrevious = false } = body;
+    const restId = restaurantId ? Number(restaurantId) : 1;
 
-    // Check if an open shift already exists for this branch (or globally)
-    const openShiftWhere: any = { estado: 'Abierto' };
+    // Check if an open shift already exists for this branch and restaurant
+    const openShiftWhere: any = { estado: 'Abierto', restaurantId: restId };
     if (branchId && branchId !== 'all') {
       openShiftWhere.branchId = Number(branchId);
     }
@@ -121,10 +135,28 @@ export async function POST(req: Request) {
     });
 
     if (openShift) {
-      return NextResponse.json(
-        { error: 'Ya existe un turno de caja abierto para esta sede. Ciérralo antes de abrir uno nuevo.' },
-        { status: 400 }
-      );
+      if (forceClosePrevious) {
+        // Cerrar turno previo forzado
+        await prisma.cashShift.update({
+          where: { id: openShift.id },
+          data: {
+            estado: 'Cerrado',
+            cerradoEn: new Date(),
+            efectivoReal: openShift.baseInicial,
+            diferencia: 0,
+            notas: (openShift.notas ? openShift.notas + ' | ' : '') + 'Cierre forzado al abrir nuevo turno',
+          },
+        });
+      } else {
+        return NextResponse.json(
+          { 
+            error: 'Ya existe un turno de caja abierto para esta sede. Ciérralo antes de abrir uno nuevo.',
+            openShiftId: openShift.id,
+            canForceClose: true,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const newShift = await prisma.cashShift.create({
@@ -134,6 +166,7 @@ export async function POST(req: Request) {
         estado: 'Abierto',
         notas,
         branchId: branchId && branchId !== 'all' ? Number(branchId) : null,
+        restaurantId: restId,
       },
       include: { egresos: true, branch: true },
     });

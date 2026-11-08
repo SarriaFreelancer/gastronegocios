@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { categories as defaultCategories } from '@/data/categories';
 import { products as defaultProducts } from '@/data/products';
@@ -31,6 +31,11 @@ export default async function TenantCategoryDetailPage({
 
   if (!restaurant && !isPuntoG) {
     notFound();
+  }
+
+  // Si el restaurante configuró menú lateral, redirigir al menú lateral con la categoría seleccionada
+  if (restaurant?.aparienciaMenu === 'lateral') {
+    redirect(`/r/${slug}/menu?category=${encodeURIComponent(categoryParam)}${subParam ? `&sub=${encodeURIComponent(subParam)}` : ''}`);
   }
 
   const restaurantId = restaurant?.id || 1;

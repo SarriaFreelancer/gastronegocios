@@ -143,6 +143,16 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
 
       setSaveNotice('¡Configuraciones y módulos guardados con éxito!');
       setTimeout(() => setSaveNotice(null), 3000);
+      
+      // Notificar a toda la aplicación para actualizar inmediatamente la apariencia del menú y políticas
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('punto-g:tenant-updated', {
+            detail: { restaurantId, aparienciaMenu: settings.aparienciaMenu },
+          })
+        );
+      }
+      
       fetchModules();
     } catch (err: any) {
       alert(err.message);
