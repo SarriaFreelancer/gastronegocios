@@ -83,6 +83,8 @@ import {
   BellRing,
   SlidersHorizontal,
   Menu as MenuIcon,
+  ChevronDown,
+  Tv,
   X
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
@@ -511,6 +513,7 @@ export default function AdminPage() {
     aparienciaAdmin: 'lateral',
   });
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isPantallasDropdownOpen, setIsPantallasDropdownOpen] = useState(false);
   const [savedSettings, setSavedSettings] = useState(false);
 
   // ==================== 8. CAJA & TURNOS STATE ====================
@@ -2163,54 +2166,35 @@ export default function AdminPage() {
 
   // ==================== DASHBOARD VIEW ====================
   return (
-    <div className="min-h-screen bg-[#080808] text-white pt-24 pb-16">
-      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div className="min-h-screen bg-[#080808] text-white pt-16 sm:pt-20 pb-12">
+      <div className="max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8 space-y-4">
         
-        {/* Header Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#111111] border border-[#242424] rounded-2xl p-4 sm:p-6 shadow-xl">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-brand-whatsapp animate-ping" />
-              <span className="text-[11px] font-bold text-brand-yellow uppercase tracking-wider">
-                Sistema Operativo {activeRestaurant?.nombre || 'Restaurante'} (MySQL Conectado)
-              </span>
+        {/* Header Bar Compacta & Moderna */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#11141d] border border-slate-800 rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-yellow via-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black text-sm shrink-0 shadow-sm">
+              <Store className="w-5 h-5 text-black" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black uppercase text-white font-display">
-              ADMINISTRACIÓN • {activeRestaurant?.nombre ? activeRestaurant.nombre.toUpperCase() : 'RESTAURANTE'}
-            </h1>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-brand-yellow">
+                  {activeRestaurant?.nombre || 'Restaurante'} • Admin ERP
+                </span>
+              </div>
+              <h1 className="text-base sm:text-lg font-black uppercase text-white font-display tracking-tight leading-none">
+                {activeRestaurant?.nombre ? activeRestaurant.nombre.toUpperCase() : 'PANEL DE CONTROL'}
+              </h1>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Restaurante Activo Indicator (cuando se ingresa desde Superadmin) */}
-            {activeRestaurant && (
-              <div className="flex items-center gap-2 bg-brand-yellow/15 border border-brand-yellow/40 px-3 py-1.5 rounded-xl shadow-glow">
-                <Store className="w-4 h-4 text-brand-yellow" />
-                <div className="flex flex-col text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-brand-yellow font-black leading-none">
-                    Restaurante Activo:
-                  </span>
-                  <span className="text-xs font-black text-white leading-tight">
-                    {activeRestaurant.nombre}
-                  </span>
-                </div>
-                {currentUser?.rol === 'Superadmin' && (
-                  <Link
-                    href="/superadmin"
-                    className="text-[10px] bg-[#222] hover:bg-[#333] text-gray-300 hover:text-white px-2 py-0.5 rounded ml-1 transition"
-                    title="Volver al panel Superadmin"
-                  >
-                    Cambiar
-                  </Link>
-                )}
-              </div>
-            )}
-
-            {/* Sede Switcher */}
-            <div className="flex items-center gap-2 bg-[#181818] border border-[#2a2a2a] px-3 py-1.5 rounded-xl">
-              <Building2 className="w-4 h-4 text-brand-yellow" />
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Sede Selector Compacto */}
+            <div className="flex items-center gap-2 bg-[#181d2a] border border-slate-700/80 px-3 py-1.5 rounded-xl shadow-sm">
+              <Building2 className="w-3.5 h-3.5 text-brand-yellow shrink-0" />
               <div className="flex flex-col text-left">
-                <span className="text-[9px] uppercase tracking-wider text-gray-400 font-bold leading-none">
-                  Sede Activa:
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold leading-none">
+                  Sede:
                 </span>
                 {currentUser?.rol === 'Superadmin' || currentUser?.rol === 'Administrador' || !currentUser?.branchId ? (
                   <select
@@ -2218,7 +2202,7 @@ export default function AdminPage() {
                     onChange={(e) => setSelectedBranchId(e.target.value)}
                     className="bg-transparent text-white font-black text-xs focus:outline-none cursor-pointer"
                   >
-                    <option value="all" className="bg-[#181818] text-white">Todas las Sedes (Consolidado)</option>
+                    <option value="all" className="bg-[#181818] text-white">Todas las Sedes</option>
                     {branches.map((b) => (
                       <option key={b.id} value={String(b.id)} className="bg-[#181818] text-white">
                         {b.nombre}
@@ -2233,109 +2217,149 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Selector rápido de apariencia de módulos (Lateral / Superior) */}
-            <button
-              type="button"
-              onClick={() => setAparienciaAdminMode((config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? 'superior' : 'lateral')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 hover:text-white border border-[#2e2e2e] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer"
-              title={(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? 'Cambiar a Menú Superior tradicional' : 'Cambiar a Menú Lateral moderno'}
-            >
-              <SlidersHorizontal className="w-4 h-4 text-brand-yellow" />
-              <span>{(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? 'Menú Lateral ◨' : 'Menú Superior ☷'}</span>
-            </button>
-
-            <Link
-              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/menu` : '/menu'}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
-            >
-              <BookOpenCheck className="w-4 h-4" />
-              <span>Ver Menú Digital 📖</span>
-            </Link>
-
-            <Link
-              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/pedidos-listos` : '/pedidos-listos'}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
-            >
-              <BellRing className="w-4 h-4" />
-              <span>Turnero Listos 🔔</span>
-            </Link>
-
-            <Link
-              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/cocina` : '/cocina'}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
-            >
-              <ChefHat className="w-4 h-4" />
-              <span>Pantalla Cocina (KDS) 👨‍🍳</span>
-            </Link>
-
-            <Link
-              href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/mesero` : '/mesero'}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-500 to-brand-yellow hover:opacity-90 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
-            >
-              <UtensilsCrossed className="w-4 h-4" />
-              <span>📱 Mesero POS (Tablet)</span>
-            </Link>
-
-            {currentUser?.rol === 'Superadmin' && (
-              <Link
-                href="/superadmin"
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-glow hover:scale-105 active:scale-95"
+            {/* Menú Desplegable de Pantallas Operativas (Organizadas, sin amontonar) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsPantallasDropdownOpen(!isPantallasDropdownOpen)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#181d2a] hover:bg-[#202738] text-brand-yellow border border-amber-500/30 font-black text-xs uppercase tracking-wider rounded-xl transition shadow-sm hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
-                <ShieldCheck className="w-4 h-4" />
-                <span>🏢 Panel SaaS Superadmin</span>
-              </Link>
-            )}
+                <Tv className="w-4 h-4 text-brand-yellow" />
+                <span>Pantallas en Vivo 📺</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isPantallasDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-            <div className="flex items-center gap-2.5 bg-[#181818] border border-[#2a2a2a] px-3.5 py-1.5 rounded-xl">
-              <div className="w-7 h-7 rounded-full bg-brand-yellow text-black flex items-center justify-center font-bold text-xs">
+              {isPantallasDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsPantallasDropdownOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-72 bg-[#121520] border border-slate-700/80 rounded-2xl shadow-2xl p-2 z-50 space-y-1 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                      Pantallas Operativas en Tiempo Real
+                    </div>
+
+                    <Link
+                      href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/menu` : '/menu'}
+                      target="_blank"
+                      onClick={() => setIsPantallasDropdownOpen(false)}
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-800/80 transition group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-sm shrink-0 border border-orange-500/30">
+                        📖
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-black text-white group-hover:text-brand-yellow flex items-center justify-between">
+                          <span>Menú Digital</span>
+                          <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-white" />
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">Carta interactiva para comensales</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/cocina` : '/cocina'}
+                      target="_blank"
+                      onClick={() => setIsPantallasDropdownOpen(false)}
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-800/80 transition group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0 border border-amber-500/30">
+                        👨‍🍳
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-black text-white group-hover:text-brand-yellow flex items-center justify-between">
+                          <span>Pantalla Cocina (KDS)</span>
+                          <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-white" />
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">Comandas y preparación en vivo</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/pedidos-listos` : '/pedidos-listos'}
+                      target="_blank"
+                      onClick={() => setIsPantallasDropdownOpen(false)}
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-emerald-500/20 transition group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-500/30">
+                        🔔
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-black text-white group-hover:text-emerald-300 flex items-center justify-between">
+                          <span>Turnero de Listos</span>
+                          <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-white" />
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">Pantalla TV para llamados a clientes</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/mesero` : '/mesero'}
+                      target="_blank"
+                      onClick={() => setIsPantallasDropdownOpen(false)}
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-800/80 transition group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold text-sm shrink-0 border border-yellow-500/30">
+                        📱
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-black text-white group-hover:text-brand-yellow flex items-center justify-between">
+                          <span>Mesero POS (Tablet)</span>
+                          <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-white" />
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">Toma rápida de comandas en mesa</div>
+                      </div>
+                    </Link>
+
+                    {currentUser?.rol === 'Superadmin' && (
+                      <Link
+                        href="/superadmin"
+                        onClick={() => setIsPantallasDropdownOpen(false)}
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-purple-900/40 transition group cursor-pointer border-t border-slate-800"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-sm shrink-0 border border-purple-500/30">
+                          🏢
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-black text-white group-hover:text-purple-300 flex items-center justify-between">
+                            <span>Panel Superadmin</span>
+                            <ShieldCheck className="w-3 h-3 text-purple-400" />
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">Administración SaaS de restaurantes</div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Usuario Actual */}
+            <div className="flex items-center gap-2 bg-[#181d2a] border border-slate-700/80 px-2.5 py-1 rounded-xl shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-brand-yellow text-slate-950 flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
                 {currentUser?.nombre ? currentUser.nombre.charAt(0) : 'A'}
               </div>
-              <div className="text-left">
+              <div className="text-left hidden md:block">
                 <p className="text-xs font-bold text-white leading-none">
                   {currentUser?.nombre || 'Administrador'}
                 </p>
-                <span className="text-[10px] text-brand-yellow font-medium">
-                  {currentUser?.rol || 'Administrador'} {activeRestaurant?.nombre ? `• ${activeRestaurant.nombre}` : ''}
+                <span className="text-[10px] text-brand-yellow font-medium leading-tight">
+                  {currentUser?.rol || 'Administrador'}
                 </span>
               </div>
             </div>
 
+            {/* Botón Logout */}
             <button
               onClick={handleLogout}
-              className="p-2 bg-[#1c1c1c] hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-[#2e2e2e] rounded-xl transition-colors"
+              className="p-2 bg-[#181d2a] hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700/80 rounded-xl transition cursor-pointer"
               title="Cerrar Sesión"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
-
-        {/* Sede Activa Banner */}
-        {selectedBranchId !== 'all' && (
-          <div className="bg-brand-yellow/10 border border-brand-yellow/40 rounded-2xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="text-gray-300">
-                Sede Activa Seleccionada:{' '}
-                <strong className="text-brand-yellow font-black">
-                  {branches.find((b) => String(b.id) === selectedBranchId)?.nombre || `Sede #${selectedBranchId}`}
-                </strong>
-                . El sistema completo (pedidos, mesas, comandas, turnos de caja y KDS) está operando para esta sede.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedBranchId('all')}
-              className="text-[11px] font-black uppercase text-brand-yellow hover:underline cursor-pointer shrink-0"
-            >
-              Ver Consolidado de Todas las Sedes →
-            </button>
-          </div>
-        )}
 
         {/* Disposición Principal: Menú Lateral (2 columnas) o Menú Superior (1 columna) */}
         <div className={(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? "flex flex-col lg:flex-row items-start gap-6" : "space-y-6"}>

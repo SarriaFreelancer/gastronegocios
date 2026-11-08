@@ -389,7 +389,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           isCollapsed ? 'w-22' : 'w-80'
         }`}
       >
-        <div className="sticky top-24 bg-[#101218] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl h-[calc(100vh-7.5rem)] flex flex-col">
+        <div className="sticky top-18 sm:top-20 bg-[#101218] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl h-[calc(100vh-5.5rem)] flex flex-col">
           {renderContent(false)}
         </div>
       </aside>
