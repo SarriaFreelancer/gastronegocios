@@ -15,7 +15,7 @@ import {
   Eye,
   FileCheck
 } from 'lucide-react';
-import { STANDARD_MODULES } from '@/app/api/roles/route';
+import { STANDARD_MODULES } from '@/lib/constants-roles';
 
 interface UsuariosRolesTabProps {
   restaurantId: string;
@@ -71,7 +71,7 @@ export const UsuariosRolesTab: React.FC<UsuariosRolesTabProps> = ({ restaurantId
       setRoleDesc('');
       // Default empty matrix
       const emptyMatrix: Record<string, Record<string, boolean>> = {};
-      STANDARD_MODULES.forEach((mod) => {
+      STANDARD_MODULES.forEach((mod: string) => {
         emptyMatrix[mod] = { ver: true, crear: false, editar: false, eliminar: false, exportar: false, autorizar: false };
       });
       setPermissionsMatrix(emptyMatrix);
@@ -310,7 +310,7 @@ export const UsuariosRolesTab: React.FC<UsuariosRolesTabProps> = ({ restaurantId
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800 text-slate-300">
-                      {STANDARD_MODULES.map((modKey) => {
+                      {STANDARD_MODULES.map((modKey: string) => {
                         const modPerms = permissionsMatrix[modKey] || {};
                         const actions = ['ver', 'crear', 'editar', 'eliminar', 'exportar', 'autorizar'];
 

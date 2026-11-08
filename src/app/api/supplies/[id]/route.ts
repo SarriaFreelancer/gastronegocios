@@ -51,6 +51,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const body = await req.json();
     const {
       codigoInterno,
+      codigo,
       codigoBarras,
       nombre,
       descripcion,
@@ -58,6 +59,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       unidadMedida,
       unidadCompra,
       factorConversion,
+      stockActual,
+      stockInicial,
       stockMinimo,
       stockMaximo,
       costoUnitario,
@@ -67,12 +70,51 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       lote,
       estado,
       observaciones,
+      usuarioResponsable = 'Administrador',
     } = body;
+
+    const existingSupply = await prisma.supply.findUnique({ where: { id: supplyId } });
+    if (!existingSupply) {
+      return NextResponse.json({ error: 'Materia prima no encontrada' }, { status: 404 });
+    }
+
+    const rawCodigo = codigoInterno !== undefined ? codigoInterno : codigo;
+    const finalCodigo = rawCodigo && typeof rawCodigo === 'string' ? rawCodigo.trim() : undefined;
+
+    const rawStock = stockActual !== undefined ? stockActual : stockInicial;
+    const newStockActual = rawStock !== undefined && rawStock !== null && !isNaN(Number(rawStock)) ? Number(rawStock) : undefined;
+
+    // Si se modifica el stock actual y es diferente al de base de datos, registrar en Kardex
+    if (newStockActual !== undefined && newStockActual !== existingSupply.stockActual) {
+      const diff = newStockActual - existingSupply.stockActual;
+      await prisma.inventoryMovement.create({
+        data: {
+          supplyId,
+          tipoMovimiento: diff > 0 ? 'AJUSTE_POSITIVO' : 'AJUSTE_NEGATIVO',
+          cantidad: Math.abs(diff),
+          unidad: unidadMedida || existingSupply.unidadMedida,
+          stockAnterior: existingSupply.stockActual,
+          stockResultante: newStockActual,
+          costoUnitario: Number(costoUnitario || existingSupply.costoUnitario || 0),
+          costoTotal: Math.abs(diff) * Number(costoUnitario || existingSupply.costoUnitario || 0),
+          esNegativo: newStockActual < 0,
+          motivo: 'Ajuste manual desde edición de insumo',
+          referencia: 'EDICION-INSUMO',
+          usuarioResponsable,
+          restaurantId: existingSupply.restaurantId,
+          branchId: existingSupply.branchId,
+        },
+      });
+    }
 
     const updated = await prisma.supply.update({
       where: { id: supplyId },
       data: {
-        ...(codigoInterno !== undefined && { codigoInterno: codigoInterno.trim() }),
+        ...(finalCodigo && { codigoInterno: finalCodigo }),
+        ...(newStockActual !== undefined && { 
+          stockActual: newStockActual,
+          estado: newStockActual <= 0 ? 'Agotado' : 'Activo',
+        }),
         ...(codigoBarras !== undefined && { codigoBarras: codigoBarras ? String(codigoBarras).trim() : null }),
         ...(nombre !== undefined && { nombre: nombre.trim() }),
         ...(descripcion !== undefined && { descripcion }),

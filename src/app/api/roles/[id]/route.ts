@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { STANDARD_ROLES } from '../route';
+import { STANDARD_ROLES } from '@/lib/constants-roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({
       ...role,
       permisos: pObj,
-      esSistema: STANDARD_ROLES.some((s) => s.nombre === role.nombre),
+      esSistema: STANDARD_ROLES.some((s: any) => s.nombre === role.nombre),
     });
   } catch (error: any) {
     console.error('Error fetching role:', error);
@@ -78,7 +78,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ error: 'Rol no encontrado' }, { status: 404 });
     }
 
-    const isSystem = STANDARD_ROLES.some((s) => s.nombre === role.nombre);
+    const isSystem = STANDARD_ROLES.some((s: any) => s.nombre === role.nombre);
     if (isSystem) {
       return NextResponse.json(
         { error: 'No se pueden eliminar los roles predeterminados del sistema.' },

@@ -108,6 +108,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       codigoInterno,
+      codigo,
       codigoBarras,
       nombre,
       descripcion,
@@ -115,7 +116,8 @@ export async function POST(req: Request) {
       unidadMedida = 'g',
       unidadCompra = 'kg',
       factorConversion = 1.0,
-      stockInicial = 0,
+      stockInicial,
+      stockActual,
       stockMinimo = 0,
       stockMaximo = 0,
       costoUnitario = 0,
@@ -145,13 +147,14 @@ export async function POST(req: Request) {
     }
 
     // Generar código interno automático si no se provee (e.g. MP-1001)
-    let finalCodigo = codigoInterno?.trim();
+    let finalCodigo = (codigoInterno || codigo)?.trim();
     if (!finalCodigo) {
       const count = await prisma.supply.count({ where: { restaurantId: resolvedRestaurantId } });
       finalCodigo = `MP-${(1001 + count).toString()}`;
     }
 
-    const initialStockNum = Number(stockInicial) || 0;
+    // Soporta tanto stockInicial como stockActual
+    const initialStockNum = Number(stockInicial !== undefined ? stockInicial : (stockActual !== undefined ? stockActual : 0)) || 0;
     const unitCostNum = Number(costoUnitario) || 0;
 
     const newSupply = await prisma.supply.create({

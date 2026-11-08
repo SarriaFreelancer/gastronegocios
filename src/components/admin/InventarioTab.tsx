@@ -25,6 +25,7 @@ import { exportToExcel, exportToPdf } from '@/lib/export-utils';
 interface Supply {
   id: string;
   codigo?: string;
+  codigoInterno?: string;
   nombre: string;
   categoria?: string;
   unidadMedida: string;
@@ -97,7 +98,14 @@ export const InventarioTab: React.FC<InventarioTabProps> = ({ restaurantId, rest
       const res = await fetch(`/api/supplies?restaurantId=${restaurantId}`);
       if (res.ok) {
         const data = await res.json();
-        setSupplies(data.supplies || []);
+        const rawList = Array.isArray(data.supplies) ? data.supplies : [];
+        const mappedList = rawList.map((s: any) => ({
+          ...s,
+          id: String(s.id),
+          codigo: s.codigoInterno || s.codigo || '',
+          codigoInterno: s.codigoInterno || s.codigo || '',
+        }));
+        setSupplies(mappedList);
         setMetrics(data.metrics || null);
       }
     } catch (err) {
@@ -126,7 +134,7 @@ export const InventarioTab: React.FC<InventarioTabProps> = ({ restaurantId, rest
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchesName = s.nombre.toLowerCase().includes(q);
-        const matchesCode = (s.codigo || '').toLowerCase().includes(q);
+        const matchesCode = (s.codigo || s.codigoInterno || '').toLowerCase().includes(q);
         const matchesCat = (s.categoria || '').toLowerCase().includes(q);
         return matchesName || matchesCode || matchesCat;
       }
@@ -138,17 +146,17 @@ export const InventarioTab: React.FC<InventarioTabProps> = ({ restaurantId, rest
   const handleOpenSupplyModal = (supply?: Supply) => {
     if (supply) {
       setSupplyForm({
-        id: supply.id,
-        codigo: supply.codigo || '',
+        id: String(supply.id),
+        codigo: (supply as any).codigoInterno || supply.codigo || '',
         nombre: supply.nombre,
         categoria: supply.categoria || 'General',
-        unidadMedida: supply.unidadMedida,
-        stockActual: supply.stockActual,
-        stockMinimo: supply.stockMinimo,
-        stockMaximo: supply.stockMaximo,
-        costoUnitario: supply.costoUnitario,
-        mermaEsperada: supply.mermaEsperada,
-        ubicacionAlmacen: supply.ubicacionAlmacen || '',
+        unidadMedida: supply.unidadMedida || 'kg',
+        stockActual: supply.stockActual ?? 0,
+        stockMinimo: supply.stockMinimo ?? 5,
+        stockMaximo: supply.stockMaximo ?? 50,
+        costoUnitario: supply.costoUnitario ?? 0,
+        mermaEsperada: (supply as any).mermaEsperada ?? 0,
+        ubicacionAlmacen: (supply as any).ubicacionAlmacen || '',
         lote: supply.lote || '',
         fechaVencimiento: supply.fechaVencimiento ? supply.fechaVencimiento.split('T')[0] : '',
       });
@@ -175,12 +183,24 @@ export const InventarioTab: React.FC<InventarioTabProps> = ({ restaurantId, rest
   const handleSaveSupply = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...supplyForm,
+        codigoInterno: supplyForm.codigo?.trim(),
+        codigo: supplyForm.codigo?.trim(),
+        stockInicial: Number(supplyForm.stockActual) || 0,
+        stockActual: Number(supplyForm.stockActual) || 0,
+        stockMinimo: Number(supplyForm.stockMinimo) || 0,
+        stockMaximo: Number(supplyForm.stockMaximo) || 0,
+        costoUnitario: Number(supplyForm.costoUnitario) || 0,
+        restaurantId,
+      };
+
       if (supplyForm.id) {
         // PUT
         const res = await fetch(`/api/supplies/${supplyForm.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(supplyForm),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Error al actualizar insumo');
       } else {
@@ -188,7 +208,7 @@ export const InventarioTab: React.FC<InventarioTabProps> = ({ restaurantId, rest
         const res = await fetch('/api/supplies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...supplyForm, restaurantId }),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Error al crear insumo');
       }
