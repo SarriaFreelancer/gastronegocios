@@ -2391,18 +2391,18 @@ export default function AdminPage() {
                   />
 
                   {/* Barra Superior Móvil con Botón para Abrir Drawer */}
-                  <div className="lg:hidden w-full flex items-center justify-between p-3.5 bg-[#141414] border border-[#262626] rounded-2xl shadow-md">
+                  <div className="lg:hidden w-full flex items-center justify-between p-4 bg-[#141824] border border-slate-800 rounded-2xl shadow-lg">
                     <button
                       type="button"
                       onClick={() => setIsMobileDrawerOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-brand-yellow text-black font-black flex items-center gap-2 text-xs shadow-glow cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-yellow to-amber-400 text-slate-950 font-black flex items-center gap-2.5 text-xs sm:text-sm shadow-lg shadow-amber-400/20 cursor-pointer active:scale-95 transition"
                     >
                       <MenuIcon className="w-4 h-4" />
-                      <span>Módulos ({visibleTabs.length})</span>
+                      <span>Ver Módulos ({visibleTabs.length})</span>
                     </button>
                     <div className="text-right">
-                      <span className="text-[10px] text-gray-400 block uppercase font-bold">Módulo Activo</span>
-                      <span className="text-xs font-black text-brand-yellow truncate block max-w-[170px]">
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Módulo Activo</span>
+                      <span className="text-xs sm:text-sm font-black text-brand-yellow truncate block max-w-[190px]">
                         {visibleTabs.find((t) => t.id === activeTab)?.label}
                       </span>
                     </div>
@@ -2411,47 +2411,53 @@ export default function AdminPage() {
               );
             }
 
-            /* Modo Tradicional: Barra Horizontal Superior */
+            /* Modo Tradicional: Barra Horizontal Superior con Estilos Espaciosos */
             return (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
-                {visibleTabs.map((tab: any) => {
-                  const Icon = tab.icon;
-                  const active = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
-                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
-                        active
-                          ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow font-black'
-                          : 'bg-[#121212] text-gray-400 border-[#222222] hover:text-white hover:bg-[#181818]'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{tab.label}</span>
-                      {tab.badge && (
-                        <span className="text-[10px] ml-0.5">{tab.badge}</span>
-                      )}
-                      {tab.count !== undefined && (
-                        <span
-                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                            active ? 'bg-black text-brand-yellow' : 'bg-[#222] text-gray-300'
-                          }`}
-                        >
-                          {tab.count}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => setAparienciaAdminMode('lateral')}
-                  className="ml-auto text-[11px] font-black text-brand-yellow hover:text-white px-3 py-2 bg-[#181818] hover:bg-[#222] rounded-xl border border-[#2e2e2e] transition whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0"
-                  title="Cambiar a menú lateral moderno"
-                >
-                  <span>Activar Menú Lateral ➔</span>
-                </button>
+              <div className="bg-[#121520] p-3 rounded-2xl border border-slate-800/80 shadow-md">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-700">
+                  {visibleTabs.map((tab: any) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold tracking-wide transition-all whitespace-nowrap border cursor-pointer ${
+                          active
+                            ? 'bg-gradient-to-r from-brand-yellow via-amber-400 to-yellow-500 text-slate-950 border-amber-300 font-black shadow-lg shadow-amber-400/25'
+                            : 'bg-[#181d2a] text-slate-300 border-slate-800/80 hover:text-white hover:bg-[#202638] hover:border-slate-700'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-slate-950' : 'text-slate-400'}`} />
+                        <span>{tab.label}</span>
+                        {tab.badge && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                            active ? 'bg-slate-950/25 text-slate-950' : 'bg-slate-800 text-amber-300 border border-slate-700'
+                          }`}>
+                            {tab.badge}
+                          </span>
+                        )}
+                        {tab.count !== undefined && (
+                          <span
+                            className={`text-xs font-mono font-black px-2 py-0.5 rounded-lg border ${
+                              active ? 'bg-slate-950 text-brand-yellow border-slate-950' : 'bg-slate-800 text-slate-200 border-slate-700'
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setAparienciaAdminMode('lateral')}
+                    className="ml-auto text-xs font-black text-brand-yellow hover:text-white px-3.5 py-2.5 bg-[#181d2a] hover:bg-slate-800 rounded-xl border border-slate-700 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer shrink-0"
+                    title="Cambiar a menú lateral moderno"
+                  >
+                    <span>Activar Menú Lateral ➔</span>
+                  </button>
+                </div>
               </div>
             );
           })()}
