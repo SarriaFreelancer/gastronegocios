@@ -29,13 +29,36 @@ import {
   Filter,
   Eye,
   Layers,
-  Award
+  Award,
+  Activity,
+  ArrowRightLeft
 } from 'lucide-react';
 
 interface DashboardEjecutivoTabProps {
   restaurantId: string;
   restaurantName: string;
   onNavigateTab?: (tab: string) => void;
+}
+
+// Generador de curva Bézier cúbica suave para SVG
+function getCurvedPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(i - 1, 0)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(i + 2, points.length - 1)];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
 }
 
 export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
@@ -46,8 +69,11 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
   const [period, setPeriod] = useState<'today' | '7days' | '14days' | 'month' | 'year' | 'all'>('month');
   const [dailyViewDays, setDailyViewDays] = useState<7 | 14 | 30>(14);
   const [topProductsMetric, setTopProductsMetric] = useState<'qty' | 'revenue'>('revenue');
+  const [trendMode, setTrendMode] = useState<'daily' | 'monthly'>('daily');
+  
   const [hoveredDailyIndex, setHoveredDailyIndex] = useState<number | null>(null);
   const [hoveredMonthlyIndex, setHoveredMonthlyIndex] = useState<number | null>(null);
+  const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
 
   const [orders, setOrders] = useState<any[]>([]);
   const [supplies, setSupplies] = useState<any[]>([]);
@@ -200,7 +226,33 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
   }, [filteredOrders, supplies, recipes, kardex]);
 
   // ==========================================
-  // 1. DATA PARA GRÁFICA DE VENTAS DIARIAS
+  // PROMEDIO DE PEDIDOS REALIZADOS (Día, Sem, Mes)
+  // ==========================================
+  const orderAverages = useMemo(() => {
+    const ordersList = validOrders;
+    if (ordersList.length === 0) {
+      return { daily: 0, weekly: 0, monthly: 0, ticketAvg: 0, totalOrders: 0 };
+    }
+
+    // Calcular días únicos con actividad o lapso de tiempo
+    const dates = ordersList.map((o) => new Date(o.createdAt).getTime());
+    const minTime = Math.min(...dates);
+    const maxTime = Math.max(...dates, Date.now());
+    const daysSpan = Math.max(1, Math.round((maxTime - minTime) / (1000 * 3600 * 24)) + 1);
+
+    const totalOrders = ordersList.length;
+    const totalSales = ordersList.reduce((acc, o) => acc + Number(o.total || 0), 0);
+
+    const daily = Math.round((totalOrders / daysSpan) * 10) / 10;
+    const weekly = Math.round(daily * 7);
+    const monthly = Math.round(daily * 30);
+    const ticketAvg = Math.round(totalSales / totalOrders);
+
+    return { daily, weekly, monthly, ticketAvg, totalOrders };
+  }, [validOrders]);
+
+  // ==========================================
+  // 1. DATA PARA GRÁFICA DE VENTAS DIARIAS (COMPACTA)
   // ==========================================
   const dailyData = useMemo(() => {
     const daysCount = dailyViewDays;
@@ -237,7 +289,7 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
   }, [validOrders, dailyViewDays]);
 
   // ==========================================
-  // 2. DATA PARA GRÁFICA DE VENTAS MES A MES
+  // 2. DATA PARA GRÁFICA DE VENTAS MENSUALES (COMPACTA)
   // ==========================================
   const monthlyData = useMemo(() => {
     const monthsList: { key: string; label: string; year: number; monthIndex: number; total: number; count: number; previousTotal: number }[] = [];
@@ -271,7 +323,6 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
       }
     });
 
-    // Calcular crecimiento porcentual respecto al mes anterior
     const pointsWithGrowth = monthsList.map((m, idx) => {
       const prev = idx > 0 ? monthsList[idx - 1].total : 0;
       let growth = 0;
@@ -288,17 +339,186 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
   }, [validOrders]);
 
   // ==========================================
-  // 3. DATA POR MÉTODOS DE PAGO (CAJA & DIGITAL)
+  // 3. DATA GRÁFICO DE TENDENCIA CURVA: INGRESOS VS GASTOS (CON SOMBREADO)
+  // ==========================================
+  const trendData = useMemo(() => {
+    // Mapa de costos por receta
+    const recipeMap = new Map(recipes.map((r) => [r.productId, r]));
+
+    // Egresos registrados de turnos de caja
+    const shiftExpensesList: { dateKey: string; monthKey: string; amount: number }[] = [];
+    shifts.forEach((sh) => {
+      (sh.egresos || []).forEach((eg: any) => {
+        const d = new Date(eg.createdAt || sh.createdAt);
+        const dateKey = d.toISOString().slice(0, 10);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        shiftExpensesList.push({ dateKey, monthKey, amount: Number(eg.monto || 0) });
+      });
+    });
+
+    if (trendMode === 'daily') {
+      // 14 días diarios
+      const daysCount = 14;
+      const points: { key: string; label: string; fullDate: string; ingresos: number; gastos: number; margen: number }[] = [];
+      const now = new Date();
+
+      for (let i = daysCount - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const label = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' });
+        const fullDate = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
+        points.push({ key, label, fullDate, ingresos: 0, gastos: 0, margen: 0 });
+      }
+
+      const map = new Map(points.map((p) => [p.key, p]));
+
+      // Acumular ingresos y costo de recetas
+      validOrders.forEach((o) => {
+        const d = new Date(o.createdAt);
+        const key = d.toISOString().slice(0, 10);
+        const entry = map.get(key);
+        if (entry) {
+          entry.ingresos += Number(o.total || 0);
+          (o.items || []).forEach((it: any) => {
+            const recipe = recipeMap.get(it.productId);
+            const portionCost = Number(recipe?.costoTotal || recipe?.costoPorPorcion || 0);
+            entry.gastos += portionCost * (Number(it.cantidad || it.quantity) || 1);
+          });
+        }
+      });
+
+      // Acumular egresos de caja
+      shiftExpensesList.forEach((eg) => {
+        const entry = map.get(eg.dateKey);
+        if (entry) {
+          entry.gastos += eg.amount;
+        }
+      });
+
+      points.forEach((p) => {
+        p.margen = p.ingresos - p.gastos;
+      });
+
+      const maxVal = Math.max(...points.map((p) => Math.max(p.ingresos, p.gastos)), 150000);
+      const totalIngresos = points.reduce((acc, p) => acc + p.ingresos, 0);
+      const totalGastos = points.reduce((acc, p) => acc + p.gastos, 0);
+
+      return { points, maxVal, totalIngresos, totalGastos };
+    } else {
+      // 6 Meses
+      const monthsList: { key: string; label: string; fullDate: string; ingresos: number; gastos: number; margen: number }[] = [];
+      const now = new Date();
+
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = d.toLocaleDateString('es-CO', { month: 'short' }).toUpperCase();
+        const fullDate = d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+        monthsList.push({ key, label, fullDate, ingresos: 0, gastos: 0, margen: 0 });
+      }
+
+      const map = new Map(monthsList.map((m) => [m.key, m]));
+
+      validOrders.forEach((o) => {
+        const d = new Date(o.createdAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const entry = map.get(key);
+        if (entry) {
+          entry.ingresos += Number(o.total || 0);
+          (o.items || []).forEach((it: any) => {
+            const recipe = recipeMap.get(it.productId);
+            const portionCost = Number(recipe?.costoTotal || recipe?.costoPorPorcion || 0);
+            entry.gastos += portionCost * (Number(it.cantidad || it.quantity) || 1);
+          });
+        }
+      });
+
+      shiftExpensesList.forEach((eg) => {
+        const entry = map.get(eg.monthKey);
+        if (entry) {
+          entry.gastos += eg.amount;
+        }
+      });
+
+      monthsList.forEach((p) => {
+        p.margen = p.ingresos - p.gastos;
+      });
+
+      const maxVal = Math.max(...monthsList.map((m) => Math.max(m.ingresos, m.gastos)), 300000);
+      const totalIngresos = monthsList.reduce((acc, p) => acc + p.ingresos, 0);
+      const totalGastos = monthsList.reduce((acc, p) => acc + p.gastos, 0);
+
+      return { points: monthsList, maxVal, totalIngresos, totalGastos };
+    }
+  }, [validOrders, recipes, shifts, trendMode]);
+
+  // Generar coordenadas SVG de la curva de tendencia
+  const trendSvgCoords = useMemo(() => {
+    const svgWidth = 800;
+    const svgHeight = 220;
+    const paddingX = 40;
+    const paddingY = 25;
+    const chartW = svgWidth - paddingX * 2;
+    const chartH = svgHeight - paddingY * 2;
+
+    const points = trendData.points;
+    if (points.length === 0) {
+      return {
+        incomeLine: '',
+        incomeArea: '',
+        expenseLine: '',
+        expenseArea: '',
+        svgPoints: [] as (typeof trendData.points[0] & { incomeX: number; incomeY: number; expenseX: number; expenseY: number })[],
+        baselineY: paddingY + chartH,
+        svgWidth,
+        svgHeight,
+      };
+    }
+
+    const stepX = chartW / Math.max(1, points.length - 1);
+
+    const incomeCoords = points.map((p, idx) => {
+      const x = paddingX + idx * stepX;
+      const y = paddingY + chartH - (p.ingresos / trendData.maxVal) * chartH;
+      return { x, y: Math.max(paddingY, Math.min(paddingY + chartH, y)) };
+    });
+
+    const expenseCoords = points.map((p, idx) => {
+      const x = paddingX + idx * stepX;
+      const y = paddingY + chartH - (p.gastos / trendData.maxVal) * chartH;
+      return { x, y: Math.max(paddingY, Math.min(paddingY + chartH, y)) };
+    });
+
+    const incomeLine = getCurvedPath(incomeCoords);
+    const incomeArea = `${incomeLine} L ${incomeCoords[incomeCoords.length - 1].x} ${paddingY + chartH} L ${incomeCoords[0].x} ${paddingY + chartH} Z`;
+
+    const expenseLine = getCurvedPath(expenseCoords);
+    const expenseArea = `${expenseLine} L ${expenseCoords[expenseCoords.length - 1].x} ${paddingY + chartH} L ${expenseCoords[0].x} ${paddingY + chartH} Z`;
+
+    const svgPoints = points.map((p, idx) => ({
+      ...p,
+      incomeX: incomeCoords[idx].x,
+      incomeY: incomeCoords[idx].y,
+      expenseX: expenseCoords[idx].x,
+      expenseY: expenseCoords[idx].y,
+    }));
+
+    return { incomeLine, incomeArea, expenseLine, expenseArea, svgPoints, baselineY: paddingY + chartH, svgWidth, svgHeight };
+  }, [trendData]);
+
+  // ==========================================
+  // 4. DATA POR MÉTODOS DE PAGO (CAJA & DIGITAL)
   // ==========================================
   const paymentMethodsData = useMemo(() => {
     const map = new Map<string, { method: string; total: number; count: number }>();
     const colors: Record<string, string> = {
-      Efectivo: '#10b981', // Emerald
-      Nequi: '#a855f7',    // Purple
-      Daviplata: '#ef4444', // Red
-      Tarjeta: '#3b82f6',  // Blue
-      Transferencia: '#f59e0b', // Amber
-      Datáfono: '#06b6d4', // Cyan
+      Efectivo: '#10b981',
+      Nequi: '#a855f7',
+      Daviplata: '#ef4444',
+      Tarjeta: '#3b82f6',
+      Transferencia: '#f59e0b',
+      Datáfono: '#06b6d4',
       Otro: '#64748b',
     };
 
@@ -329,7 +549,7 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
   }, [filteredOrders]);
 
   // ==========================================
-  // 4. DATA POR CANALES (MESA / DOMI / RECOGER)
+  // 5. DATA POR CANALES (MESA / DOMI / RECOGER)
   // ==========================================
   const channelsData = useMemo(() => {
     const map: Record<string, { label: string; icon: any; total: number; count: number; color: string }> = {
@@ -352,30 +572,6 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
       { key: 'domicilio', ...map.domicilio, percent: Math.round((map.domicilio.total / grandTotal) * 100) },
       { key: 'recoger', ...map.recoger, percent: Math.round((map.recoger.total / grandTotal) * 100) },
     ];
-  }, [filteredOrders]);
-
-  // ==========================================
-  // 5. DATA POR HORAS PICO (DISTRIBUCIÓN HORARIA)
-  // ==========================================
-  const hourlyData = useMemo(() => {
-    // Rango típico gastronómico: 11:00 AM a 23:00 PM
-    const hours = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
-    const map = new Map(hours.map((h) => [h, { hour: h, label: `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}`, total: 0, count: 0 }]));
-
-    filteredOrders.forEach((o) => {
-      const d = new Date(o.createdAt);
-      const h = d.getHours();
-      const entry = map.get(h);
-      if (entry) {
-        entry.total += Number(o.total || 0);
-        entry.count += 1;
-      }
-    });
-
-    const list = hours.map((h) => map.get(h)!);
-    const maxVal = Math.max(...list.map((item) => item.total), 50000);
-
-    return { points: list, maxVal };
   }, [filteredOrders]);
 
   // ==========================================
@@ -403,7 +599,7 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
       list.sort((a, b) => b.revenue - a.revenue);
     }
 
-    const topList = list.slice(0, 8);
+    const topList = list.slice(0, 6);
     const maxMetric = Math.max(...topList.map((p) => (topProductsMetric === 'qty' ? p.qty : p.revenue)), 1);
 
     return { items: topList, maxMetric };
@@ -415,18 +611,18 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
       {/* ======================================================== */}
       {/* CABECERA Y FILTRO DE PERÍODO GENERAL                     */}
       {/* ======================================================== */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#11141e] border border-slate-800/90 rounded-2xl p-5 shadow-2xl">
-        <div className="space-y-1">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#11141e] border border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-2xl">
+        <div className="space-y-0.5">
           <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-brand-yellow/15 text-brand-yellow">
               <BarChart3 className="w-5 h-5" />
             </span>
-            <h2 className="text-lg sm:text-xl font-black text-white font-display tracking-tight">
-              Dashboard Ejecutivo & Inteligencia de Negocio
+            <h2 className="text-base sm:text-lg font-black text-white font-display tracking-tight">
+              Dashboard Ejecutivo & Gráficas del Negocio
             </h2>
           </div>
           <p className="text-xs text-slate-400">
-            Métricas integrales de {restaurantName}: ventas en vivo, recaudos por día, mes a mes, productos estrella y flujo de caja.
+            Inteligencia comercial y analítica de {restaurantName}: ventas, tendencias de caja, costos y promedios operativos.
           </p>
         </div>
 
@@ -456,7 +652,7 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
           <button
             type="button"
             onClick={fetchData}
-            className="p-1.5 text-slate-400 hover:text-brand-yellow transition"
+            className="p-1.5 text-slate-400 hover:text-brand-yellow transition cursor-pointer"
             title="Refrescar datos"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-yellow' : ''}`} />
@@ -465,204 +661,330 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* ALERTAS CRÍTICAS DE STOCK / MERMAS                       */}
+      {/* SECCIÓN PROMEDIOS DE PEDIDOS REALIZADOS (NUEVA)           */}
       {/* ======================================================== */}
-      {(kpis.negativeStockCount > 0 || kpis.lowStockCount > 0 || kpis.expiringSoonCount > 0 || kpis.expiredCount > 0) && (
-        <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-[#12141c] border border-amber-500/30 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-extrabold text-sm text-white">Alertas Operativas Críticas de Almacén</div>
-              <div className="text-xs text-slate-400 flex flex-wrap gap-2 mt-0.5">
-                {kpis.negativeStockCount > 0 && (
-                  <span className="text-red-400 font-bold">• {kpis.negativeStockCount} insumo(s) en saldo negativo</span>
-                )}
-                {kpis.lowStockCount > 0 && (
-                  <span className="text-amber-400 font-bold">• {kpis.lowStockCount} insumo(s) bajo stock mínimo</span>
-                )}
-                {kpis.expiringSoonCount > 0 && (
-                  <span className="text-orange-400 font-bold">• {kpis.expiringSoonCount} lote(s) próximos a vencer</span>
-                )}
-                {kpis.expiredCount > 0 && (
-                  <span className="text-rose-400 font-bold">• {kpis.expiredCount} lote(s) ya vencidos</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigateTab && onNavigateTab('inventario')}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md active:scale-95 flex-shrink-0 cursor-pointer"
-          >
-            Gestionar en Inventario →
-          </button>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* TARJETAS KPI DE IMPACTO FINANCIERO                       */}
-      {/* ======================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Ventas Totales */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-amber-400/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Ventas Totales</span>
-            <div className="p-2 bg-emerald-500/15 text-emerald-400 rounded-xl border border-emerald-500/30">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-white font-mono tracking-tight">
-              ${Math.round(kpis.totalSales).toLocaleString('es-CO')}
-            </div>
-            <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
-              <span>{filteredOrders.length} pedidos facturados</span>
+      <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 shadow-2xl space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400">
+              <Activity className="w-4 h-4" />
             </span>
+            <h3 className="text-sm font-black uppercase tracking-wider text-white">
+              Promedio de Pedidos Realizados en el Negocio
+            </h3>
           </div>
+          <span className="text-[11px] font-mono text-slate-400">
+            Total histórico: <strong className="text-brand-yellow">{orderAverages.totalOrders} órdenes</strong>
+          </span>
         </div>
 
-        {/* Costo Insumos BOM */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-orange-400/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Costo Insumos (BOM)</span>
-            <div className="p-2 bg-orange-500/15 text-orange-400 rounded-xl border border-orange-500/30">
-              <Boxes className="w-4 h-4" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Promedio Diario */}
+          <div className="p-3 bg-[#0c0f16] rounded-2xl border border-slate-800/90 space-y-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Promedio Diario</span>
+            <div className="text-xl font-black text-amber-400 font-mono">
+              {orderAverages.daily} <span className="text-xs font-normal text-slate-400 font-sans">pedidos/día</span>
             </div>
+            <span className="text-[10px] text-slate-500">Ritmo de venta diario estimado</span>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-orange-400 font-mono tracking-tight">
-              ${Math.round(kpis.totalSupplyCost).toLocaleString('es-CO')}
-            </div>
-            <span className="text-xs text-slate-400 font-medium">
-              Costo de recetas consumidas
-            </span>
-          </div>
-        </div>
 
-        {/* Utilidad Bruta & Margen */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-emerald-400/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Utilidad Bruta</span>
-            <div className="p-2 bg-emerald-500/15 text-emerald-400 rounded-xl border border-emerald-500/30">
-              <DollarSign className="w-4 h-4" />
+          {/* Promedio Semanal */}
+          <div className="p-3 bg-[#0c0f16] rounded-2xl border border-slate-800/90 space-y-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Promedio Semanal</span>
+            <div className="text-xl font-black text-emerald-400 font-mono">
+              {orderAverages.weekly} <span className="text-xs font-normal text-slate-400 font-sans">pedidos/sem</span>
             </div>
+            <span className="text-[10px] text-slate-500">Capacidad de rotación semanal</span>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
-              ${Math.round(kpis.grossProfit).toLocaleString('es-CO')}
-            </div>
-            <div className="text-xs text-slate-300 font-medium mt-0.5">
-              Margen: <strong className="text-emerald-400 font-black">{kpis.grossMarginPercent}%</strong>
-            </div>
-          </div>
-        </div>
 
-        {/* Ticket Promedio */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-blue-400/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Ticket Promedio</span>
-            <div className="p-2 bg-blue-500/15 text-blue-400 rounded-xl border border-blue-500/30">
-              <ShoppingBag className="w-4 h-4" />
+          {/* Promedio Mensual */}
+          <div className="p-3 bg-[#0c0f16] rounded-2xl border border-slate-800/90 space-y-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Promedio Mensual</span>
+            <div className="text-xl font-black text-blue-400 font-mono">
+              {orderAverages.monthly} <span className="text-xs font-normal text-slate-400 font-sans">pedidos/mes</span>
             </div>
+            <span className="text-[10px] text-slate-500">Volumen mensual proyectado</span>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-blue-400 font-mono tracking-tight">
-              ${Math.round(kpis.ticketPromedio).toLocaleString('es-CO')}
-            </div>
-            <span className="text-xs text-slate-400 font-medium">
-              Promedio por mesa/pedido
-            </span>
-          </div>
-        </div>
 
-        {/* Stock Valorizado en Almacén */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-2xl p-4 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-purple-400/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Stock Valorizado</span>
-            <div className="p-2 bg-purple-500/15 text-purple-400 rounded-xl border border-purple-500/30">
-              <Package className="w-4 h-4" />
+          {/* Ticket Promedio */}
+          <div className="p-3 bg-[#0c0f16] rounded-2xl border border-slate-800/90 space-y-1">
+            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Ticket Promedio General</span>
+            <div className="text-xl font-black text-white font-mono">
+              ${orderAverages.ticketAvg.toLocaleString('es-CO')}
             </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-black text-purple-300 font-mono tracking-tight">
-              ${Math.round(kpis.totalValuation).toLocaleString('es-CO')}
-            </div>
-            <span className="text-xs text-slate-400 font-medium">
-              Materia prima disponible
-            </span>
+            <span className="text-[10px] text-slate-500">Valor promedio facturado por orden</span>
           </div>
         </div>
       </div>
 
       {/* ======================================================== */}
-      {/* GRÁFICA 1: VENTAS DIARIAS (DINERO QUE ENTRA DÍA A DÍA)   */}
+      {/* GRÁFICA NUEVA: TENDENCIA CURVA ONDULADA (INGRESOS VS GASTOS)*/}
+      {/* CON RAYITA HACIA ARRIBA / ABAJO Y SOMBREADO CLARITO       */}
       {/* ======================================================== */}
       <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-amber-500/15 text-brand-yellow">
-                <TrendingUp className="w-5 h-5" />
+              <span className="p-1.5 rounded-lg bg-brand-yellow/15 text-brand-yellow">
+                <Activity className="w-5 h-5" />
               </span>
               <h3 className="text-base sm:text-lg font-black text-white font-display">
-                Ventas Diarias — Dinero que entra día a día
+                Gráfico de Tendencia Curva — Ingresos vs Gastos
               </h3>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Facturación día a día en el negocio. Pasa el cursor sobre cualquier barra para ver el valor exacto.
+              Curva ondulada que sube y baja mostrando el dinero entrante vs costos con sombreado luminoso.
             </p>
           </div>
 
-          {/* Rango de días: 7, 14 o 30 días */}
+          {/* Selector de modo: Diario o Mensual */}
           <div className="flex items-center gap-1.5 bg-[#0b0e14] p-1 rounded-xl border border-slate-800">
-            {([7, 14, 30] as const).map((days) => (
-              <button
-                key={days}
-                type="button"
-                onClick={() => setDailyViewDays(days)}
-                className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                  dailyViewDays === days
-                    ? 'bg-brand-yellow text-slate-950 font-black shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {days} Días
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => setTrendMode('daily')}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                trendMode === 'daily'
+                  ? 'bg-brand-yellow text-slate-950 font-black shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Tendencia Diaria (14 Días)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTrendMode('monthly')}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                trendMode === 'monthly'
+                  ? 'bg-brand-yellow text-slate-950 font-black shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Tendencia Mensual (6 Meses)
+            </button>
           </div>
         </div>
 
-        {/* Resumen Superior de la Gráfica Diaria */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#0d1017] p-3.5 rounded-2xl border border-slate-800/80">
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Total Recaudado en el Rango</span>
-            <span className="text-lg font-black text-brand-yellow font-mono">
-              ${Math.round(dailyData.totalPeriodSales).toLocaleString('es-CO')}
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Promedio Diario</span>
-            <span className="text-lg font-black text-emerald-400 font-mono">
-              ${Math.round(dailyData.avgDailySales).toLocaleString('es-CO')} / día
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Día Récord de Ventas</span>
-            <span className="text-lg font-black text-white font-mono">
-              ${Math.round(dailyData.peakDay?.total || 0).toLocaleString('es-CO')}
-              <span className="text-xs text-slate-400 ml-1 font-normal font-sans">
-                ({dailyData.peakDay?.label || 'N/A'})
+        {/* Resumen Superior de Ingresos vs Gastos */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#0d1017] p-3 rounded-2xl border border-slate-800/80">
+          <div className="flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full bg-brand-yellow shadow-glow shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Dinero que Entra (Ingresos)</span>
+              <span className="text-base font-black text-brand-yellow font-mono">
+                ${Math.round(trendData.totalIngresos).toLocaleString('es-CO')}
               </span>
-            </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full bg-rose-500 shadow-glow shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Dinero que Sale (Costos & Gastos)</span>
+              <span className="text-base font-black text-rose-400 font-mono">
+                ${Math.round(trendData.totalGastos).toLocaleString('es-CO')}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full bg-emerald-400 shadow-glow shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Utilidad Neta del Período</span>
+              <span className="text-base font-black text-emerald-400 font-mono">
+                ${Math.round(trendData.totalIngresos - trendData.totalGastos).toLocaleString('es-CO')}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Gráfico SVG Interactivo de Barras Diarias */}
-        <div className="relative pt-4">
-          <div className="h-64 sm:h-72 w-full flex items-end gap-1.5 sm:gap-3 px-2 sm:px-4 pb-8 pt-4 bg-[#0a0d14] rounded-2xl border border-slate-800/70 relative">
+        {/* Gráfico SVG Curvo con Rayitas Onduladas y Sombreado Clarito */}
+        <div className="relative pt-2">
+          <div className="w-full bg-[#0a0d14] rounded-2xl border border-slate-800/70 p-3 relative overflow-hidden">
+            <svg
+              viewBox={`0 0 ${trendSvgCoords.svgWidth} ${trendSvgCoords.svgHeight}`}
+              className="w-full h-48 sm:h-56 overflow-visible"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                {/* Sombreado clarito dorado para Ingresos */}
+                <linearGradient id="ingresosAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ffc928" stopOpacity="0.45" />
+                  <stop offset="70%" stopColor="#ffc928" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="#ffc928" stopOpacity="0.0" />
+                </linearGradient>
+
+                {/* Sombreado clarito rojizo para Gastos */}
+                <linearGradient id="gastosAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ef4444" stopOpacity="0.35" />
+                  <stop offset="70%" stopColor="#ef4444" stopOpacity="0.08" />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {/* Líneas guía horizontales de fondo */}
+              <line x1="40" y1="40" x2="760" y2="40" stroke="#222738" strokeDasharray="4 4" strokeWidth="1" />
+              <line x1="40" y1="95" x2="760" y2="95" stroke="#222738" strokeDasharray="4 4" strokeWidth="1" />
+              <line x1="40" y1="150" x2="760" y2="150" stroke="#222738" strokeDasharray="4 4" strokeWidth="1" />
+              <line x1="40" y1={trendSvgCoords.baselineY} x2="760" y2={trendSvgCoords.baselineY} stroke="#333b52" strokeWidth="1" />
+
+              {/* Sombreado clarito de Ingresos */}
+              {trendSvgCoords.incomeArea && (
+                <path d={trendSvgCoords.incomeArea} fill="url(#ingresosAreaGrad)" />
+              )}
+
+              {/* Sombreado clarito de Gastos */}
+              {trendSvgCoords.expenseArea && (
+                <path d={trendSvgCoords.expenseArea} fill="url(#gastosAreaGrad)" />
+              )}
+
+              {/* Rayita curva continua hacia arriba/abajo de Gastos */}
+              {trendSvgCoords.expenseLine && (
+                <path
+                  d={trendSvgCoords.expenseLine}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  className="filter drop-shadow-[0_2px_8px_rgba(239,68,68,0.5)]"
+                />
+              )}
+
+              {/* Rayita curva continua hacia arriba/abajo de Ingresos */}
+              {trendSvgCoords.incomeLine && (
+                <path
+                  d={trendSvgCoords.incomeLine}
+                  fill="none"
+                  stroke="#ffc928"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  className="filter drop-shadow-[0_2px_10px_rgba(255,201,40,0.6)]"
+                />
+              )}
+
+              {/* Puntos y áreas interactivas en la curva */}
+              {trendSvgCoords.svgPoints.map((pt, idx) => {
+                const isHovered = hoveredTrendIndex === idx;
+
+                return (
+                  <g key={pt.key} className="cursor-pointer">
+                    {/* Punto luminoso de Ingresos */}
+                    <circle
+                      cx={pt.incomeX}
+                      cy={pt.incomeY}
+                      r={isHovered ? 6 : 4}
+                      fill="#ffc928"
+                      stroke="#0a0d14"
+                      strokeWidth="2"
+                      className="transition-all duration-150"
+                    />
+
+                    {/* Punto de Gastos */}
+                    <circle
+                      cx={pt.expenseX}
+                      cy={pt.expenseY}
+                      r={isHovered ? 5 : 3.5}
+                      fill="#ef4444"
+                      stroke="#0a0d14"
+                      strokeWidth="1.5"
+                      className="transition-all duration-150"
+                    />
+
+                    {/* Área invisible amplia para detectar hover */}
+                    <rect
+                      x={pt.incomeX - 20}
+                      y="10"
+                      width="40"
+                      height={trendSvgCoords.svgHeight - 20}
+                      fill="transparent"
+                      onMouseEnter={() => setHoveredTrendIndex(idx)}
+                      onMouseLeave={() => setHoveredTrendIndex(null)}
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Etiquetas de fechas en la base */}
+            <div className="flex justify-between px-6 pt-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              {trendSvgCoords.svgPoints.map((pt, idx) => (
+                <span
+                  key={pt.key}
+                  className={`text-center transition-colors ${hoveredTrendIndex === idx ? 'text-brand-yellow font-black' : ''}`}
+                >
+                  {pt.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Tooltip dinámico sobre el punto seleccionado */}
+            {hoveredTrendIndex !== null && trendSvgCoords.svgPoints[hoveredTrendIndex] && (
+              <div 
+                className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#141824]/95 border border-amber-400/80 p-3 rounded-2xl shadow-2xl text-center backdrop-blur-md z-30 animate-in fade-in zoom-in-95 pointer-events-none"
+              >
+                <div className="text-xs font-black text-slate-200 capitalize">
+                  {trendSvgCoords.svgPoints[hoveredTrendIndex].fullDate}
+                </div>
+                <div className="flex items-center justify-center gap-4 mt-1.5 text-xs font-mono font-black">
+                  <span className="text-brand-yellow">
+                    🟡 Ingresos: ${Math.round(trendSvgCoords.svgPoints[hoveredTrendIndex].ingresos).toLocaleString('es-CO')}
+                  </span>
+                  <span className="text-rose-400">
+                    🔴 Gastos: ${Math.round(trendSvgCoords.svgPoints[hoveredTrendIndex].gastos).toLocaleString('es-CO')}
+                  </span>
+                  <span className="text-emerald-400">
+                    🟢 Margen: ${Math.round(trendSvgCoords.svgPoints[hoveredTrendIndex].margen).toLocaleString('es-CO')}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* GRÁFICAS COMPACTAS EN 2 COLUMNAS (MÁS PEQUEÑAS Y EQUILIBRADAS)*/}
+      {/* 1. VENTAS DIARIAS COMPACTA | 2. VENTAS MENSUALES COMPACTA */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* 1. VENTAS DIARIAS COMPACTA */}
+        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 shadow-2xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-lg bg-amber-500/15 text-brand-yellow">
+                  <TrendingUp className="w-4 h-4" />
+                </span>
+                <h3 className="text-sm sm:text-base font-black text-white font-display">
+                  Ventas Diarias (Recaudos por Día)
+                </h3>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                Promedio: ${Math.round(dailyData.avgDailySales).toLocaleString('es-CO')} / día
+              </span>
+            </div>
+
+            {/* Selector 7 / 14 / 30 días */}
+            <div className="flex items-center gap-1 bg-[#0b0e14] p-1 rounded-lg border border-slate-800">
+              {([7, 14, 30] as const).map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => setDailyViewDays(days)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-black transition cursor-pointer ${
+                    dailyViewDays === days
+                      ? 'bg-brand-yellow text-slate-950 font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {days}d
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Gráfico de Barras Compacto (h-44) */}
+          <div className="h-44 w-full flex items-end gap-1 sm:gap-2 px-2 pb-6 pt-2 bg-[#0a0d14] rounded-2xl border border-slate-800/70 relative">
             {dailyData.points.map((point, idx) => {
               const heightPct = Math.max(6, Math.round((point.total / dailyData.maxVal) * 100));
               const isHovered = hoveredDailyIndex === idx;
@@ -674,38 +996,27 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
                   onMouseLeave={() => setHoveredDailyIndex(null)}
                   className="flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer"
                 >
-                  {/* Tooltip flotante al pasar el mouse */}
                   {isHovered && (
-                    <div className="absolute bottom-[calc(100%+8px)] z-30 bg-[#161a26] border border-amber-400/80 p-2.5 rounded-xl shadow-2xl text-center whitespace-nowrap animate-in fade-in zoom-in-95 pointer-events-none">
-                      <div className="text-[11px] font-black text-slate-300 capitalize">{point.fullDate}</div>
-                      <div className="text-sm font-black text-brand-yellow font-mono mt-0.5">
+                    <div className="absolute bottom-[calc(100%+6px)] z-30 bg-[#161a26] border border-amber-400/80 p-2 rounded-xl shadow-xl text-center whitespace-nowrap pointer-events-none">
+                      <div className="text-[10px] font-black text-slate-300">{point.label}</div>
+                      <div className="text-xs font-black text-brand-yellow font-mono">
                         ${Math.round(point.total).toLocaleString('es-CO')}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-bold mt-0.5">
-                        {point.count} pedido{point.count === 1 ? '' : 's'}
-                      </div>
+                      <div className="text-[9px] text-slate-400">{point.count} órdenes</div>
                     </div>
                   )}
 
-                  {/* Barra del Gráfico */}
                   <div
                     style={{ height: `${heightPct}%` }}
-                    className={`w-full max-w-[42px] rounded-t-xl transition-all duration-300 relative ${
+                    className={`w-full max-w-[32px] rounded-t-lg transition-all duration-300 ${
                       point.total > 0
                         ? isHovered
-                          ? 'bg-gradient-to-t from-amber-500 to-yellow-300 shadow-lg shadow-amber-400/40 scale-x-105'
-                          : 'bg-gradient-to-t from-amber-600 via-brand-yellow to-yellow-400 hover:brightness-110'
+                          ? 'bg-gradient-to-t from-amber-500 to-yellow-300 shadow-lg shadow-amber-400/40'
+                          : 'bg-gradient-to-t from-amber-600 to-yellow-400 hover:brightness-110'
                         : 'bg-slate-800/40'
                     }`}
-                  >
-                    {/* Indicador de brillo en tope de barra */}
-                    {point.total > 0 && (
-                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-white/70 shadow-glow" />
-                    )}
-                  </div>
-
-                  {/* Etiqueta de Fecha en el eje X */}
-                  <span className="absolute bottom-1 text-[9px] sm:text-[10px] font-bold text-slate-400 capitalize truncate w-full text-center">
+                  />
+                  <span className="absolute bottom-1 text-[8px] font-bold text-slate-400 truncate w-full text-center">
                     {point.label}
                   </span>
                 </div>
@@ -713,36 +1024,30 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
             })}
           </div>
         </div>
-      </div>
 
-      {/* ======================================================== */}
-      {/* GRÁFICA 2: VENTAS MENSUALES (DINERO QUE ENTRA MES A MES) */}
-      {/* ======================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Gráfico Curvo de Evolución Mes a Mes (2 Columnas) */}
-        <div className="lg:col-span-2 bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        {/* 2. VENTAS MENSUALES COMPACTA */}
+        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 shadow-2xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
-                  <Calendar className="w-5 h-5" />
+                <span className="p-1 rounded-lg bg-emerald-500/15 text-emerald-400">
+                  <Calendar className="w-4 h-4" />
                 </span>
-                <h3 className="text-base sm:text-lg font-black text-white font-display">
-                  Ventas Mensuales — Dinero que entra Mes a Mes
+                <h3 className="text-sm sm:text-base font-black text-white font-display">
+                  Ventas Mensuales (Mes a Mes)
                 </h3>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Comportamiento histórico de facturación en los últimos 6 meses.
-              </p>
+              <span className="text-[11px] text-emerald-400 font-mono font-bold">
+                Últimos 6 meses de historial
+              </span>
             </div>
-            <span className="text-xs text-brand-yellow font-black font-mono">
-              Total 6M: ${Math.round(monthlyData.totalYearSales).toLocaleString('es-CO')}
+            <span className="text-xs text-brand-yellow font-mono font-bold">
+              ${Math.round(monthlyData.totalYearSales).toLocaleString('es-CO')}
             </span>
           </div>
 
-          {/* Gráfico de Barras y Tendencia Mensual */}
-          <div className="h-60 sm:h-64 w-full flex items-end gap-3 sm:gap-6 px-3 sm:px-6 pb-8 pt-4 bg-[#0a0d14] rounded-2xl border border-slate-800/70 relative">
+          {/* Gráfico de Barras Mensuales Compacto (h-44) */}
+          <div className="h-44 w-full flex items-end gap-3 px-3 pb-6 pt-2 bg-[#0a0d14] rounded-2xl border border-slate-800/70 relative">
             {monthlyData.points.map((m, idx) => {
               const heightPct = Math.max(10, Math.round((m.total / monthlyData.maxVal) * 100));
               const isHovered = hoveredMonthlyIndex === idx;
@@ -754,54 +1059,36 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
                   onMouseLeave={() => setHoveredMonthlyIndex(null)}
                   className="flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer"
                 >
-                  {/* Tooltip mensual */}
                   {isHovered && (
-                    <div className="absolute bottom-[calc(100%+8px)] z-30 bg-[#161a26] border border-emerald-400/80 p-2.5 rounded-xl shadow-2xl text-center whitespace-nowrap pointer-events-none">
-                      <div className="text-[11px] font-black text-slate-300">{m.label} {m.year}</div>
-                      <div className="text-sm font-black text-emerald-400 font-mono mt-0.5">
+                    <div className="absolute bottom-[calc(100%+6px)] z-30 bg-[#161a26] border border-emerald-400/80 p-2 rounded-xl shadow-xl text-center whitespace-nowrap pointer-events-none">
+                      <div className="text-[10px] font-black text-slate-300">{m.label} {m.year}</div>
+                      <div className="text-xs font-black text-emerald-400 font-mono">
                         ${Math.round(m.total).toLocaleString('es-CO')}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-bold mt-0.5">
-                        {m.count} pedidos
-                      </div>
-                      {m.growth !== 0 && (
-                        <div className={`text-[10px] font-black mt-1 ${m.growth > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`} vs mes anterior
-                        </div>
-                      )}
+                      <div className="text-[9px] text-slate-400">{m.count} pedidos</div>
                     </div>
                   )}
 
-                  {/* Valor en pesos encima de la barra si es representativo */}
-                  {m.total > 0 && (
-                    <span className="text-[10px] font-mono font-black text-emerald-300 mb-1 hidden sm:block">
-                      ${Math.round(m.total / 1000)}k
+                  {m.growth !== 0 && m.total > 0 && (
+                    <span className={`text-[8px] font-black mb-1 px-1 py-0.2 rounded ${
+                      m.growth > 0 ? 'bg-emerald-950 text-emerald-400' : 'bg-red-950 text-red-400'
+                    }`}>
+                      {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
                     </span>
                   )}
 
-                  {/* Barra mensual estilizada con gradiente */}
                   <div
                     style={{ height: `${heightPct}%` }}
-                    className={`w-full max-w-[54px] rounded-t-2xl transition-all duration-300 relative ${
+                    className={`w-full max-w-[42px] rounded-t-xl transition-all duration-300 ${
                       m.total > 0
                         ? isHovered
-                          ? 'bg-gradient-to-t from-emerald-600 to-teal-300 shadow-lg shadow-emerald-400/30 scale-x-105'
-                          : 'bg-gradient-to-t from-emerald-700 via-emerald-500 to-teal-400 hover:brightness-110'
+                          ? 'bg-gradient-to-t from-emerald-600 to-teal-300 shadow-lg shadow-emerald-400/30'
+                          : 'bg-gradient-to-t from-emerald-600 to-teal-400 hover:brightness-110'
                         : 'bg-slate-800/40'
                     }`}
-                  >
-                    {/* Badge de crecimiento en la barra */}
-                    {m.growth !== 0 && m.total > 0 && (
-                      <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-1.5 py-0.2 rounded-md ${
-                        m.growth > 0 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'
-                      }`}>
-                        {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
-                      </span>
-                    )}
-                  </div>
+                  />
 
-                  {/* Etiqueta del Mes en el eje X */}
-                  <span className="absolute bottom-1 text-xs font-black text-slate-300 tracking-wider">
+                  <span className="absolute bottom-1 text-[10px] font-black text-slate-300 tracking-wider">
                     {m.label}
                   </span>
                 </div>
@@ -810,214 +1097,136 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
           </div>
         </div>
 
-        {/* Gráfico 3: Flujo de Dinero por Método de Pago & Caja (1 Columna) */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-              <span className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400">
-                <Wallet className="w-5 h-5" />
-              </span>
-              <div>
-                <h3 className="text-base font-black text-white font-display">
-                  Caja & Métodos de Pago
-                </h3>
-                <span className="text-[11px] text-slate-400 block">¿Por dónde entra el dinero?</span>
-              </div>
-            </div>
-
-            {/* Lista Desglosada por Método */}
-            <div className="mt-4 space-y-2.5">
-              {paymentMethodsData.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-500">
-                  No hay pagos registrados en este período.
-                </div>
-              ) : (
-                paymentMethodsData.map((item) => (
-                  <div
-                    key={item.method}
-                    className="p-3 bg-[#0d1017] rounded-xl border border-slate-800/80 space-y-1.5 hover:border-slate-700 transition"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="font-bold text-white">{item.method}</span>
-                      </div>
-                      <span className="font-mono font-black text-brand-yellow">
-                        ${Math.round(item.total).toLocaleString('es-CO')}
-                      </span>
-                    </div>
-
-                    {/* Barra de Porcentaje */}
-                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${item.percent}%`, backgroundColor: item.color }}
-                        className="h-full rounded-full transition-all duration-500"
-                      />
-                    </div>
-
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>{item.count} transacciones</span>
-                      <span className="font-bold text-slate-300">{item.percent}% del total</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigateTab && onNavigateTab('caja')}
-            className="w-full py-2.5 bg-slate-800/70 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-slate-700/60 cursor-pointer"
-          >
-            <span>Ver Arqueos y Turnos de Caja →</span>
-          </button>
-        </div>
       </div>
 
       {/* ======================================================== */}
-      {/* GRÁFICAS ADICIONALES: PRODUCTOS, CANALES Y HORAS PICO    */}
+      {/* CAJA, TOP PRODUCTOS Y CANALES                            */}
       {/* ======================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Gráfica 4: Top Platos & Productos Más Vendidos */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-orange-500/15 text-orange-400">
-                <Flame className="w-5 h-5" />
-              </span>
-              <div>
-                <h3 className="text-base font-black text-white font-display">
-                  Top Productos
-                </h3>
-                <span className="text-[11px] text-slate-400 block">Ranking de platos más solicitados</span>
-              </div>
-            </div>
-
-            {/* Toggle Unidades vs Dinero */}
-            <div className="flex items-center bg-[#0b0e14] p-1 rounded-xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setTopProductsMetric('revenue')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition cursor-pointer ${
-                  topProductsMetric === 'revenue'
-                    ? 'bg-orange-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Por $
-              </button>
-              <button
-                type="button"
-                onClick={() => setTopProductsMetric('qty')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition cursor-pointer ${
-                  topProductsMetric === 'qty'
-                    ? 'bg-orange-500 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Por Unidades
-              </button>
-            </div>
+        {/* 1. Métodos de Pago & Caja */}
+        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 shadow-2xl space-y-3">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+            <span className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400">
+              <Wallet className="w-4 h-4" />
+            </span>
+            <h3 className="text-sm font-black text-white font-display">
+              Caja & Métodos de Pago
+            </h3>
           </div>
 
-          <div className="space-y-3">
-            {topProductsData.items.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
-                No hay productos vendidos en este período.
+          <div className="space-y-2">
+            {paymentMethodsData.length === 0 ? (
+              <div className="text-center py-6 text-xs text-slate-500">
+                No hay pagos registrados en este período.
               </div>
             ) : (
-              topProductsData.items.map((prod, idx) => {
-                const metricValue = topProductsMetric === 'qty' ? prod.qty : prod.revenue;
-                const percent = Math.max(8, Math.round((metricValue / topProductsData.maxMetric) * 100));
-
-                return (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`w-5 h-5 rounded-md flex items-center justify-center font-mono font-black text-[10px] shrink-0 ${
-                          idx === 0 ? 'bg-amber-400 text-slate-950 font-black' : idx === 1 ? 'bg-slate-300 text-slate-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          #{idx + 1}
-                        </span>
-                        <span className="font-bold text-white truncate max-w-[170px]">{prod.name}</span>
-                      </div>
-                      <span className="font-mono font-black text-amber-300 shrink-0">
-                        {topProductsMetric === 'qty' ? `${prod.qty} und` : `$${Math.round(prod.revenue).toLocaleString('es-CO')}`}
-                      </span>
+              paymentMethodsData.map((item) => (
+                <div
+                  key={item.method}
+                  className="p-2.5 bg-[#0d1017] rounded-xl border border-slate-800/80 space-y-1 hover:border-slate-700 transition"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="font-bold text-white">{item.method}</span>
                     </div>
-
-                    {/* Barra horizontal */}
-                    <div className="w-full h-2 bg-slate-800/80 rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${percent}%` }}
-                        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-500"
-                      />
-                    </div>
+                    <span className="font-mono font-black text-brand-yellow">
+                      ${Math.round(item.total).toLocaleString('es-CO')}
+                    </span>
                   </div>
-                );
-              })
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${item.percent}%`, backgroundColor: item.color }}
+                      className="h-full rounded-full"
+                    />
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        {/* Gráfica 5: Canales de Venta (Salón vs Domicilio vs Llevar) */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        {/* 2. Top Productos */}
+        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 shadow-2xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-purple-500/15 text-purple-400">
-                <Layers className="w-5 h-5" />
+              <span className="p-1.5 rounded-lg bg-orange-500/15 text-orange-400">
+                <Flame className="w-4 h-4" />
               </span>
-              <div>
-                <h3 className="text-base font-black text-white font-display">
-                  Canales de Venta
-                </h3>
-                <span className="text-[11px] text-slate-400 block">Distribución de ingresos por canal</span>
-              </div>
+              <h3 className="text-sm font-black text-white font-display">
+                Top Productos
+              </h3>
+            </div>
+            <div className="flex items-center bg-[#0b0e14] p-0.5 rounded-lg border border-slate-800 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setTopProductsMetric('revenue')}
+                className={`px-2 py-0.5 rounded font-black ${topProductsMetric === 'revenue' ? 'bg-orange-500 text-black' : 'text-slate-400'}`}
+              >
+                $
+              </button>
+              <button
+                type="button"
+                onClick={() => setTopProductsMetric('qty')}
+                className={`px-2 py-0.5 rounded font-black ${topProductsMetric === 'qty' ? 'bg-orange-500 text-black' : 'text-slate-400'}`}
+              >
+                Und
+              </button>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
+            {topProductsData.items.map((prod, idx) => {
+              const val = topProductsMetric === 'qty' ? prod.qty : prod.revenue;
+              const pct = Math.max(8, Math.round((val / topProductsData.maxMetric) * 100));
+
+              return (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="font-bold text-white truncate max-w-[150px]">
+                      #{idx + 1} {prod.name}
+                    </span>
+                    <span className="font-mono font-bold text-amber-300">
+                      {topProductsMetric === 'qty' ? `${prod.qty} und` : `$${Math.round(prod.revenue).toLocaleString('es-CO')}`}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div style={{ width: `${pct}%` }} className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Canales de Venta */}
+        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 shadow-2xl space-y-3">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
+            <span className="p-1.5 rounded-lg bg-purple-500/15 text-purple-400">
+              <Layers className="w-4 h-4" />
+            </span>
+            <h3 className="text-sm font-black text-white font-display">
+              Canales de Venta
+            </h3>
+          </div>
+
+          <div className="space-y-2">
             {channelsData.map((ch) => {
               const Icon = ch.icon;
               return (
-                <div
-                  key={ch.key}
-                  className="p-3.5 bg-[#0d1017] rounded-2xl border border-slate-800/80 space-y-2 hover:border-slate-700 transition"
-                >
-                  <div className="flex items-center justify-between">
+                <div key={ch.key} className="p-2.5 bg-[#0d1017] rounded-xl border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <div
-                        className="p-2 rounded-xl text-white"
-                        style={{ backgroundColor: `${ch.color}25`, color: ch.color }}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-white">{ch.label}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{ch.count} órdenes</div>
-                      </div>
+                      <Icon className="w-3.5 h-3.5" style={{ color: ch.color }} />
+                      <span className="font-bold text-white">{ch.label}</span>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-black font-mono text-white block">
-                        ${Math.round(ch.total).toLocaleString('es-CO')}
-                      </span>
-                      <span className="text-[11px] font-black" style={{ color: ch.color }}>
-                        {ch.percent}% del negocio
-                      </span>
-                    </div>
+                    <span className="font-mono font-black text-white">
+                      ${Math.round(ch.total).toLocaleString('es-CO')}
+                    </span>
                   </div>
-
-                  {/* Barra de progreso */}
-                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      style={{ width: `${ch.percent}%`, backgroundColor: ch.color }}
-                      className="h-full rounded-full transition-all duration-500"
-                    />
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div style={{ width: `${ch.percent}%`, backgroundColor: ch.color }} className="h-full rounded-full" />
                   </div>
                 </div>
               );
@@ -1025,124 +1234,6 @@ export const DashboardEjecutivoTab: React.FC<DashboardEjecutivoTabProps> = ({
           </div>
         </div>
 
-        {/* Gráfica 6: Horas Pico de Venta (¿A qué hora entra el dinero?) */}
-        <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-cyan-500/15 text-cyan-400">
-                <Clock className="w-5 h-5" />
-              </span>
-              <div>
-                <h3 className="text-base font-black text-white font-display">
-                  Horas Pico de Venta
-                </h3>
-                <span className="text-[11px] text-slate-400 block">Flujo de dinero a lo largo del día</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-56 w-full flex items-end gap-1.5 px-2 pb-6 pt-2 bg-[#0a0d14] rounded-2xl border border-slate-800/70 relative">
-            {hourlyData.points.map((pt) => {
-              const heightPct = Math.max(8, Math.round((pt.total / hourlyData.maxVal) * 100));
-
-              return (
-                <div
-                  key={pt.hour}
-                  className="flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer"
-                  title={`${pt.label}: $${Math.round(pt.total).toLocaleString('es-CO')} (${pt.count} pedidos)`}
-                >
-                  <div
-                    style={{ height: `${heightPct}%` }}
-                    className={`w-full max-w-[28px] rounded-t-md transition-all duration-300 ${
-                      pt.total > 0
-                        ? 'bg-gradient-to-t from-cyan-600 to-teal-400 group-hover:brightness-125'
-                        : 'bg-slate-800/40'
-                    }`}
-                  />
-                  <span className="absolute bottom-1 text-[8px] sm:text-[9px] font-mono text-slate-400">
-                    {pt.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="text-[11px] text-slate-400 text-center leading-relaxed">
-            Concentración de pedidos durante los turnos de almuerzo (12pm-2pm) y cena (7pm-10pm).
-          </div>
-        </div>
-
-      </div>
-
-      {/* ======================================================== */}
-      {/* SECCIÓN ADICIONAL: INGENIERÍA DE MENÚ & RENTABILIDAD     */}
-      {/* ======================================================== */}
-      <div className="bg-[#11141e] border border-slate-800/90 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400">
-              <Sparkles className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-base sm:text-lg font-black text-white font-display">
-                Ingeniería de Menú — Recetas Técnicas Más Rentables
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Platos con mayor margen de ganancia neta calculado a partir de materias primas (BOM).
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigateTab && onNavigateTab('recetas')}
-            className="text-xs text-brand-yellow font-bold hover:underline cursor-pointer"
-          >
-            Ver todas las recetas →
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {recipes.length === 0 ? (
-            <div className="col-span-full py-8 text-center text-slate-500 text-xs">
-              Aún no has configurado recetas técnicas en el sistema.
-            </div>
-          ) : (
-            [...recipes]
-              .sort((a, b) => Number(b.marginPercent || 0) - Number(a.marginPercent || 0))
-              .slice(0, 4)
-              .map((r, idx) => (
-                <div
-                  key={r.id}
-                  className="p-4 bg-[#0d1017] rounded-2xl border border-slate-800/80 space-y-2 hover:border-emerald-500/40 transition shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800/60">
-                      Margen {r.marginPercent}%
-                    </span>
-                    <span className="text-xs font-mono font-black text-white">
-                      +${Math.round(r.grossProfit || 0).toLocaleString('es-CO')}
-                    </span>
-                  </div>
-
-                  <div className="font-extrabold text-sm text-white truncate">
-                    {r.product?.name || r.nombre}
-                  </div>
-
-                  <div className="text-[11px] text-slate-400 font-mono space-y-0.5 pt-1 border-t border-slate-800/80">
-                    <div className="flex justify-between">
-                      <span>Costo Materia Prima:</span>
-                      <strong className="text-orange-400">${Math.round(r.costoPorPorcion)}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Precio al Público:</span>
-                      <strong className="text-white">${Number(r.salePrice || 0).toLocaleString('es-CO')}</strong>
-                    </div>
-                  </div>
-                </div>
-              ))
-          )}
-        </div>
       </div>
 
     </div>
