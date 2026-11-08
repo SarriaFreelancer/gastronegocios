@@ -236,6 +236,24 @@ export async function POST(req: Request) {
       finalRestaurantId = 1;
     }
 
+    // Resolver customerId si existe
+    let linkedCustomerId: number | null = body.customerId ? Number(body.customerId) : null;
+    if (!linkedCustomerId && telefono && finalRestaurantId) {
+      const cleanPhone = String(telefono).replace(/\D/g, '');
+      const existingCust = await prisma.customer.findFirst({
+        where: {
+          restaurantId: finalRestaurantId,
+          OR: [
+            { telefono: cleanPhone },
+            { telefono: String(telefono).trim() },
+          ],
+        },
+      });
+      if (existingCust) {
+        linkedCustomerId = existingCust.id;
+      }
+    }
+
     const newOrder = await prisma.order.create({
       data: {
         codigo,
@@ -258,6 +276,7 @@ export async function POST(req: Request) {
         branchId: finalBranchId,
         sedeNombre: finalSedeNombre,
         restaurantId: finalRestaurantId,
+        customerId: linkedCustomerId,
         items: {
           create: items.map((i: any) => ({
             productId: i.productId ? Number(i.productId) : i.productoId ? Number(i.productoId) : null,
@@ -306,7 +325,7 @@ export async function POST(req: Request) {
             },
           });
         } else {
-          await prisma.customer.create({
+          const newCust = await prisma.customer.create({
             data: {
               nombre: cliente.trim(),
               telefono: cleanPhone,
@@ -318,6 +337,12 @@ export async function POST(req: Request) {
               restaurantId: finalRestaurantId,
             },
           });
+          if (newCust && !linkedCustomerId) {
+            await prisma.order.update({
+              where: { id: newOrder.id },
+              data: { customerId: newCust.id },
+            });
+          }
         }
       }
     } catch (custErr) {

@@ -5,6 +5,18 @@ import { usePathname } from 'next/navigation';
 import { Product, CartItem, ProductAddon } from '@/types';
 import { restaurantInfo } from '@/data/restaurant-info';
 
+export interface CustomerProfile {
+  id: number;
+  nombre: string;
+  telefono: string;
+  email?: string | null;
+  direccion?: string | null;
+  barrio?: string | null;
+  ciudad?: string | null;
+  totalPedidos?: number;
+  totalComprado?: number;
+}
+
 export interface BranchOption {
   id: number;
   nombre: string;
@@ -50,6 +62,14 @@ interface CartContextType {
   selectedBranchName: string | null;
   setSelectedBranchId: (id: number | null) => void;
   setSelectedBranchName: (name: string | null) => void;
+  // Customer Auth & Persistent Memory
+  currentCustomer: CustomerProfile | null;
+  setCurrentCustomer: (cust: CustomerProfile | null) => void;
+  loginCustomer: (cust: CustomerProfile) => void;
+  logoutCustomer: () => void;
+  recentNames: string[];
+  recentAddresses: string[];
+  recentPhones: string[];
   lastAddedProduct: Product | null;
   clearToast: () => void;
   isSubmittingOrder: boolean;
@@ -63,6 +83,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'punto_g_cart_v2';
 const LOCAL_STORAGE_BRANCH = 'punto_g_selected_branch';
+const LOCAL_STORAGE_CUSTOMER_SESSION = 'punto_g_customer_session';
+const LOCAL_STORAGE_CHECKOUT_MEMORY = 'punto_g_customer_checkout_memory';
+const LOCAL_STORAGE_RECENT_ENTRIES = 'punto_g_customer_recent_entries';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -81,6 +104,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Sesión y memoria persistente del cliente en navegador
+  const [currentCustomer, setCurrentCustomer] = useState<CustomerProfile | null>(null);
+  const [recentNames, setRecentNames] = useState<string[]>([]);
+  const [recentAddresses, setRecentAddresses] = useState<string[]>([]);
+  const [recentPhones, setRecentPhones] = useState<string[]>([]);
 
   // Sedes state
   const [availableBranches, setAvailableBranches] = useState<BranchOption[]>([]);
@@ -150,18 +179,133 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Load cart from localStorage
+  // Login y Logout de Cliente
+  const loginCustomer = (cust: CustomerProfile) => {
+    setCurrentCustomer(cust);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_CUSTOMER_SESSION, JSON.stringify(cust));
+      } catch (e) {}
+    }
+    if (cust.nombre) setCustomerName(cust.nombre);
+    if (cust.telefono) setCustomerPhone(cust.telefono);
+    if (cust.direccion) setCustomerAddress(cust.direccion);
+  };
+
+  const logoutCustomer = () => {
+    setCurrentCustomer(null);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_CUSTOMER_SESSION);
+      } catch (e) {}
+    }
+  };
+
+  // Helper para registrar entradas recientes en memoria
+  const rememberCustomerInput = (name: string, phone: string, address: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cleanN = name.trim();
+      const cleanP = phone.trim();
+      const cleanA = address.trim();
+
+      if (cleanN) {
+        setRecentNames((prev) => {
+          const next = [cleanN, ...prev.filter((x) => x !== cleanN)].slice(0, 5);
+          return next;
+        });
+      }
+      if (cleanP) {
+        setRecentPhones((prev) => {
+          const next = [cleanP, ...prev.filter((x) => x !== cleanP)].slice(0, 5);
+          return next;
+        });
+      }
+      if (cleanA) {
+        setRecentAddresses((prev) => {
+          const next = [cleanA, ...prev.filter((x) => x !== cleanA)].slice(0, 5);
+          return next;
+        });
+      }
+
+      // Guardar lista general de recientes
+      const existing = localStorage.getItem(LOCAL_STORAGE_RECENT_ENTRIES);
+      const parsed = existing ? JSON.parse(existing) : { names: [], addresses: [], phones: [] };
+      const updated = {
+        names: cleanN ? [cleanN, ...(parsed.names || []).filter((x: string) => x !== cleanN)].slice(0, 5) : parsed.names || [],
+        addresses: cleanA ? [cleanA, ...(parsed.addresses || []).filter((x: string) => x !== cleanA)].slice(0, 5) : parsed.addresses || [],
+        phones: cleanP ? [cleanP, ...(parsed.phones || []).filter((x: string) => x !== cleanP)].slice(0, 5) : parsed.phones || [],
+      };
+      localStorage.setItem(LOCAL_STORAGE_RECENT_ENTRIES, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  // Load cart, session, and remembered form inputs from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (stored) {
-        setItems(JSON.parse(stored));
+      if (typeof window !== 'undefined') {
+        const storedCart = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedCart) {
+          setItems(JSON.parse(storedCart));
+        }
+
+        // Cargar sesión de cliente
+        const storedCust = localStorage.getItem(LOCAL_STORAGE_CUSTOMER_SESSION);
+        let activeCust: CustomerProfile | null = null;
+        if (storedCust) {
+          activeCust = JSON.parse(storedCust);
+          setCurrentCustomer(activeCust);
+        }
+
+        // Cargar memoria del formulario en este navegador
+        const storedForm = localStorage.getItem(LOCAL_STORAGE_CHECKOUT_MEMORY);
+        if (storedForm) {
+          const form = JSON.parse(storedForm);
+          if (form.customerName && !activeCust?.nombre) setCustomerName(form.customerName);
+          if (form.customerPhone && !activeCust?.telefono) setCustomerPhone(form.customerPhone);
+          if (form.customerAddress && !activeCust?.direccion) setCustomerAddress(form.customerAddress);
+          if (form.customerNotes) setCustomerNotes(form.customerNotes);
+          if (form.paymentMethod) setPaymentMethod(form.paymentMethod);
+          if (form.deliveryType) setDeliveryType(form.deliveryType);
+        }
+
+        // Si hay cliente activo, sus datos tienen máxima prioridad
+        if (activeCust) {
+          if (activeCust.nombre) setCustomerName(activeCust.nombre);
+          if (activeCust.telefono) setCustomerPhone(activeCust.telefono);
+          if (activeCust.direccion) setCustomerAddress(activeCust.direccion);
+        }
+
+        // Cargar entradas recientes para autocompletado
+        const storedRecent = localStorage.getItem(LOCAL_STORAGE_RECENT_ENTRIES);
+        if (storedRecent) {
+          const r = JSON.parse(storedRecent);
+          if (Array.isArray(r.names)) setRecentNames(r.names);
+          if (Array.isArray(r.addresses)) setRecentAddresses(r.addresses);
+          if (Array.isArray(r.phones)) setRecentPhones(r.phones);
+        }
       }
     } catch (e) {
-      console.error('Error loading cart from localStorage', e);
+      console.error('Error loading cart/customer from localStorage', e);
     }
     setIsHydrated(true);
   }, []);
+
+  // Guardar en tiempo real los cambios del formulario para recordarlos en este navegador
+  useEffect(() => {
+    if (!isHydrated || typeof window === 'undefined') return;
+    try {
+      const memory = {
+        customerName,
+        customerPhone,
+        customerAddress,
+        customerNotes,
+        paymentMethod,
+        deliveryType,
+      };
+      localStorage.setItem(LOCAL_STORAGE_CHECKOUT_MEMORY, JSON.stringify(memory));
+    } catch (e) {}
+  }, [customerName, customerPhone, customerAddress, customerNotes, paymentMethod, deliveryType, isHydrated]);
 
   // Save cart to localStorage
   useEffect(() => {
@@ -277,6 +421,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         slugParam = pathname.split('/')[2] || null;
       }
 
+      // Recordar entradas en navegador
+      rememberCustomerInput(customerName, customerPhone, customerAddress);
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -295,6 +442,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           branchId: selectedBranchId,
           sedeNombre: selectedBranchName,
           restaurantSlug: slugParam,
+          customerId: currentCustomer?.id || null,
           items: items.map((i) => {
             const addonsCost = (i.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
             return {
@@ -461,6 +609,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectedBranchName,
         setSelectedBranchId,
         setSelectedBranchName,
+        // Customer Auth & Persistent Memory
+        currentCustomer,
+        setCurrentCustomer,
+        loginCustomer,
+        logoutCustomer,
+        recentNames,
+        recentAddresses,
+        recentPhones,
         lastAddedProduct,
         clearToast,
         isSubmittingOrder,

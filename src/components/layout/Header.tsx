@@ -6,14 +6,16 @@ import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
 import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
-import { ShoppingBag, Menu, X, PhoneCall, Search } from 'lucide-react';
+import { ShoppingBag, Menu, X, PhoneCall, Search, User } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
+import { CustomerPortalModal } from '@/components/cart/CustomerPortalModal';
 
 export const Header: React.FC = () => {
   const pathname = usePathname();
-  const { totalItems, setIsCartOpen } = useCart();
+  const { totalItems, setIsCartOpen, currentCustomer } = useCart();
   const { tenant } = useTenant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [customerPortalOpen, setCustomerPortalOpen] = useState(false);
 
   if (
     pathname === '/' ||
@@ -106,7 +108,19 @@ export const Header: React.FC = () => {
           </nav>
 
           {/* Right CTAs */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Customer Account Trigger */}
+            <button
+              onClick={() => setCustomerPortalOpen(true)}
+              className="p-2 sm:px-3 sm:py-2 rounded-full bg-[#181818] border border-[#2b2b2b] text-white hover:text-brand-yellow transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+              title={currentCustomer ? `Cuenta de ${currentCustomer.nombre}` : 'Mi Cuenta / Mis Pedidos'}
+            >
+              <User className="w-4 h-4" style={{ color: tenant?.colorPrimario || '#ffc928' }} />
+              <span className="hidden sm:inline">
+                {currentCustomer ? currentCustomer.nombre.split(' ')[0] : 'Mi Cuenta'}
+              </span>
+            </button>
+
             {/* Cart Trigger */}
             <button
               onClick={() => setIsCartOpen(true)}
@@ -184,7 +198,17 @@ export const Header: React.FC = () => {
               </Link>
             );
           })}
-          <div className="pt-2">
+          <div className="pt-2 space-y-2">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setCustomerPortalOpen(true);
+              }}
+              className="w-full py-2.5 px-3 rounded-lg text-xs font-bold text-gray-200 bg-[#1c1c1c] border border-[#2d2d2d] flex items-center justify-center gap-2 transition"
+            >
+              <User className="w-4 h-4 text-brand-yellow" style={{ color: tenant?.colorPrimario || '#ffc928' }} />
+              <span>{currentCustomer ? `Mi Cuenta (${currentCustomer.nombre})` : 'Iniciar Sesión / Registrarme'}</span>
+            </button>
             {(() => {
               const rawPhone = (tenant?.telefonoWhatsapp || restaurantInfo.whatsappNumber).replace(/\D/g, '');
               const cleanPhone = rawPhone.length === 10 ? `57${rawPhone}` : rawPhone;
@@ -210,6 +234,12 @@ export const Header: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Customer Portal Modal */}
+      <CustomerPortalModal
+        isOpen={customerPortalOpen}
+        onClose={() => setCustomerPortalOpen(false)}
+      />
     </header>
   );
 };

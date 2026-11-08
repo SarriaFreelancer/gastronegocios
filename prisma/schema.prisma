@@ -287,6 +287,8 @@ model Order {
   branchId      Int?
   branch        Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   sedeNombre    String?          // Snapshot nombre sede e.g. "Sede Granada"
+  customerId    Int?
+  customer      Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
   restaurantId  Int?
   restaurant    Restaurant?      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   createdAt     DateTime         @default(now())
@@ -301,6 +303,7 @@ model Order {
   @@index([tipo])
   @@index([estado])
   @@index([branchId])
+  @@index([customerId])
   @@index([restaurantId])
   @@map("orders")
 }
@@ -646,6 +649,7 @@ model Customer {
   documento     String?     // Cédula o NIT
   telefono      String?
   email         String?
+  password      String?     // Contraseña para inicio de sesión del cliente
   direccion     String?     @db.Text
   ciudad        String?     @default("Cali")
   barrio        String?
@@ -656,6 +660,7 @@ model Customer {
   activo        Boolean     @default(true)
   restaurantId  Int
   restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders        Order[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
