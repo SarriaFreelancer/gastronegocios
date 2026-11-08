@@ -28,6 +28,8 @@ export async function GET(req: Request) {
           horario: rest.horarioAtencion || '',
           costoDomicilioBase: rest.costoDomicilioBase || 5000,
           propinaSugeridaPct: rest.propinaSugeridaPct || 10,
+          aparienciaMenu: rest.aparienciaMenu || 'clasico',
+          aparienciaAdmin: rest.aparienciaAdmin || 'lateral',
         });
       }
     } else if (restaurantSlug) {
@@ -49,6 +51,8 @@ export async function GET(req: Request) {
           horario: rest.horarioAtencion || '',
           costoDomicilioBase: rest.costoDomicilioBase || 5000,
           propinaSugeridaPct: rest.propinaSugeridaPct || 10,
+          aparienciaMenu: rest.aparienciaMenu || 'clasico',
+          aparienciaAdmin: rest.aparienciaAdmin || 'lateral',
         });
       }
     }
@@ -97,6 +101,8 @@ export async function PUT(req: Request) {
           ...(body.horario !== undefined ? { horarioAtencion: body.horario } : {}),
           ...(body.costoDomicilioBase !== undefined ? { costoDomicilioBase: Number(body.costoDomicilioBase) } : {}),
           ...(body.propinaSugeridaPct !== undefined ? { propinaSugeridaPct: Number(body.propinaSugeridaPct) } : {}),
+          ...(body.aparienciaMenu !== undefined ? { aparienciaMenu: body.aparienciaMenu } : {}),
+          ...(body.aparienciaAdmin !== undefined ? { aparienciaAdmin: body.aparienciaAdmin } : {}),
         },
       });
       return NextResponse.json(updatedRest);

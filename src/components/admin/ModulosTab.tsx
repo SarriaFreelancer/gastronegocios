@@ -48,6 +48,7 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
   const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>({});
   const [settings, setSettings] = useState({
     aparienciaMenu: 'clasico',
+    aparienciaAdmin: 'lateral',
     politicaStockNegativo: 'BLOQUEAR',
     diasAnticipacionVencimiento: 7,
   });
@@ -67,6 +68,7 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
         if (data.settings) {
           setSettings({
             aparienciaMenu: data.settings.aparienciaMenu || 'clasico',
+            aparienciaAdmin: data.settings.aparienciaAdmin || 'lateral',
             politicaStockNegativo: data.settings.politicaStockNegativo || 'BLOQUEAR',
             diasAnticipacionVencimiento: data.settings.diasAnticipacionVencimiento || 7,
           });
@@ -129,6 +131,7 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
           restaurantId,
           enabledModules,
           aparienciaMenu: settings.aparienciaMenu,
+          aparienciaAdmin: settings.aparienciaAdmin,
           politicaStockNegativo: settings.politicaStockNegativo,
           diasAnticipacionVencimiento: Number(settings.diasAnticipacionVencimiento),
         }),
@@ -148,7 +151,11 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('punto-g:tenant-updated', {
-            detail: { restaurantId, aparienciaMenu: settings.aparienciaMenu },
+            detail: { 
+              restaurantId, 
+              aparienciaMenu: settings.aparienciaMenu,
+              aparienciaAdmin: settings.aparienciaAdmin,
+            },
           })
         );
       }
@@ -198,15 +205,15 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* Apariencia del Menú */}
           <div className="bg-[#181b26] p-4 rounded-2xl border border-slate-800 space-y-3">
             <div className="flex items-center space-x-2 text-orange-400 font-bold text-sm">
               <LayoutTemplate className="w-4 h-4" />
-              <span>Apariencia del Menú Digital</span>
+              <span>Apariencia Menú Digital</span>
             </div>
             <p className="text-xs text-slate-400">
-              Selecciona cómo se visualizará la carta interactiva de tu negocio.
+              Selecciona cómo se visualizará la carta interactiva a los comensales.
             </p>
             <div className="space-y-2">
               <label className="flex items-center space-x-3 p-3 rounded-xl border border-slate-700/60 bg-[#12141c] cursor-pointer hover:border-orange-500/50">
@@ -220,7 +227,7 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
                 />
                 <div>
                   <div className="font-bold text-xs text-white">Opción A — Menú Actual</div>
-                  <div className="text-[10px] text-slate-400">Diseño clásico con banner, categorías superiores y filtros</div>
+                  <div className="text-[10px] text-slate-400">Diseño clásico con banner y categorías superiores</div>
                 </div>
               </label>
 
@@ -235,7 +242,49 @@ export const ModulosTab: React.FC<ModulosTabProps> = ({ restaurantId, restaurant
                 />
                 <div>
                   <div className="font-bold text-xs text-white">Opción B — Menú Lateral</div>
-                  <div className="text-[10px] text-slate-400">Barra lateral con categorías fijas, scrollspy y layout moderno</div>
+                  <div className="text-[10px] text-slate-400">Barra lateral con categorías fijas y scroll fluido</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Apariencia de Módulos del Administrador */}
+          <div className="bg-[#181b26] p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex items-center space-x-2 text-amber-400 font-bold text-sm">
+              <LayoutTemplate className="w-4 h-4" />
+              <span>Módulos del Administrador</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Modo de navegación entre módulos (Caja, Pedidos, Recetas, etc.).
+            </p>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-3 p-3 rounded-xl border border-slate-700/60 bg-[#12141c] cursor-pointer hover:border-amber-500/50">
+                <input
+                  type="radio"
+                  name="aparienciaAdmin"
+                  value="lateral"
+                  checked={settings.aparienciaAdmin === 'lateral'}
+                  onChange={() => setSettings({ ...settings, aparienciaAdmin: 'lateral' })}
+                  className="text-amber-500 focus:ring-amber-500"
+                />
+                <div>
+                  <div className="font-bold text-xs text-white">Menú Lateral (Recomendado)</div>
+                  <div className="text-[10px] text-slate-400">Barra lateral con módulos agrupados y búsqueda</div>
+                </div>
+              </label>
+
+              <label className="flex items-center space-x-3 p-3 rounded-xl border border-slate-700/60 bg-[#12141c] cursor-pointer hover:border-amber-500/50">
+                <input
+                  type="radio"
+                  name="aparienciaAdmin"
+                  value="superior"
+                  checked={settings.aparienciaAdmin === 'superior'}
+                  onChange={() => setSettings({ ...settings, aparienciaAdmin: 'superior' })}
+                  className="text-amber-500 focus:ring-amber-500"
+                />
+                <div>
+                  <div className="font-bold text-xs text-white">Menú Superior Tradicional</div>
+                  <div className="text-[10px] text-slate-400">Pestañas horizontales superiores tradicionales</div>
                 </div>
               </label>
             </div>

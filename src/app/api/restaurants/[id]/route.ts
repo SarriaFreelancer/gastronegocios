@@ -94,6 +94,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.estiloTarjetas !== undefined) data.estiloTarjetas = body.estiloTarjetas;
     if (body.columnasMenu !== undefined) data.columnasMenu = Number(body.columnasMenu);
     if (body.aparienciaMenu !== undefined) data.aparienciaMenu = body.aparienciaMenu;
+    if (body.aparienciaAdmin !== undefined) data.aparienciaAdmin = body.aparienciaAdmin;
     if (body.politicaStockNegativo !== undefined) data.politicaStockNegativo = body.politicaStockNegativo;
     if (body.diasAnticipacionVencimiento !== undefined) data.diasAnticipacionVencimiento = Number(body.diasAnticipacionVencimiento);
     if (body.modulosHabilitados !== undefined) data.modulosHabilitados = typeof body.modulosHabilitados === 'string' ? body.modulosHabilitados : JSON.stringify(body.modulosHabilitados);

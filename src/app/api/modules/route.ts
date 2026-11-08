@@ -30,6 +30,7 @@ export async function GET(req: Request) {
         nombre: true,
         modulosHabilitados: true,
         aparienciaMenu: true,
+        aparienciaAdmin: true,
         politicaStockNegativo: true,
         diasAnticipacionVencimiento: true,
       },
@@ -51,6 +52,7 @@ export async function GET(req: Request) {
       enabledModules: currentModules,
       settings: {
         aparienciaMenu: restaurant.aparienciaMenu || 'clasico',
+        aparienciaAdmin: restaurant.aparienciaAdmin || 'lateral',
         politicaStockNegativo: restaurant.politicaStockNegativo || 'BLOQUEAR',
         diasAnticipacionVencimiento: restaurant.diasAnticipacionVencimiento || 7,
       },
@@ -68,6 +70,7 @@ export async function POST(req: Request) {
       restaurantId,
       enabledModules,
       aparienciaMenu,
+      aparienciaAdmin,
       politicaStockNegativo,
       diasAnticipacionVencimiento,
     } = body;
@@ -118,6 +121,7 @@ export async function POST(req: Request) {
       data: {
         modulosHabilitados: JSON.stringify(newEnabledState),
         aparienciaMenu: aparienciaMenu !== undefined ? aparienciaMenu : undefined,
+        aparienciaAdmin: aparienciaAdmin !== undefined ? aparienciaAdmin : undefined,
         politicaStockNegativo: politicaStockNegativo !== undefined ? politicaStockNegativo : undefined,
         diasAnticipacionVencimiento:
           diasAnticipacionVencimiento !== undefined ? Number(diasAnticipacionVencimiento) : undefined,
@@ -129,6 +133,7 @@ export async function POST(req: Request) {
       enabledModules: newEnabledState,
       settings: {
         aparienciaMenu: updated.aparienciaMenu,
+        aparienciaAdmin: updated.aparienciaAdmin,
         politicaStockNegativo: updated.politicaStockNegativo,
         diasAnticipacionVencimiento: updated.diasAnticipacionVencimiento,
       },

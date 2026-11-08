@@ -49,9 +49,10 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
     ciudad: 'Cali',
     horarioAtencion: '',
 
-    // Plantilla
+    // Plantilla y Modos de Navegación
     plantilla: 'plantilla-actual',
     aparienciaMenu: 'clasico',
+    aparienciaAdmin: 'lateral',
 
     // Design Tokens - Colores
     colorPrimario: '#ffc928',
@@ -110,6 +111,7 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
 
         plantilla: restaurant.plantilla || 'plantilla-actual',
         aparienciaMenu: restaurant.aparienciaMenu || 'clasico',
+        aparienciaAdmin: restaurant.aparienciaAdmin || 'lateral',
 
         colorPrimario: restaurant.colorPrimario || '#ffc928',
         colorSecundario: restaurant.colorSecundario || '#E94B24',
@@ -173,6 +175,7 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
                 restaurantId: restaurant.id,
                 slug: updated.slug,
                 aparienciaMenu: updated.aparienciaMenu,
+                aparienciaAdmin: updated.aparienciaAdmin,
               },
             })
           );
@@ -666,6 +669,59 @@ export function PersonalizacionTab({ restaurant, onUpdate }: PersonalizacionTabP
                 </div>
                 <p className="text-xs text-gray-400">
                   Barra lateral con categorías fijas en escritorio, barra chip en móviles, fotos completas y navegación por secciones.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Selector de Apariencia de Módulos del Administrador */}
+          <div className="pt-6 border-t border-[#222] space-y-4">
+            <div>
+              <h4 className="text-sm font-black uppercase text-white font-display flex items-center gap-2">
+                <Layout className="w-4 h-4 text-brand-yellow" />
+                <span>Apariencia de Módulos del Administrador (Navegación ERP)</span>
+              </h4>
+              <p className="text-xs text-gray-400 mt-1">
+                Elige cómo navegar entre los módulos del panel de administración (Caja, Pedidos, Recetas, Facturas, Insumos, etc.).
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                onClick={() => setFormData({ ...formData, aparienciaAdmin: 'lateral' })}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all space-y-2 ${
+                  formData.aparienciaAdmin === 'lateral'
+                    ? 'border-brand-yellow bg-brand-yellow/10 shadow-glow'
+                    : 'border-[#262626] bg-[#161616] hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-sm text-white">Menú Lateral (Recomendado)</span>
+                  {formData.aparienciaAdmin === 'lateral' && (
+                    <span className="bg-brand-yellow text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Activo</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Barra lateral con módulos agrupados en áreas (Métricas, Operación, Menú, Inventario, Configuración), buscador rápido y badges en tiempo real.
+                </p>
+              </div>
+
+              <div
+                onClick={() => setFormData({ ...formData, aparienciaAdmin: 'superior' })}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all space-y-2 ${
+                  formData.aparienciaAdmin === 'superior'
+                    ? 'border-brand-yellow bg-brand-yellow/10 shadow-glow'
+                    : 'border-[#262626] bg-[#161616] hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-sm text-white">Menú Superior Tradicional</span>
+                  {formData.aparienciaAdmin === 'superior' && (
+                    <span className="bg-brand-yellow text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Activo</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Barra horizontal superior tradicional con scroll de todas las pestañas de módulos.
                 </p>
               </div>
             </div>

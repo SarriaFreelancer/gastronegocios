@@ -58,6 +58,7 @@ export interface TenantData {
   estiloTarjetas?: string | null;
   columnasMenu?: number;
   aparienciaMenu?: string | null;
+  aparienciaAdmin?: string | null;
   politicaStockNegativo?: string | null;
 
   // Contact info
@@ -146,6 +147,7 @@ const defaultTenantPuntoG: TenantData = {
   mostrarResenas: true,
   mostrarHorarios: true,
   aparienciaMenu: 'clasico',
+  aparienciaAdmin: 'lateral',
   politicaStockNegativo: 'BLOQUEAR',
   telefonoWhatsapp: '3229088736',
   direccionCentral: 'Calle 9 # 45-12, Granada, Cali',

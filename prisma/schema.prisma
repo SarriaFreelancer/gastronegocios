@@ -60,6 +60,7 @@ model Restaurant {
   estiloTarjetas     String            @default("card-glass") // "card-glass", "card-solid", "card-bordered"
   columnasMenu       Int               @default(3) // 2, 3, 4
   aparienciaMenu     String            @default("clasico") // "clasico" (Opción A: Actual), "lateral" (Opción B: Menú lateral con barra de categorías)
+  aparienciaAdmin    String            @default("lateral") // "superior" (Barra horizontal arriba), "lateral" (Barra lateral moderna con módulos colapsables)
 
   // Políticas de Inventario y Módulos
   politicaStockNegativo String          @default("BLOQUEAR") // "BLOQUEAR", "PERMITIR_NEGATIVO"

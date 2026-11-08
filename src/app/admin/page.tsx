@@ -16,6 +16,7 @@ import { ModulosTab } from '@/components/admin/ModulosTab';
 import { UsuariosRolesTab } from '@/components/admin/UsuariosRolesTab';
 import { ImportacionTab } from '@/components/admin/ImportacionTab';
 import { DashboardEjecutivoTab } from '@/components/admin/DashboardEjecutivoTab';
+import { AdminSidebar, AdminTabItem } from '@/components/admin/AdminSidebar';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 import { Boxes, BookOpenCheck, Truck } from 'lucide-react';
 import { 
@@ -80,6 +81,8 @@ import {
   Building2,
   Store,
   BellRing,
+  SlidersHorizontal,
+  Menu as MenuIcon,
   X
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
@@ -505,7 +508,9 @@ export default function AdminPage() {
     costoDomicilioBase: 5000,
     propinaSugeridaPct: 10,
     aparienciaMenu: 'clasico',
+    aparienciaAdmin: 'lateral',
   });
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [savedSettings, setSavedSettings] = useState(false);
 
   // ==================== 8. CAJA & TURNOS STATE ====================
@@ -934,6 +939,7 @@ export default function AdminPage() {
             ...prev,
             ...data,
             aparienciaMenu: activeRestaurant?.aparienciaMenu || data.aparienciaMenu || prev.aparienciaMenu || 'clasico',
+            aparienciaAdmin: activeRestaurant?.aparienciaAdmin || data.aparienciaAdmin || prev.aparienciaAdmin || 'lateral',
             telefonoWhatsapp: activeRestaurant?.telefonoWhatsapp || data.telefonoWhatsapp || prev.telefonoWhatsapp,
             mensajeWhatsappDefault: activeRestaurant?.mensajeWhatsappDefault || data.mensajeWhatsappDefault || prev.mensajeWhatsappDefault,
             email: activeRestaurant?.email || data.email || prev.email,
@@ -1759,6 +1765,54 @@ export default function AdminPage() {
     }
   };
 
+  // Switch and persist admin appearance mode (lateral / superior)
+  const setAparienciaAdminMode = async (mode: 'lateral' | 'superior') => {
+    setConfig((prev) => ({ ...prev, aparienciaAdmin: mode }));
+    if (activeRestaurant?.id) {
+      try {
+        const restRes = await fetch(`/api/restaurants/${activeRestaurant.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aparienciaAdmin: mode }),
+        });
+        if (restRes.ok) {
+          const updatedRest = await restRes.json();
+          setActiveRestaurant(updatedRest);
+          localStorage.setItem('punto_g_active_restaurant', JSON.stringify(updatedRest));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('punto-g:tenant-updated', {
+                detail: {
+                  restaurantId: activeRestaurant.id,
+                  slug: updatedRest.slug,
+                  aparienciaAdmin: mode,
+                },
+              })
+            );
+          }
+        }
+      } catch (e) {
+        console.error('Error toggling aparienciaAdmin:', e);
+      }
+    }
+  };
+
+  // Escuchar actualizaciones de apariencia de menú o admin en tiempo real
+  useEffect(() => {
+    const handleTenantUpdate = (e: any) => {
+      if (e.detail?.aparienciaAdmin) {
+        setConfig((prev) => ({ ...prev, aparienciaAdmin: e.detail.aparienciaAdmin }));
+      }
+      if (e.detail?.aparienciaMenu) {
+        setConfig((prev) => ({ ...prev, aparienciaMenu: e.detail.aparienciaMenu }));
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punto-g:tenant-updated', handleTenantUpdate);
+      return () => window.removeEventListener('punto-g:tenant-updated', handleTenantUpdate);
+    }
+  }, []);
+
   // Save Settings
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1785,6 +1839,7 @@ export default function AdminPage() {
             costoDomicilioBase: Number(config.costoDomicilioBase),
             propinaSugeridaPct: Number(config.propinaSugeridaPct),
             aparienciaMenu: config.aparienciaMenu,
+            aparienciaAdmin: config.aparienciaAdmin || 'lateral',
           }),
         });
         if (restRes.ok) {
@@ -1798,6 +1853,7 @@ export default function AdminPage() {
                   restaurantId: activeRestaurant.id,
                   slug: updatedRest.slug,
                   aparienciaMenu: config.aparienciaMenu,
+                  aparienciaAdmin: config.aparienciaAdmin || 'lateral',
                 },
               })
             );
@@ -2108,7 +2164,7 @@ export default function AdminPage() {
   // ==================== DASHBOARD VIEW ====================
   return (
     <div className="min-h-screen bg-[#080808] text-white pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* Header Bar */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[#111111] border border-[#242424] rounded-2xl p-4 sm:p-6 shadow-xl">
@@ -2176,6 +2232,17 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+
+            {/* Selector rápido de apariencia de módulos (Lateral / Superior) */}
+            <button
+              type="button"
+              onClick={() => setAparienciaAdminMode((config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? 'superior' : 'lateral')}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#1c1c1c] hover:bg-[#252525] text-gray-300 hover:text-white border border-[#2e2e2e] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer"
+              title={(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? 'Cambiar a Menú Superior tradicional' : 'Cambiar a Menú Lateral moderno'}
+            >
+              <SlidersHorizontal className="w-4 h-4 text-brand-yellow" />
+              <span>{(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? 'Menú Lateral ◨' : 'Menú Superior ☷'}</span>
+            </button>
 
             <Link
               href={activeRestaurant?.slug ? `/r/${activeRestaurant.slug}/menu` : '/menu'}
@@ -2270,79 +2337,127 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Navigation Tabs */}
-        {(() => {
-          const isMesero = currentUser?.rol === 'Mesero';
-          const allTabs = [
-            { id: 'dashboard_ejecutivo', label: '📊 Dashboard Ejecutivo', icon: TrendingUp, badge: 'KPIs' },
-            { id: 'pedidos', label: 'Pedidos & Comandas', icon: ShoppingBag, count: orders.length },
-            { id: 'inventario', label: 'Insumos & Kardex', icon: Boxes, badge: 'Smart' },
-            { id: 'recetas', label: 'Recetas & Costeo', icon: BookOpenCheck, badge: 'BOM' },
-            { id: 'compras', label: 'Compras & Proveedores', icon: Truck },
-            { id: 'clientes', label: 'Clientes & Fidelización', icon: Users },
-            { id: 'modulos', label: 'Gestión de Módulos', icon: Settings, badge: 'Tenant' },
-            { id: 'roles', label: 'Roles & Permisos', icon: ShieldCheck },
-            { id: 'importacion', label: 'Importación Masiva', icon: FileSpreadsheet, badge: 'Excel' },
-            { id: 'facturas', label: 'Facturación', icon: Receipt, badge: 'POS' },
-            { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF' },
-            { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴' },
-            { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length },
-            { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length },
-            { id: 'categorias', label: 'Categorías Principales', icon: Layers, count: categoryList.filter(c => !c.parentId).length },
-            { id: 'subcategorias', label: 'Subcategorías', icon: FolderTree, count: categoryList.filter(c => !!c.parentId).length },
-            { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length },
-            { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length },
-            { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length },
-            { id: 'sedes', label: 'Sedes / Sucursales', icon: Building2, count: branches.length },
-            { id: 'personalizacion', label: 'Personalización & Plantillas', icon: Palette, badge: 'White-Label' },
-            { id: 'seo', label: 'SEO & Google', icon: Globe, badge: 'Indexación' },
-            { id: 'configuracion', label: 'Configuración Operativa', icon: Settings },
-          ];
+        {/* Disposición Principal: Menú Lateral (2 columnas) o Menú Superior (1 columna) */}
+        <div className={(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? "flex flex-col lg:flex-row items-start gap-6" : "space-y-6"}>
+          {(() => {
+            const isMesero = currentUser?.rol === 'Mesero';
+            const allTabs: AdminTabItem[] = [
+              { id: 'dashboard_ejecutivo', label: '📊 Dashboard Ejecutivo', icon: TrendingUp, badge: 'KPIs', category: 'metricas' },
+              { id: 'pedidos', label: 'Pedidos & Comandas', icon: ShoppingBag, count: orders.length, category: 'operacion' },
+              { id: 'inventario', label: 'Insumos & Kardex', icon: Boxes, badge: 'Smart', category: 'inventario' },
+              { id: 'recetas', label: 'Recetas & Costeo', icon: BookOpenCheck, badge: 'BOM', category: 'inventario' },
+              { id: 'compras', label: 'Compras & Proveedores', icon: Truck, category: 'inventario' },
+              { id: 'clientes', label: 'Clientes & Fidelización', icon: Users, category: 'inventario' },
+              { id: 'modulos', label: 'Gestión de Módulos', icon: Settings, badge: 'Tenant', category: 'configuracion' },
+              { id: 'roles', label: 'Roles & Permisos', icon: ShieldCheck, category: 'configuracion' },
+              { id: 'importacion', label: 'Importación Masiva', icon: FileSpreadsheet, badge: 'Excel', category: 'inventario' },
+              { id: 'facturas', label: 'Facturación', icon: Receipt, badge: 'POS', category: 'operacion' },
+              { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF', category: 'metricas' },
+              { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴', category: 'operacion' },
+              { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length, category: 'menu' },
+              { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length, category: 'operacion' },
+              { id: 'categorias', label: 'Categorías Principales', icon: Layers, count: categoryList.filter(c => !c.parentId).length, category: 'menu' },
+              { id: 'subcategorias', label: 'Subcategorías', icon: FolderTree, count: categoryList.filter(c => !!c.parentId).length, category: 'menu' },
+              { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length, category: 'menu' },
+              { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length, category: 'menu' },
+              { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length, category: 'configuracion' },
+              { id: 'sedes', label: 'Sedes / Sucursales', icon: Building2, count: branches.length, category: 'configuracion' },
+              { id: 'personalizacion', label: 'Personalización & Plantillas', icon: Palette, badge: 'White-Label', category: 'configuracion' },
+              { id: 'seo', label: 'SEO & Google', icon: Globe, badge: 'Indexación', category: 'configuracion' },
+              { id: 'configuracion', label: 'Configuración Operativa', icon: Settings, category: 'configuracion' },
+            ];
 
-          const allowedForMesero = ['mesas', 'productos', 'toppings'];
-          const visibleTabs = isMesero
-            ? allTabs.filter((t) => allowedForMesero.includes(t.id))
-            : allTabs;
+            const allowedForMesero = ['mesas', 'productos', 'toppings'];
+            const visibleTabs = isMesero
+              ? allTabs.filter((t) => allowedForMesero.includes(t.id))
+              : allTabs;
 
-          return (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
-              {visibleTabs.map((tab: any) => {
-                const Icon = tab.icon;
-                const active = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
-                      active
-                        ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow font-black'
-                        : 'bg-[#121212] text-gray-400 border-[#222222] hover:text-white hover:bg-[#181818]'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                    {tab.badge && (
-                      <span className="text-[10px] ml-0.5">{tab.badge}</span>
-                    )}
-                    {tab.count !== undefined && (
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                          active ? 'bg-black text-brand-yellow' : 'bg-[#222] text-gray-300'
-                        }`}
-                      >
-                        {tab.count}
+            const isLateral = (config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral';
+
+            if (isLateral) {
+              return (
+                <>
+                  {/* Barra Lateral de Módulos (Desktop) & Drawer (Móvil) */}
+                  <AdminSidebar
+                    tabs={visibleTabs}
+                    activeTab={activeTab}
+                    onSelectTab={(tabId) => setActiveTab(tabId as any)}
+                    aparienciaAdmin="lateral"
+                    onToggleApariencia={setAparienciaAdminMode}
+                    restaurantName={activeRestaurant?.nombre}
+                    activeBranchName={selectedBranchId !== 'all' ? branches.find((b) => String(b.id) === selectedBranchId)?.nombre : undefined}
+                    isOpenMobile={isMobileDrawerOpen}
+                    onCloseMobile={() => setIsMobileDrawerOpen(false)}
+                  />
+
+                  {/* Barra Superior Móvil con Botón para Abrir Drawer */}
+                  <div className="lg:hidden w-full flex items-center justify-between p-3.5 bg-[#141414] border border-[#262626] rounded-2xl shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => setIsMobileDrawerOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-brand-yellow text-black font-black flex items-center gap-2 text-xs shadow-glow cursor-pointer"
+                    >
+                      <MenuIcon className="w-4 h-4" />
+                      <span>Módulos ({visibleTabs.length})</span>
+                    </button>
+                    <div className="text-right">
+                      <span className="text-[10px] text-gray-400 block uppercase font-bold">Módulo Activo</span>
+                      <span className="text-xs font-black text-brand-yellow truncate block max-w-[170px]">
+                        {visibleTabs.find((t) => t.id === activeTab)?.label}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })()}
+                    </div>
+                  </div>
+                </>
+              );
+            }
 
-        {/* ======================================================== */}
-        {/* TAB 1: PEDIDOS CON FILTROS DE FECHAS, PROPINAS Y MESAS */}
-        {/* ======================================================== */}
+            /* Modo Tradicional: Barra Horizontal Superior */
+            return (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#222] scrollbar-none">
+                {visibleTabs.map((tab: any) => {
+                  const Icon = tab.icon;
+                  const active = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id as any)}
+                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap border ${
+                        active
+                          ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow font-black'
+                          : 'bg-[#121212] text-gray-400 border-[#222222] hover:text-white hover:bg-[#181818]'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                      {tab.badge && (
+                        <span className="text-[10px] ml-0.5">{tab.badge}</span>
+                      )}
+                      {tab.count !== undefined && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                            active ? 'bg-black text-brand-yellow' : 'bg-[#222] text-gray-300'
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setAparienciaAdminMode('lateral')}
+                  className="ml-auto text-[11px] font-black text-brand-yellow hover:text-white px-3 py-2 bg-[#181818] hover:bg-[#222] rounded-xl border border-[#2e2e2e] transition whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0"
+                  title="Cambiar a menú lateral moderno"
+                >
+                  <span>Activar Menú Lateral ➔</span>
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Área Principal de Contenido del Módulo */}
+          <div className={(config.aparienciaAdmin || activeRestaurant?.aparienciaAdmin || 'lateral') === 'lateral' ? "flex-1 min-w-0 w-full space-y-6" : "w-full space-y-6"}>
         {activeTab === 'pedidos' && (
           <div className="space-y-6">
             
@@ -6251,6 +6366,75 @@ export default function AdminPage() {
                 </div>
               </div>
 
+                {/* 5. APARIENCIA DE MÓDULOS DEL ADMINISTRADOR */}
+                <div className="pt-6 border-t border-[#222] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-white font-bold text-sm uppercase">
+                      <Layout className="w-4 h-4 text-brand-yellow" />
+                      <span>5. APARIENCIA DE MÓDULOS DEL ADMINISTRADOR</span>
+                    </div>
+                    <span className="text-[10px] text-brand-yellow font-bold uppercase">Navegación ERP</span>
+                  </div>
+
+                  <p className="text-xs text-gray-400">
+                    Selecciona cómo deseas navegar entre los módulos del panel administrativo de tu restaurante (Caja, Pedidos, Recetas, Facturación, Insumos, etc.).
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label
+                      className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        (config.aparienciaAdmin || 'lateral') === 'lateral'
+                          ? 'bg-brand-yellow/10 border-brand-yellow text-white shadow-glow'
+                          : 'bg-[#121212] border-[#2a2a2a] text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="aparienciaAdminRadio"
+                        value="lateral"
+                        checked={(config.aparienciaAdmin || 'lateral') === 'lateral'}
+                        onChange={() => setConfig({ ...config, aparienciaAdmin: 'lateral' })}
+                        className="mt-1 text-brand-yellow focus:ring-brand-yellow"
+                      />
+                      <div className="space-y-1">
+                        <div className="font-black text-sm text-white">Opción Lateral (Recomendado)</div>
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                          Barra lateral con módulos agrupados en áreas (Métricas, Operación, Menú, Inventario, Configuración), buscador en tiempo real, badges de estado y modo compacto/expandido.
+                        </p>
+                        <span className="inline-block mt-1 text-[10px] font-bold text-brand-yellow uppercase">
+                          Experiencia Moderna SaaS
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                        config.aparienciaAdmin === 'superior'
+                          ? 'bg-brand-yellow/10 border-brand-yellow text-white shadow-glow'
+                          : 'bg-[#121212] border-[#2a2a2a] text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="aparienciaAdminRadio"
+                        value="superior"
+                        checked={config.aparienciaAdmin === 'superior'}
+                        onChange={() => setConfig({ ...config, aparienciaAdmin: 'superior' })}
+                        className="mt-1 text-brand-yellow focus:ring-brand-yellow"
+                      />
+                      <div className="space-y-1">
+                        <div className="font-black text-sm text-white">Opción Superior Tradicional</div>
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                          Barra horizontal superior tradicional con scroll de todas las pestañas de módulos.
+                        </p>
+                        <span className="inline-block mt-1 text-[10px] font-bold text-gray-400 uppercase">
+                          Vista Clásica
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
               <button
                 type="submit"
                 className="w-full py-4 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-2xl shadow-glow transition-all flex items-center justify-center gap-2 hover:scale-[1.01]"
@@ -6397,6 +6581,9 @@ export default function AdminPage() {
             restaurantName={activeRestaurant?.nombre || 'Restaurante'}
           />
         )}
+
+          </div>
+        </div>
 
       </div>
 
