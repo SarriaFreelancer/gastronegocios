@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
+import { ProductCustomizerModal } from '@/components/menu/ProductCustomizerModal';
 import { 
   Search, 
   Plus, 
@@ -17,7 +18,8 @@ import {
   UtensilsCrossed,
   Clock,
   Info,
-  ChevronDown
+  ChevronDown,
+  SlidersHorizontal
 } from 'lucide-react';
 
 interface SidebarMenuProps {
@@ -43,6 +45,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [addedItemNotice, setAddedItemNotice] = useState<string | null>(null);
+  const [customizerProduct, setCustomizerProduct] = useState<any | null>(null);
 
   // Group active root categories (parentId == null)
   const rootCategories = useMemo(
@@ -472,25 +475,37 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
                                 )}
                               </div>
 
-                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/60">
+                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/60 gap-2">
                                 <span className="font-extrabold text-sm sm:text-base text-white font-mono">
                                   ${price.toLocaleString('es-CO')}
                                 </span>
 
-                                {/* Add to Cart Action */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddToCart(prod)}
-                                  className="flex items-center space-x-1.5 bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition-all shadow-md active:scale-95"
-                                >
-                                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                                  <span>Agregar</span>
-                                  {cartQty > 0 && (
-                                    <span className="ml-1 w-4 h-4 rounded-full bg-slate-950 text-orange-400 text-[10px] font-black flex items-center justify-center">
-                                      {cartQty}
-                                    </span>
-                                  )}
-                                </button>
+                                {/* Action Buttons: Toppings & Agregar */}
+                                <div className="flex items-center space-x-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCustomizerProduct(prod)}
+                                    className="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-orange-500/60 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                                    title="Personalizar toppings, adiciones y salsas"
+                                  >
+                                    <SlidersHorizontal className="w-3.5 h-3.5 text-orange-400" />
+                                    <span className="hidden sm:inline">Toppings</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddToCart(prod)}
+                                    className="flex items-center space-x-1.5 bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs transition-all shadow-md active:scale-95"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                                    <span>Agregar</span>
+                                    {cartQty > 0 && (
+                                      <span className="ml-1 w-4 h-4 rounded-full bg-slate-950 text-orange-400 text-[10px] font-black flex items-center justify-center">
+                                        {cartQty}
+                                      </span>
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -504,6 +519,15 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
           </main>
         </div>
       </div>
+
+      {/* Modal para elegir Toppings, Adiciones y Salsas */}
+      {customizerProduct && (
+        <ProductCustomizerModal
+          isOpen={Boolean(customizerProduct)}
+          onClose={() => setCustomizerProduct(null)}
+          product={customizerProduct}
+        />
+      )}
     </div>
   );
 };
