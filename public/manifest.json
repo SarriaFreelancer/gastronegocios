@@ -1,12 +1,36 @@
 {
   "name": "GastroNegocios - Software Gastronómico & POS",
   "short_name": "GastroPOS",
-  "description": "Sistema operativo y comandas táctiles para restaurantes, cocinas y meseros.",
+  "description": "Sistema operativo y comandas táctiles para restaurantes, cocinas y meseros. Funciona 100% con o sin conexión a internet.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#080808",
   "theme_color": "#080808",
+  "shortcuts": [
+    {
+      "name": "Comandera Mesero",
+      "short_name": "Mesero",
+      "description": "Tomar pedidos y comandas en mesas",
+      "url": "/mesero",
+      "icons": [{ "src": "/favicon.ico", "sizes": "64x64" }]
+    },
+    {
+      "name": "Pantalla de Cocina (KDS)",
+      "short_name": "Cocina",
+      "description": "Preparación y despacho de pedidos",
+      "url": "/cocina",
+      "icons": [{ "src": "/favicon.ico", "sizes": "64x64" }]
+    },
+    {
+      "name": "Turnero de Pedidos",
+      "short_name": "Turnero",
+      "description": "Pantalla de clientes y pedidos listos",
+      "url": "/turnero",
+      "icons": [{ "src": "/favicon.ico", "sizes": "64x64" }]
+    }
+  ],
   "icons": [
     {
       "src": "/favicon.ico",

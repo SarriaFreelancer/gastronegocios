@@ -208,3 +208,125 @@ export function exportShiftClosureToPdf(
   const cleanRest = restaurantName.replace(/[^a-zA-Z0-9_-]/g, '_');
   doc.save(`Cierre_Caja_${cleanRest}_Turno_${shift.id || 'Caja'}.pdf`);
 }
+
+export function exportShiftClosureToExcel(shift: any, restaurantName: string = 'Restaurante') {
+  if (!shift) return;
+
+  const baseInicial = shift.baseInicial || 0;
+  const ventasEfectivo = shift.ventasEfectivo || 0;
+  const ventasTransfer = shift.ventasTransfer || shift.ventasTransferencia || shift.ventasDigitales || 0;
+  const ventasDatafono = shift.ventasDatafono || shift.ventasTarjetas || 0;
+  const propinas = shift.propinasTotal || shift.totalPropinas || 0;
+  const totalEgresos = shift.totalEgresos || shift.totalGastos || (shift.egresos ? shift.egresos.reduce((s: number, e: any) => s + (e.monto || 0), 0) : 0);
+  const totalVentas = shift.totalVentas || (ventasEfectivo + ventasTransfer + ventasDatafono);
+  const totalEsperado = shift.totalEfectivoEsperado || (baseInicial + ventasEfectivo - totalEgresos);
+  const efectivoReal = shift.efectivoReal !== undefined && shift.efectivoReal !== null ? shift.efectivoReal : totalEsperado;
+  const diferencia = shift.diferencia !== undefined && shift.diferencia !== null ? shift.diferencia : (efectivoReal - totalEsperado);
+
+  const fechaInicio = shift.createdAt ? new Date(shift.createdAt).toLocaleString('es-CO') : 'N/A';
+  const fechaFin = shift.cerradoEn ? new Date(shift.cerradoEn).toLocaleString('es-CO') : 'En curso';
+
+  // 1. Resumen General del Turno
+  const summaryRows = [
+    { 'Concepto Contable': 'Restaurante / Empresa', 'Valor': restaurantName },
+    { 'Concepto Contable': 'Identificador de Turno', 'Valor': `#${shift.id || 'N/A'}` },
+    { 'Concepto Contable': 'Cajero Responsable', 'Valor': shift.cajero || 'Admin' },
+    { 'Concepto Contable': 'Fecha y Hora Apertura', 'Valor': fechaInicio },
+    { 'Concepto Contable': 'Fecha y Hora Cierre', 'Valor': fechaFin },
+    { 'Concepto Contable': 'Estado del Turno', 'Valor': (shift.estado || 'Abierto').toUpperCase() },
+    { 'Concepto Contable': '---', 'Valor': '---' },
+    { 'Concepto Contable': '(+) Base Inicial de Caja en Efectivo', 'Valor': baseInicial },
+    { 'Concepto Contable': '(+) Ventas Cobradas en Efectivo', 'Valor': ventasEfectivo },
+    { 'Concepto Contable': '(+) Ventas Digitales (Nequi / Daviplata / Bancolombia)', 'Valor': ventasTransfer },
+    { 'Concepto Contable': '(+) Ventas Datáfono / Tarjetas', 'Valor': ventasDatafono },
+    { 'Concepto Contable': '(+) Propinas Voluntarias Recaudadas', 'Valor': propinas },
+    { 'Concepto Contable': '(=) TOTAL VENTAS DEL TURNO', 'Valor': totalVentas },
+    { 'Concepto Contable': '(-) Salidas de Caja / Egresos Operativos', 'Valor': -totalEgresos },
+    { 'Concepto Contable': '---', 'Valor': '---' },
+    { 'Concepto Contable': '(=) TOTAL EFECTIVO ESPERADO EN GAVETA', 'Valor': totalEsperado },
+    { 'Concepto Contable': '(=) EFECTIVO REAL DECLARADO EN ARQUEO', 'Valor': efectivoReal },
+    { 
+      'Concepto Contable': diferencia === 0 ? 'ESTADO: CUADRADO EXACTO' : diferencia > 0 ? 'ESTADO: SOBRANTE EN CAJA' : 'ESTADO: FALTANTE EN CAJA',
+      'Valor': diferencia 
+    },
+    { 'Concepto Contable': 'Observaciones / Notas de Cierre', 'Valor': shift.notas || 'Sin notas registradas' },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{ wch: 45 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Arqueo de Caja');
+
+  // 2. Detalle de Egresos si existen
+  if (shift.egresos && shift.egresos.length > 0) {
+    const expensesRows = shift.egresos.map((e: any) => ({
+      ID: e.id,
+      Hora: e.createdAt ? new Date(e.createdAt).toLocaleTimeString('es-CO') : 'N/A',
+      Descripción: e.descripcion,
+      Categoría: e.categoria || 'Insumos',
+      'Registrado Por': e.creadoPor || 'Admin',
+      'Monto ($)': e.monto,
+    }));
+    const wsExpenses = XLSX.utils.json_to_sheet(expensesRows);
+    wsExpenses['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsExpenses, 'Egresos de Turno');
+  }
+
+  const cleanRest = restaurantName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  XLSX.writeFile(wb, `Cierre_Caja_${cleanRest}_Turno_${shift.id || 'Actual'}.xlsx`);
+}
+
+export function exportShiftHistoryToExcel(shifts: any[], restaurantName: string = 'Restaurante') {
+  if (!shifts || shifts.length === 0) {
+    alert('No hay historial de turnos para exportar.');
+    return;
+  }
+
+  const rows = shifts.map((s) => {
+    const base = s.baseInicial || 0;
+    const efec = s.ventasEfectivo || 0;
+    const trans = s.ventasTransfer || s.ventasTransferencia || 0;
+    const dataf = s.ventasDatafono || 0;
+    const prop = s.propinasTotal || 0;
+    const egresos = s.totalEgresos || (s.egresos ? s.egresos.reduce((acc: number, e: any) => acc + (e.monto || 0), 0) : 0);
+    const totalVentas = s.totalVentas || (efec + trans + dataf);
+    const esperado = s.totalEfectivoEsperado || (base + efec - egresos);
+    const real = s.efectivoReal !== null && s.efectivoReal !== undefined ? s.efectivoReal : esperado;
+    const dif = s.diferencia !== null && s.diferencia !== undefined ? s.diferencia : (real - esperado);
+
+    return {
+      'Turno #': s.id,
+      'Cajero': s.cajero || 'Admin',
+      'Sede': s.branch?.nombre || 'Principal',
+      'Apertura': s.createdAt ? new Date(s.createdAt).toLocaleString('es-CO') : 'N/A',
+      'Cierre': s.cerradoEn ? new Date(s.cerradoEn).toLocaleString('es-CO') : 'Abierto',
+      'Estado': s.estado || 'Cerrado',
+      'Base Inicial ($)': base,
+      'Ventas Efectivo ($)': efec,
+      'Ventas Nequi/Daviplata ($)': trans,
+      'Ventas Datáfono ($)': dataf,
+      'Propinas ($)': prop,
+      'Total Egresos ($)': egresos,
+      'Total Ventas ($)': totalVentas,
+      'Efectivo Esperado ($)': esperado,
+      'Efectivo Real ($)': real,
+      'Diferencia ($)': dif,
+      'Resultado': dif === 0 ? 'Exacto' : dif > 0 ? `Sobrante (+${dif})` : `Faltante (${dif})`,
+      'Notas': s.notas || '',
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 10 }, { wch: 15 }, { wch: 18 }, { wch: 20 }, { wch: 20 },
+    { wch: 12 }, { wch: 15 }, { wch: 18 }, { wch: 22 }, { wch: 18 },
+    { wch: 14 }, { wch: 15 }, { wch: 18 }, { wch: 20 }, { wch: 18 },
+    { wch: 15 }, { wch: 18 }, { wch: 30 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Historial de Cajas');
+
+  const cleanRest = restaurantName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  XLSX.writeFile(wb, `Historial_Cajas_${cleanRest}_${new Date().toISOString().split('T')[0]}.xlsx`);
+}

@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Printer, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Printer, X, MessageCircle, FileText, ChefHat, Check } from 'lucide-react';
 
 interface ReceiptItem {
   nombre: string;
@@ -9,6 +9,14 @@ interface ReceiptItem {
   cantidad: number;
   notas?: string | null;
   adicionales?: string | null;
+}
+
+interface RestaurantReceiptInfo {
+  nombre?: string;
+  eslogan?: string;
+  direccion?: string;
+  telefono?: string;
+  slug?: string;
 }
 
 interface ThermalReceiptProps {
@@ -33,18 +41,28 @@ interface ThermalReceiptProps {
     items: ReceiptItem[];
   } | null;
   ticketType?: 'factura' | 'comanda';
+  restaurantInfo?: RestaurantReceiptInfo;
 }
 
 export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
   isOpen,
   onClose,
   order,
-  ticketType = 'factura',
+  ticketType: initialTicketType = 'factura',
+  restaurantInfo,
 }) => {
+  const [currentTicketType, setCurrentTicketType] = useState<'factura' | 'comanda'>(initialTicketType);
+
   if (!isOpen || !order) return null;
 
-  const isComanda = ticketType === 'comanda';
+  const isComanda = currentTicketType === 'comanda';
   const formatCOP = (num: number) => '$' + (num || 0).toLocaleString('es-CO');
+
+  const restName = restaurantInfo?.nombre || 'PUNTO G';
+  const restSlogan = restaurantInfo?.eslogan || 'ANTOJOS QUE CONECTAN';
+  const restAddress = restaurantInfo?.direccion || 'Calle 9 # 45-12, Granada - Cali';
+  const restPhone = restaurantInfo?.telefono || '322 908 8736';
+  const restSlug = restaurantInfo?.slug || 'punto-g';
 
   const handlePrint = () => {
     const printArea = document.getElementById('thermal-receipt-print-area');
@@ -53,7 +71,6 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
       return;
     }
 
-    // Create an isolated hidden iframe for crisp, reliable POS printing
     const existingIframe = document.getElementById('receipt-print-iframe');
     if (existingIframe) existingIframe.remove();
 
@@ -157,16 +174,24 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
       })
     : new Date().toLocaleString('es-CO');
 
+  const cleanCustomerPhone = (order.telefono || '').replace(/\D/g, '');
+  const targetPhone = cleanCustomerPhone.length === 10 ? `57${cleanCustomerPhone}` : cleanCustomerPhone;
+  const whatsappUrl = targetPhone
+    ? `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(
+        `¡Hola ${order.cliente}! Aquí tienes el comprobante de tu pedido #${order.codigo} en ${restName}:\n\nTotal: ${formatCOP(order.total)}\nMétodo: ${order.metodoPago || 'Efectivo'}\n\n¡Gracias por tu compra!`
+      )}`
+    : null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      {/* Container - on screen it is an attractive dialog, on print it isolates the receipt */}
-      <div className="relative w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        
         {/* Screen Header */}
-        <div className="print:hidden flex items-center justify-between px-5 py-3.5 border-b border-neutral-800 bg-neutral-950">
+        <div className="print:hidden flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-950 shrink-0">
           <div className="flex items-center gap-2">
-            <Printer className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-bold text-white tracking-wide uppercase">
-              {isComanda ? 'Comanda de Cocina (POS)' : 'Ticket / Factura (POS)'}
+            <Printer className="w-4 h-4 text-brand-yellow" />
+            <h3 className="text-xs sm:text-sm font-black text-white tracking-wide uppercase">
+              Impresora Térmica POS
             </h3>
           </div>
           <button
@@ -177,14 +202,57 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons for Screen */}
-        <div className="print:hidden p-4 bg-neutral-900/80 border-b border-neutral-800 flex gap-2">
-          <button
-            onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-amber-400 text-black font-bold text-sm hover:bg-amber-300 active:scale-95 transition shadow-lg shadow-amber-400/20"
-          >
-            <Printer className="w-4 h-4" /> Imprimir Ticket (58mm/80mm)
-          </button>
+        {/* Selector de Modo: Comanda Cocina vs Factura Cliente */}
+        <div className="print:hidden p-3 bg-neutral-900 border-b border-neutral-800 space-y-2 shrink-0">
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-black/40 rounded-xl border border-neutral-800 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setCurrentTicketType('comanda')}
+              className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                isComanda
+                  ? 'bg-brand-yellow text-black font-black shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <ChefHat className="w-3.5 h-3.5" />
+              <span>Comanda Cocina</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentTicketType('factura')}
+              className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                !isComanda
+                  ? 'bg-brand-yellow text-black font-black shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Ticket / Cuenta</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-brand-yellow text-black font-black text-xs uppercase tracking-wider hover:bg-yellow-400 active:scale-95 transition shadow-lg shadow-brand-yellow/20"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Imprimir {isComanda ? 'Comanda' : 'Ticket'} (80mm/58mm)</span>
+            </button>
+
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition flex items-center justify-center"
+                title="Enviar ticket por WhatsApp al cliente"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Printable Ticket Content (monochrome, high-contrast monospace) */}
@@ -192,13 +260,13 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
           <div id="thermal-receipt-print-area" className="receipt-paper max-w-[320px] mx-auto">
             {/* Header */}
             <div className="text-center mb-2">
-              <h1 className="text-base font-extrabold tracking-wider uppercase">PUNTO G</h1>
-              <p className="text-[10px] font-semibold tracking-widest text-neutral-600">ANTOJOS QUE CONECTAN</p>
-              <p className="text-[10px] text-neutral-600">Calle 9 # 45-12, Granada - Cali</p>
-              <p className="text-[10px] text-neutral-600">WhatsApp: 322 908 8736</p>
+              <h1 className="text-base font-extrabold tracking-wider uppercase">{restName}</h1>
+              <p className="text-[10px] font-semibold tracking-widest text-neutral-600">{restSlogan}</p>
+              <p className="text-[10px] text-neutral-600">{restAddress}</p>
+              <p className="text-[10px] text-neutral-600">WhatsApp: {restPhone}</p>
               <div className="my-1 border-t border-dashed border-black" />
               <p className="text-xs font-black tracking-widest uppercase">
-                {isComanda ? '*** COMANDA DE COCINA ***' : '*** COMPROBANTE DE PAGO ***'}
+                {isComanda ? '*** COMANDA DE COCINA ***' : '*** COMPROBANTE DE VENTA ***'}
               </p>
               <div className="my-1 border-t border-dashed border-black" />
             </div>
@@ -336,17 +404,17 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptProps> = ({
             <div className="my-2 border-t border-dashed border-black" />
             <div className="text-center text-[10px] space-y-0.5">
               <p className="font-bold">¡GRACIAS POR TU PREFERENCIA!</p>
-              <p>Rastrea en vivo: puntog.com/r/{(order as any)?.restaurant?.slug || 'punto-g'}/pedido/{order.codigo}</p>
-              <p className="text-[9px] text-neutral-500 mt-1">Software gastronómico Punto G v2.0</p>
+              <p>Rastrea en vivo: puntog.com/r/{restSlug}/pedido/{order.codigo}</p>
+              <p className="text-[9px] text-neutral-500 mt-1">GastroPOS • SarriaTech Solutions</p>
             </div>
           </div>
         </div>
 
         {/* Screen Footer */}
-        <div className="print:hidden px-5 py-3 border-t border-neutral-800 bg-neutral-950 flex justify-end">
+        <div className="print:hidden px-4 py-2.5 border-t border-neutral-800 bg-neutral-950 flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="py-2 px-4 rounded-xl bg-neutral-800 text-neutral-300 font-semibold text-xs hover:bg-neutral-700 transition"
+            className="py-1.5 px-4 rounded-xl bg-neutral-800 text-neutral-300 font-semibold text-xs hover:bg-neutral-700 transition"
           >
             Cerrar
           </button>

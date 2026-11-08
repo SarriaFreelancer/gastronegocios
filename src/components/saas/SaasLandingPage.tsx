@@ -1159,7 +1159,16 @@ export function SaasLandingPage() {
 
           <div className="pt-8 border-t border-[#181818] flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-center md:text-left">
             <p className="leading-relaxed font-medium text-gray-300">
-              Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+              Desarrollado por{' '}
+              <a
+                href="https://sarriatech.tech"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white hover:text-brand-yellow font-bold transition-colors underline decoration-brand-yellow/50 underline-offset-2"
+              >
+                SarriaTech Solutions S.A.S
+              </a>{' '}
+              Todos los derechos reservados;
             </p>
 
             <div className="flex items-center gap-4 text-[11px] text-gray-400 font-medium">

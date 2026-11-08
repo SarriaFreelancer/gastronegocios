@@ -19,7 +19,8 @@ import {
   Building2, 
   ArrowLeft,
   ChevronRight,
-  Check
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 
@@ -350,7 +351,16 @@ export default function PedidosListosPage() {
         </div>
 
         <div className="text-center text-xs text-neutral-500 py-6">
-          Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+          Desarrollado por{' '}
+          <a
+            href="https://sarriatech.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-neutral-400 hover:text-brand-yellow font-bold transition-colors underline decoration-brand-yellow/50 underline-offset-2"
+          >
+            SarriaTech Solutions S.A.S
+          </a>{' '}
+          Todos los derechos reservados;
         </div>
       </div>
     );
@@ -599,24 +609,40 @@ export default function PedidosListosPage() {
                       </div>
                     </div>
 
-                    {/* Action Button for Waitstaff / Cashier */}
-                    <button
-                      onClick={() => markAsEntregado(order.id)}
-                      disabled={deliveringId === order.id}
-                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-black uppercase text-sm tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-950 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {deliveringId === order.id ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Entregando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-5 h-5 stroke-[3]" />
-                          <span>MARCAR ENTREGADO</span>
-                        </>
+                    {/* Action Buttons for Waitstaff / Cashier */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => markAsEntregado(order.id)}
+                        disabled={deliveringId === order.id}
+                        className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-black uppercase text-sm tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-950 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {deliveringId === order.id ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Entregando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-5 h-5 stroke-[3]" />
+                            <span>MARCAR ENTREGADO</span>
+                          </>
+                        )}
+                      </button>
+
+                      {order.telefono && (
+                        <a
+                          href={`https://api.whatsapp.com/send?phone=${order.telefono.replace(/\D/g, '').length === 10 ? '57' + order.telefono.replace(/\D/g, '') : order.telefono.replace(/\D/g, '')}&text=${encodeURIComponent(
+                            `¡Hola ${order.cliente}! Tu pedido #${order.codigo} ya está listo y esperando por ti 🍽️.`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-3.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-400 rounded-xl transition flex items-center justify-center"
+                          title="Avisar por WhatsApp al cliente"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                        </a>
                       )}
-                    </button>
+                    </div>
                   </div>
                 );
               })}

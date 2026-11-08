@@ -574,7 +574,18 @@ export default function RegisterRestaurantPage() {
 
       {/* Footer */}
       <footer className="border-t border-[#1c1c1c] py-6 text-center text-xs text-gray-500">
-        <p>GastroNegocios • Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;</p>
+        <p>
+          GastroNegocios • Desarrollado por{' '}
+          <a
+            href="https://sarriatech.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-brand-yellow font-bold transition-colors underline decoration-brand-yellow/50 underline-offset-2"
+          >
+            SarriaTech Solutions S.A.S
+          </a>{' '}
+          Todos los derechos reservados;
+        </p>
       </footer>
 
     </div>

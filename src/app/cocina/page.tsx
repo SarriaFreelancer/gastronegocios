@@ -524,7 +524,16 @@ function CocinaKDSContent() {
         </div>
 
         <div className="text-center text-xs text-neutral-500 py-6">
-          Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+          Desarrollado por{' '}
+          <a
+            href="https://sarriatech.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-neutral-400 hover:text-brand-yellow font-bold transition-colors underline decoration-brand-yellow/50 underline-offset-2"
+          >
+            SarriaTech Solutions S.A.S
+          </a>{' '}
+          Todos los derechos reservados;
         </div>
       </div>
     );

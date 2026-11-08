@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Product, CartItem, ProductAddon } from '@/types';
 import { restaurantInfo } from '@/data/restaurant-info';
+import { enqueueOfflineOrder } from '@/lib/offlineStore';
 
 export interface CustomerProfile {
   id: number;
@@ -413,7 +414,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return '$' + val.toLocaleString('es-CO');
   };
 
-  // Helper to persist order to MySQL
+  // Helper to persist order to MySQL (o encolar en IndexedDB si no hay conexión)
   const persistOrderToDatabase = async (): Promise<any | null> => {
     try {
       let slugParam: string | null = null;
@@ -424,10 +425,91 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Recordar entradas en navegador
       rememberCustomerInput(customerName, customerPhone, customerAddress);
 
+      const orderPayload = {
+        cliente: customerName.trim() || 'Cliente Punto G',
+        telefono: customerPhone.trim() || '3229088736',
+        tipo: deliveryType,
+        numeroMesa: deliveryType === 'mesa' ? tableNumber : null,
+        direccion: deliveryType === 'domicilio' ? customerAddress : null,
+        subtotal,
+        propina: tip,
+        costoEnvio: deliveryFee,
+        total: totalPrice,
+        metodoPago: paymentMethod,
+        notasCliente: customerNotes.trim(),
+        branchId: selectedBranchId,
+        sedeNombre: selectedBranchName,
+        restaurantSlug: slugParam,
+        customerId: currentCustomer?.id || null,
+        items: items.map((i) => {
+          const addonsCost = (i.selectedAddons || []).reduce((sum, a) => sum + (a.precio || 0), 0);
+          return {
+            nombre: i.product.nombre,
+            precio: i.product.precio + addonsCost,
+            cantidad: i.quantity,
+            notas: i.notes || null,
+            adicionales: i.selectedAddons && i.selectedAddons.length > 0 ? JSON.stringify(i.selectedAddons) : null,
+          };
+        }),
+      };
+
+      // Si el navegador está fuera de línea, guardar de inmediato en IndexedDB local
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const offlineRecord = await enqueueOfflineOrder(orderPayload);
+        const offlineResult = {
+          id: offlineRecord.id,
+          codigo: offlineRecord.codigo,
+          cliente: orderPayload.cliente,
+          total: orderPayload.total,
+          tipo: orderPayload.tipo,
+          numeroMesa: orderPayload.numeroMesa,
+          estado: 'pendiente',
+          isOffline: true,
+          createdAt: offlineRecord.createdAt,
+        };
+        setLastCreatedOrder(offlineResult);
+        return offlineResult;
+      }
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (res.ok) {
+        const orderData = await res.json();
+        setLastCreatedOrder(orderData);
+        if (typeof window !== 'undefined' && orderData.codigo) {
+          localStorage.setItem('punto_g_last_order', orderData.codigo);
+        }
+        return orderData;
+      } else {
+        // Si el servidor responde con error de red o 500+, resguardar en cola offline
+        const offlineRecord = await enqueueOfflineOrder(orderPayload);
+        const offlineResult = {
+          id: offlineRecord.id,
+          codigo: offlineRecord.codigo,
+          cliente: orderPayload.cliente,
+          total: orderPayload.total,
+          tipo: orderPayload.tipo,
+          numeroMesa: orderPayload.numeroMesa,
+          estado: 'pendiente',
+          isOffline: true,
+          createdAt: offlineRecord.createdAt,
+        };
+        setLastCreatedOrder(offlineResult);
+        return offlineResult;
+      }
+    } catch (e) {
+      console.warn('Error de red al conectar con servidor, resguardando en cola offline:', e);
+      try {
+        let slugParam: string | null = null;
+        if (pathname?.startsWith('/r/')) {
+          slugParam = pathname.split('/')[2] || null;
+        }
+
+        const fallbackPayload = {
           cliente: customerName.trim() || 'Cliente Punto G',
           telefono: customerPhone.trim() || '3229088736',
           tipo: deliveryType,
@@ -453,19 +535,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               adicionales: i.selectedAddons && i.selectedAddons.length > 0 ? JSON.stringify(i.selectedAddons) : null,
             };
           }),
-        }),
-      });
+        };
 
-      if (res.ok) {
-        const orderData = await res.json();
-        setLastCreatedOrder(orderData);
-        if (typeof window !== 'undefined' && orderData.codigo) {
-          localStorage.setItem('punto_g_last_order', orderData.codigo);
-        }
-        return orderData;
+        const offlineRecord = await enqueueOfflineOrder(fallbackPayload);
+        const offlineResult = {
+          id: offlineRecord.id,
+          codigo: offlineRecord.codigo,
+          cliente: fallbackPayload.cliente,
+          total: fallbackPayload.total,
+          tipo: fallbackPayload.tipo,
+          numeroMesa: fallbackPayload.numeroMesa,
+          estado: 'pendiente',
+          isOffline: true,
+          createdAt: offlineRecord.createdAt,
+        };
+        setLastCreatedOrder(offlineResult);
+        return offlineResult;
+      } catch (errOffline) {
+        console.error('Error crítico guardando pedido offline:', errOffline);
       }
-    } catch (e) {
-      console.error('Error saving order to MySQL:', e);
     }
     return null;
   };

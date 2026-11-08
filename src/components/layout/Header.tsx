@@ -70,7 +70,8 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-[#080808]/95 backdrop-blur-md border-b border-[#1c1c1c]/80">
+    <>
+      <header className="fixed top-0 left-0 right-0 z-40 bg-[#080808]/95 backdrop-blur-md border-b border-[#1c1c1c]/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           
@@ -177,69 +178,77 @@ export const Header: React.FC = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#0e0e0e] border-b border-[#222] px-4 pt-3 pb-5 space-y-2">
-          {navLinks.map((link) => {
-            const active = isLinkActive(link.href);
-            const primaryColor = tenant?.colorPrimario || '#ffc928';
-            const btnText = tenant?.colorBotonTexto || '#000000';
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-2 rounded-lg text-sm font-bold transition-colors"
-                style={
-                  active
-                    ? { backgroundColor: primaryColor, color: btnText }
-                    : { color: '#d1d5db' }
-                }
-              >
-                {link.name}
-              </Link>
-            );
-          })}
-          <div className="pt-2 space-y-2">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setCustomerPortalOpen(true);
-              }}
-              className="w-full py-2.5 px-3 rounded-lg text-xs font-bold text-gray-200 bg-[#1c1c1c] border border-[#2d2d2d] flex items-center justify-center gap-2 transition"
-            >
-              <User className="w-4 h-4 text-brand-yellow" style={{ color: tenant?.colorPrimario || '#ffc928' }} />
-              <span>{currentCustomer ? `Mi Cuenta (${currentCustomer.nombre})` : 'Iniciar Sesión / Registrarme'}</span>
-            </button>
-            {(() => {
-              const rawPhone = (tenant?.telefonoWhatsapp || restaurantInfo.whatsappNumber).replace(/\D/g, '');
-              const cleanPhone = rawPhone.length === 10 ? `57${rawPhone}` : rawPhone;
-              const restName = tenant?.nombre || 'Restaurante';
-              const btnBg = tenant?.colorBoton || tenant?.colorPrimario || '#ffc928';
+        <>
+          <div 
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-40 md:hidden bg-[#0e0e0e]/98 backdrop-blur-xl border-b border-[#222] px-4 pt-3 pb-5 space-y-2 shadow-2xl">
+            {navLinks.map((link) => {
+              const active = isLinkActive(link.href);
+              const primaryColor = tenant?.colorPrimario || '#ffc928';
               const btnText = tenant?.colorBotonTexto || '#000000';
-
               return (
-                <a
-                  href={`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
-                    `¡Hola ${restName}! Quiero ordenar ahora.`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 font-black text-xs py-3 rounded-full shadow-lg"
-                  style={{ backgroundColor: btnBg, color: btnText }}
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm font-bold transition-colors"
+                  style={
+                    active
+                      ? { backgroundColor: primaryColor, color: btnText }
+                      : { color: '#d1d5db' }
+                  }
                 >
-                  <PhoneCall className="w-4 h-4 fill-current" />
-                  ORDENAR AHORA
-                </a>
+                  {link.name}
+                </Link>
               );
-            })()}
-          </div>
-        </div>
-      )}
+            })}
+            <div className="pt-2 space-y-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setCustomerPortalOpen(true);
+                }}
+                className="w-full py-2.5 px-3 rounded-lg text-xs font-bold text-gray-200 bg-[#1c1c1c] border border-[#2d2d2d] flex items-center justify-center gap-2 transition"
+              >
+                <User className="w-4 h-4 text-brand-yellow" style={{ color: tenant?.colorPrimario || '#ffc928' }} />
+                <span>{currentCustomer ? `Mi Cuenta (${currentCustomer.nombre})` : 'Iniciar Sesión / Registrarme'}</span>
+              </button>
+              {(() => {
+                const rawPhone = (tenant?.telefonoWhatsapp || restaurantInfo.whatsappNumber).replace(/\D/g, '');
+                const cleanPhone = rawPhone.length === 10 ? `57${rawPhone}` : rawPhone;
+                const restName = tenant?.nombre || 'Restaurante';
+                const btnBg = tenant?.colorBoton || tenant?.colorPrimario || '#ffc928';
+                const btnText = tenant?.colorBotonTexto || '#000000';
 
-      {/* Customer Portal Modal */}
-      <CustomerPortalModal
-        isOpen={customerPortalOpen}
-        onClose={() => setCustomerPortalOpen(false)}
-      />
+                return (
+                  <a
+                    href={`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
+                      `¡Hola ${restName}! Quiero ordenar ahora.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 font-black text-xs py-3 rounded-full shadow-lg"
+                    style={{ backgroundColor: btnBg, color: btnText }}
+                  >
+                    <PhoneCall className="w-4 h-4 fill-current" />
+                    ORDENAR AHORA
+                  </a>
+                );
+              })()}
+            </div>
+          </div>
+        </>
+      )}
     </header>
+
+    {/* Customer Portal Modal (Rendered outside header to prevent stacking context or navbar clipping) */}
+    <CustomerPortalModal
+      isOpen={customerPortalOpen}
+      onClose={() => setCustomerPortalOpen(false)}
+    />
+  </>
   );
 };

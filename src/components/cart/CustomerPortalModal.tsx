@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
 import {
@@ -21,7 +22,11 @@ import {
   ExternalLink,
   ChevronRight,
   Calendar,
-  DollarSign
+  DollarSign,
+  Home,
+  Edit2,
+  Save,
+  Check
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 
@@ -37,15 +42,23 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
     logoutCustomer,
     addToCart,
     setIsCartOpen,
+    setCustomerAddress,
+    setCustomerPhone,
+    setCustomerName,
   } = useCart();
   const { restaurant } = useTenant();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const primaryColor = restaurant?.colorPrimario || '#EAA622';
   const restaurantSlug = restaurant?.slug || 'punto-g';
   const restaurantName = restaurant?.nombre || 'Restaurante';
 
-  // Vista activa: 'login', 'register', 'orders', 'favorites'
-  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'orders' | 'favorites'>('login');
+  // Vista activa: 'login', 'register', 'orders', 'favorites', 'addresses'
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'orders' | 'favorites' | 'addresses'>('login');
 
   // Estados de formularios
   const [loginPhone, setLoginPhone] = useState('');
@@ -68,9 +81,28 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
   const [habitualProducts, setHabitualProducts] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
+  // Estados para Direcciones Guardadas & Perfil
+  const [editAddress, setEditAddress] = useState(currentCustomer?.direccion || '');
+  const [editBarrio, setEditBarrio] = useState(currentCustomer?.barrio || '');
+  const [editCiudad, setEditCiudad] = useState(currentCustomer?.ciudad || 'Cali');
+  const [editNotas, setEditNotas] = useState('');
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressSuccess, setAddressSuccess] = useState('');
+  const [addressError, setAddressError] = useState('');
+
   // Modal de ticket/factura térmica
   const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+
+  // Sincronizar datos de cliente cuando cambia
+  useEffect(() => {
+    if (currentCustomer) {
+      setEditAddress(currentCustomer.direccion || '');
+      setEditBarrio(currentCustomer.barrio || '');
+      setEditCiudad(currentCustomer.ciudad || 'Cali');
+    }
+  }, [currentCustomer]);
 
   // Formato de moneda
   const formatCOP = (val: number) => '$' + Number(val || 0).toLocaleString('es-CO');
@@ -78,7 +110,9 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
   // Si hay cliente activo, abrir en 'orders'
   useEffect(() => {
     if (currentCustomer) {
-      setActiveTab('orders');
+      if (activeTab === 'login' || activeTab === 'register') {
+        setActiveTab('orders');
+      }
       fetchCustomerOrders();
     } else {
       setActiveTab('login');
@@ -177,17 +211,64 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
     }
   };
 
+  // Guardar dirección actualizada
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentCustomer) return;
+
+    setAddressLoading(true);
+    setAddressError('');
+    setAddressSuccess('');
+
+    try {
+      const res = await fetch('/api/customer-auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentCustomer.id,
+          direccion: editAddress,
+          barrio: editBarrio,
+          ciudad: editCiudad,
+          notas: editNotas,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const updated = {
+          ...currentCustomer,
+          direccion: editAddress,
+          barrio: editBarrio,
+          ciudad: editCiudad,
+        };
+        loginCustomer(updated);
+        setCustomerAddress(editAddress);
+        setAddressSuccess('¡Dirección actualizada correctamente!');
+        setIsEditingAddress(false);
+        setTimeout(() => setAddressSuccess(''), 3000);
+      } else {
+        setAddressError(data.error || 'No se pudo actualizar la dirección.');
+      }
+    } catch (err) {
+      setAddressError('Error al guardar la dirección.');
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
   // Repetir pedido (Cargar todos los items al carrito y abrirlo)
   const handleRepeatOrder = (order: any) => {
     if (!order.items || order.items.length === 0) return;
 
     order.items.forEach((item: any) => {
-      let parsedAddons: any[] = [];
-      try {
-        if (item.adicionales) {
+      let parsedAddons = undefined;
+      if (item.adicionales) {
+        try {
           parsedAddons = typeof item.adicionales === 'string' ? JSON.parse(item.adicionales) : item.adicionales;
+        } catch (e) {
+          parsedAddons = undefined;
         }
-      } catch (e) {}
+      }
 
       addToCart(
         {
@@ -195,7 +276,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
           nombre: item.nombre,
           precio: item.precio,
           slug: item.nombre.toLowerCase().replace(/\s+/g, '-'),
-          imagen: '/images/default-food.jpg',
+          imagen: item.imagen || '/images/default-food.jpg',
           categoria: 'plato',
           descripcion: '',
           disponibilidad: true,
@@ -231,29 +312,29 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
     setIsReceiptOpen(true);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-        <div className="bg-[#121212] border border-[#262626] rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl text-white overflow-hidden">
+      <div className="fixed inset-0 z-[99999] overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-in fade-in">
+        <div className="bg-[#121212] border border-[#2a2a2a] rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl text-white overflow-hidden my-auto">
           
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-[#222] flex items-center justify-between bg-[#181818]">
+          <div className="p-4 sm:p-5 border-b border-[#222] flex items-center justify-between bg-[#181818] shrink-0">
             <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-black"
+                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-black shrink-0"
                 style={{ backgroundColor: primaryColor }}
               >
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold uppercase font-display tracking-wider">
+                <h3 className="text-base font-extrabold uppercase font-display tracking-wider text-white">
                   {currentCustomer ? `Hola, ${currentCustomer.nombre}` : 'Portal de Clientes'}
                 </h3>
                 <p className="text-xs text-gray-400">
                   {currentCustomer
-                    ? `${restaurantName} • Tu historial y pedidos favoritos`
+                    ? `${restaurantName} • Tu cuenta, pedidos y direcciones`
                     : `Inicia sesión o regístrate en ${restaurantName}`}
                 </p>
               </div>
@@ -262,7 +343,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-[#252525] transition"
+              className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-[#252525] transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -270,13 +351,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
 
           {/* Navigation Bar if Logged In */}
           {currentCustomer && (
-            <div className="flex border-b border-[#222] bg-[#151515] text-xs font-bold overflow-x-auto">
+            <div className="flex border-b border-[#222] bg-[#151515] text-xs font-bold overflow-x-auto shrink-0 scrollbar-none">
               <button
                 type="button"
                 onClick={() => setActiveTab('orders')}
-                className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${
+                className={`flex-1 py-3 px-3.5 flex items-center justify-center gap-1.5 border-b-2 transition whitespace-nowrap cursor-pointer ${
                   activeTab === 'orders'
-                    ? 'border-brand-yellow text-brand-yellow bg-black/20'
+                    ? 'border-brand-yellow text-brand-yellow bg-black/25'
                     : 'border-transparent text-gray-400 hover:text-white'
                 }`}
                 style={activeTab === 'orders' ? { borderColor: primaryColor, color: primaryColor } : {}}
@@ -287,16 +368,30 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
 
               <button
                 type="button"
+                onClick={() => setActiveTab('addresses')}
+                className={`flex-1 py-3 px-3.5 flex items-center justify-center gap-1.5 border-b-2 transition whitespace-nowrap cursor-pointer ${
+                  activeTab === 'addresses'
+                    ? 'border-brand-yellow text-brand-yellow bg-black/25'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+                style={activeTab === 'addresses' ? { borderColor: primaryColor, color: primaryColor } : {}}
+              >
+                <MapPin className="w-4 h-4" />
+                <span>Direcciones Guardadas</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab('favorites')}
-                className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap ${
+                className={`flex-1 py-3 px-3.5 flex items-center justify-center gap-1.5 border-b-2 transition whitespace-nowrap cursor-pointer ${
                   activeTab === 'favorites'
-                    ? 'border-brand-yellow text-brand-yellow bg-black/20'
+                    ? 'border-brand-yellow text-brand-yellow bg-black/25'
                     : 'border-transparent text-gray-400 hover:text-white'
                 }`}
                 style={activeTab === 'favorites' ? { borderColor: primaryColor, color: primaryColor } : {}}
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Pedidos Habituales</span>
+                <span>Habituales</span>
               </button>
 
               <button
@@ -305,8 +400,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                   logoutCustomer();
                   setActiveTab('login');
                 }}
-                className="py-3 px-4 flex items-center justify-center gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-950/20 transition whitespace-nowrap border-b-2 border-transparent"
-                title="Cerrar sesión"
+                className="py-3 px-4 flex items-center justify-center gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-950/20 transition whitespace-nowrap border-b-2 border-transparent cursor-pointer"
+                title="Cerrar sesión de cliente"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Salir</span>
@@ -318,14 +413,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             
             {/* ======================================================== */}
-            {/* VISTA 1: INICIAR SESIÓN */}
+            {/* VISTA 1: INICIAR SESIÓN                                 */}
             {/* ======================================================== */}
             {!currentCustomer && activeTab === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4 max-w-md mx-auto py-2">
                 <div className="text-center space-y-1 mb-4">
-                  <h4 className="text-lg font-bold text-white">Ingresa a tu cuenta</h4>
+                  <h4 className="text-lg font-bold text-white">Ingresa a tu cuenta de cliente</h4>
                   <p className="text-xs text-gray-400">
-                    Revisa tus pedidos anteriores, descarga facturas y repite tus pedidos en 1 clic.
+                    Revisa tus pedidos anteriores, tus direcciones de domicilio y pide en 1 clic.
                   </p>
                 </div>
 
@@ -349,7 +444,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                       onChange={(e) => setLoginPhone(e.target.value)}
                       className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl pl-9 pr-3 py-3 outline-none transition"
                     />
-                    <Phone className="w-4 h-4 text-gray-500 absolute left-3 top-3.5" />
+                    <Phone className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
 
@@ -361,25 +456,25 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                     <input
                       type="password"
                       required
-                      placeholder="••••••••"
+                      placeholder="Tu contraseña secreta"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl pl-9 pr-3 py-3 outline-none transition"
                     />
-                    <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-3.5" />
+                    <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loginLoading}
-                  className="w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider text-black transition shadow-lg flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer"
+                  className="w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider text-black shadow-lg transition active:scale-98 disabled:opacity-50 cursor-pointer"
                   style={{ backgroundColor: primaryColor }}
                 >
                   {loginLoading ? 'Ingresando...' : 'Iniciar Sesión'}
                 </button>
 
-                <div className="pt-3 border-t border-[#222] text-center text-xs text-gray-400">
+                <div className="pt-2 text-center text-xs text-gray-400">
                   ¿Aún no tienes cuenta?{' '}
                   <button
                     type="button"
@@ -394,14 +489,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
             )}
 
             {/* ======================================================== */}
-            {/* VISTA 2: REGISTRO DE CLIENTE */}
+            {/* VISTA 2: REGISTRO DE NUEVO CLIENTE                      */}
             {/* ======================================================== */}
             {!currentCustomer && activeTab === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-3.5 max-w-md mx-auto py-1">
-                <div className="text-center space-y-1 mb-2">
-                  <h4 className="text-lg font-bold text-white">Crea tu cuenta de cliente</h4>
+              <form onSubmit={handleRegister} className="space-y-3 max-w-md mx-auto py-1">
+                <div className="text-center space-y-1 mb-3">
+                  <h4 className="text-lg font-bold text-white">Crea tu cuenta en {restaurantName}</h4>
                   <p className="text-xs text-gray-400">
-                    Guarda tus direcciones favoritas y gestiona tus pedidos fácilmente.
+                    Guarda tu dirección de entrega y disfruta de pedidos rápidos.
                   </p>
                 </div>
 
@@ -421,15 +516,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 mb-1">
-                    Nombre completo *:
+                    Tu Nombre Completo *:
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej: Laura Gómez"
+                    placeholder="Ej: David Sarria"
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
-                    className="w-full bg-[#1c1c1c] border border-[#303030] text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-yellow transition"
+                    className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2.5 outline-none transition"
                   />
                 </div>
 
@@ -441,80 +536,79 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                     <input
                       type="tel"
                       required
-                      placeholder="Ej: 310 987 6543"
+                      placeholder="Ej: 315 123 4567"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
-                      className="w-full bg-[#1c1c1c] border border-[#303030] text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-yellow transition"
+                      className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2.5 outline-none transition"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-300 mb-1">
-                      Correo (opcional):
+                      Contraseña *:
                     </label>
                     <input
-                      type="email"
-                      placeholder="laura@ejemplo.com"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full bg-[#1c1c1c] border border-[#303030] text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-yellow transition"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1">
-                      Dirección de entrega habitual:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Calle 15 # 23-45"
-                      value={regAddress}
-                      onChange={(e) => setRegAddress(e.target.value)}
-                      className="w-full bg-[#1c1c1c] border border-[#303030] text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-yellow transition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1">
-                      Barrio:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: San Antonio"
-                      value={regBarrio}
-                      onChange={(e) => setRegBarrio(e.target.value)}
-                      className="w-full bg-[#1c1c1c] border border-[#303030] text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-yellow transition"
+                      type="password"
+                      required
+                      placeholder="Mínimo 6 caracteres"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2.5 outline-none transition"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 mb-1">
-                    Crea una contraseña *:
+                    Correo electrónico (opcional):
                   </label>
                   <input
-                    type="password"
-                    required
-                    placeholder="Mínimo 4 caracteres"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full bg-[#1c1c1c] border border-[#303030] text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-yellow transition"
+                    type="email"
+                    placeholder="cliente@ejemplo.com"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2.5 outline-none transition"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">
+                      Dirección de entrega habitual:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Calle 5 # 66-24 Apto 302"
+                      value={regAddress}
+                      onChange={(e) => setRegAddress(e.target.value)}
+                      className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2.5 outline-none transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">
+                      Barrio:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Granada"
+                      value={regBarrio}
+                      onChange={(e) => setRegBarrio(e.target.value)}
+                      className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2.5 outline-none transition"
+                    />
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={regLoading}
-                  className="w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider text-black transition shadow-lg flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer mt-2"
+                  className="w-full py-3 mt-2 rounded-xl font-black text-xs uppercase tracking-wider text-black shadow-lg transition active:scale-98 disabled:opacity-50 cursor-pointer"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  {regLoading ? 'Registrando...' : 'Completar Registro'}
+                  {regLoading ? 'Creando cuenta...' : 'Crear Mi Cuenta'}
                 </button>
 
-                <div className="pt-2 border-t border-[#222] text-center text-xs text-gray-400">
-                  ¿Ya tienes cuenta?{' '}
+                <div className="pt-2 text-center text-xs text-gray-400">
+                  ¿Ya tienes cuenta registrada?{' '}
                   <button
                     type="button"
                     onClick={() => setActiveTab('login')}
@@ -528,10 +622,51 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
             )}
 
             {/* ======================================================== */}
-            {/* VISTA 3: HISTORIAL DE PEDIDOS */}
+            {/* VISTA 3: HISTORIAL DE PEDIDOS                           */}
             {/* ======================================================== */}
             {currentCustomer && activeTab === 'orders' && (
               <div className="space-y-3">
+                {/* Loyalty Tier & Reward Badge */}
+                {(() => {
+                  const spent = currentCustomer.totalComprado || 0;
+                  const ordersCount = currentCustomer.totalPedidos || orders.length || 0;
+                  const points = Math.floor(spent / 1000);
+                  const isGold = spent >= 200000 || ordersCount >= 5;
+                  const isSilver = !isGold && (spent >= 70000 || ordersCount >= 2);
+                  const tierName = isGold ? 'Cliente Oro VIP' : isSilver ? 'Cliente Plata' : 'Cliente Bronce';
+                  const tierColor = isGold ? '#ffd700' : isSilver ? '#c0c0c0' : '#cd7f32';
+
+                  return (
+                    <div className="bg-gradient-to-r from-[#1c1a14] via-[#141416] to-[#1c1a14] border border-amber-500/30 rounded-2xl p-4 space-y-2.5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{isGold ? '🥇' : isSilver ? '🥈' : '🥉'}</span>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Nivel de Fidelización</span>
+                            <span className="text-sm font-black text-white" style={{ color: tierColor }}>{tierName}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">Puntos Acumulados</span>
+                          <span className="text-sm font-black text-brand-yellow">{points} Puntos</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-black/50 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between text-xs">
+                        <span className="text-gray-300 font-medium text-[11px]">
+                          {isGold
+                            ? '🎉 Tienes 10% de descuento VIP activo usando:'
+                            : isSilver
+                            ? '⭐ Tienes $5.000 de descuento activo usando:'
+                            : '🍔 En tu próximo pedido obtén descuento con:'}
+                        </span>
+                        <code className="px-2 py-0.5 rounded bg-brand-yellow/20 text-brand-yellow font-black border border-brand-yellow/40 text-xs">
+                          {isGold ? 'VIP10' : isSilver ? 'PROMO5' : 'BIENVENIDO'}
+                        </code>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {loadingOrders ? (
                   <div className="py-12 text-center text-gray-400 text-xs">
                     <div className="w-8 h-8 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -552,7 +687,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                         onClose();
                         setIsCartOpen(true);
                       }}
-                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-black uppercase"
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-black uppercase cursor-pointer"
                       style={{ backgroundColor: primaryColor }}
                     >
                       Ir al Carrito
@@ -588,7 +723,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                             </span>
                           </div>
 
-                          <span className="text-xs font-black text-brand-yellow" style={{ color: primaryColor }}>
+                          <span className="text-xs font-black" style={{ color: primaryColor }}>
                             {formatCOP(ord.total)}
                           </span>
                         </div>
@@ -652,7 +787,186 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
             )}
 
             {/* ======================================================== */}
-            {/* VISTA 4: PEDIDOS HABITUALES / FAVORITOS */}
+            {/* VISTA 4: DIRECCIONES GUARDADAS & PERFIL                 */}
+            {/* ======================================================== */}
+            {currentCustomer && activeTab === 'addresses' && (
+              <div className="space-y-4 max-w-lg mx-auto py-2">
+                <div className="flex items-center justify-between pb-3 border-b border-[#252525]">
+                  <div>
+                    <h4 className="text-base font-bold text-white flex items-center gap-2">
+                      <MapPin className="w-4 h-4" style={{ color: primaryColor }} />
+                      <span>Tus Direcciones de Entrega</span>
+                    </h4>
+                    <p className="text-xs text-gray-400">
+                      Esta dirección se seleccionará automáticamente cada vez que pidas en {restaurantName}.
+                    </p>
+                  </div>
+                  {!isEditingAddress && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingAddress(true)}
+                      className="px-3 py-1.5 rounded-xl bg-[#222] hover:bg-[#2e2e2e] text-xs font-bold text-white border border-[#333] transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                      <span>Editar</span>
+                    </button>
+                  )}
+                </div>
+
+                {addressSuccess && (
+                  <div className="p-3 bg-emerald-950/60 border border-emerald-800/80 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{addressSuccess}</span>
+                  </div>
+                )}
+
+                {addressError && (
+                  <div className="p-3 bg-red-950/60 border border-red-800/80 rounded-xl text-xs text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{addressError}</span>
+                  </div>
+                )}
+
+                {!isEditingAddress ? (
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-2xl bg-[#181818] border border-[#2b2b2b] space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 mt-0.5 text-black"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            <Home className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold uppercase tracking-wider text-white">
+                                Dirección Principal
+                              </span>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                Guardada
+                              </span>
+                            </div>
+                            <p className="text-sm font-black text-white mt-1">
+                              {currentCustomer.direccion || 'Sin dirección guardada aún'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mt-1">
+                              {currentCustomer.barrio && (
+                                <span className="flex items-center gap-1 font-semibold text-gray-300">
+                                  📍 Barrio: {currentCustomer.barrio}
+                                </span>
+                              )}
+                              <span>• {currentCustomer.ciudad || 'Cali'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-[#252525] flex items-center justify-between text-xs text-gray-400">
+                        <span className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-gray-500" />
+                          <span>Contacto: <strong className="text-white">{currentCustomer.telefono}</strong></span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick action to order */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          setIsCartOpen(true);
+                        }}
+                        className="w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-98 cursor-pointer text-black"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>Hacer un Pedido con esta Dirección</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveAddress} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">
+                        Dirección Completa (Calle, Carrera, Número) *:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editAddress}
+                        onChange={(e) => setEditAddress(e.target.value)}
+                        placeholder="Ej: Calle 5 # 66-24 Apto 302"
+                        className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-3 outline-none transition"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1">
+                          Barrio o Sector:
+                        </label>
+                        <input
+                          type="text"
+                          value={editBarrio}
+                          onChange={(e) => setEditBarrio(e.target.value)}
+                          placeholder="Ej: Granada / El Peñón"
+                          className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-3 outline-none transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1">
+                          Ciudad:
+                        </label>
+                        <input
+                          type="text"
+                          value={editCiudad}
+                          onChange={(e) => setEditCiudad(e.target.value)}
+                          placeholder="Ej: Cali"
+                          className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-3 outline-none transition"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">
+                        Instrucciones de Entrega (opcional):
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={editNotas}
+                        onChange={(e) => setEditNotas(e.target.value)}
+                        placeholder="Ej: Dejar en portería, edificio blanco reja negra..."
+                        className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl px-3 py-2 outline-none transition resize-none"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingAddress(false)}
+                        className="flex-1 py-3 bg-[#202020] hover:bg-[#282828] text-gray-300 font-bold text-xs rounded-xl transition cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={addressLoading}
+                        className="flex-1 py-3 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 shadow-md active:scale-98 cursor-pointer text-black"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>{addressLoading ? 'Guardando...' : 'Guardar Dirección'}</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* VISTA 5: PEDIDOS HABITUALES / FAVORITOS                 */}
             {/* ======================================================== */}
             {currentCustomer && activeTab === 'favorites' && (
               <div className="space-y-3">
@@ -673,7 +987,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
                       <div>
                         <h5 className="text-xs font-bold text-white">{prod.nombre}</h5>
                         <p className="text-[11px] text-gray-400 mt-0.5">
-                          Has pedido este plato <strong className="text-brand-yellow font-bold" style={{ color: primaryColor }}>{prod.pedidosCount} vez/veces</strong> ({prod.cantidadTotal} unidades)
+                          Has pedido este plato <strong className="font-bold" style={{ color: primaryColor }}>{prod.pedidosCount} vez/veces</strong> ({prod.cantidadTotal} unidades)
                         </p>
                         <p className="text-xs font-black mt-1" style={{ color: primaryColor }}>
                           {formatCOP(prod.precio)}
@@ -713,8 +1027,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
           </div>
 
           {/* Footer */}
-          <div className="p-3 border-t border-[#222] bg-[#141414] text-center text-[10px] text-gray-500">
-            PUNTO G SaaS • Tus datos se guardan de forma segura en este restaurante.
+          <div className="p-3 border-t border-[#222] bg-[#141414] text-center text-[10px] text-gray-500 shrink-0">
+            PUNTO G SaaS • Tus datos y pedidos se gestionan de forma segura en este restaurante.
           </div>
         </div>
       </div>
@@ -727,6 +1041,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({ isOpen
           order={receiptOrder}
         />
       )}
-    </>
+    </>,
+    document.body
   );
 };

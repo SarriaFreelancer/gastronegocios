@@ -18,6 +18,7 @@ import { ImportacionTab } from '@/components/admin/ImportacionTab';
 import { DashboardEjecutivoTab } from '@/components/admin/DashboardEjecutivoTab';
 import { AdminSidebar, AdminTabItem } from '@/components/admin/AdminSidebar';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
+import { MesasQrGeneratorModal } from '@/components/admin/MesasQrGeneratorModal';
 import { Boxes, BookOpenCheck, Truck } from 'lucide-react';
 import { 
   ShoppingBag, 
@@ -90,7 +91,7 @@ import {
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
 import { exportSalesReportToExcel, exportSalesReportToPDF } from '@/lib/reports';
-import { exportShiftClosureToPdf } from '@/lib/reports-export';
+import { exportShiftClosureToPdf, exportShiftClosureToExcel, exportShiftHistoryToExcel } from '@/lib/reports-export';
 import { showConfirm, showAlert, showSuccess, showError, showWarning } from '@/lib/swal';
 
 interface OrderItem {
@@ -402,6 +403,8 @@ export default function AdminPage() {
   } | null>(null);
 
   // ==================== 3. CATEGORÍAS STATE ====================
+  const [isMesasQrModalOpen, setIsMesasQrModalOpen] = useState(false);
+  const [selectedTableForQr, setSelectedTableForQr] = useState<number | string | null>(null);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [searchCategory, setSearchCategory] = useState('');
   const [filterCategoryStatus, setFilterCategoryStatus] = useState<'todas' | 'activas' | 'inactivas'>('todas');
@@ -4148,6 +4151,16 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      onClick={() => exportShiftClosureToExcel(activeShift, activeRestaurant?.nombre)}
+                      className="px-3.5 py-2.5 bg-[#202020] hover:bg-[#2b2b2b] text-neutral-200 border border-[#333] rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                      title="Descargar Arqueo Actual en Excel"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                      <span>Excel Arqueo</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         setCloseShiftData({
                           efectivoReal: String(activeShift.totalEfectivoEsperado || activeShift.baseInicial || 0),
@@ -4346,7 +4359,21 @@ export default function AdminPage() {
             {/* Historial de Turnos Cerrados */}
             <div className="bg-[#121212] border border-[#242424] rounded-2xl p-5 space-y-4">
               <h4 className="text-sm font-extrabold uppercase text-white tracking-wide">
-                Historial de Cierres de Caja Anteriores
+                Historial de Cierres de Caja Anteriores ({shiftHistory.length})
+              </h4>
+              {shiftHistory.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => exportShiftHistoryToExcel(shiftHistory, activeRestaurant?.nombre)}
+                  className="px-3.5 py-1.5 bg-[#1e1e1e] hover:bg-[#282828] text-emerald-400 hover:text-emerald-300 border border-emerald-800/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition self-start cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Exportar Historial a Excel</span>
+                </button>
+              )}
+            </div>
+            <div>
+              <h4 className="sr-only">
               </h4>
 
               {shiftHistory.length === 0 ? (
@@ -4363,7 +4390,7 @@ export default function AdminPage() {
                         <th className="py-2 px-3 text-right">Total Ventas</th>
                         <th className="py-2 px-3 text-right">Efectivo Real</th>
                         <th className="py-2 px-3 text-right">Diferencia</th>
-                        <th className="py-2 px-3 text-center">Acta PDF</th>
+                        <th className="py-2 px-3 text-center">Actas (PDF / Excel)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#1e1e1e]">
@@ -4409,6 +4436,14 @@ export default function AdminPage() {
                               title="Descargar Acta de Cierre en PDF"
                             >
                               <FileText className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => exportShiftClosureToExcel(s, activeRestaurant?.nombre)}
+                              className="p-1.5 bg-[#202020] hover:bg-emerald-600 hover:text-white text-emerald-400 rounded-lg transition inline-flex items-center justify-center ml-1"
+                              title="Descargar Arqueo en Excel"
+                            >
+                              <FileSpreadsheet className="w-3.5 h-3.5" />
                             </button>
                           </td>
                         </tr>
@@ -4540,6 +4575,18 @@ export default function AdminPage() {
                 >
                   <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Liberar Todas Ocupadas</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTableForQr(null);
+                    setIsMesasQrModalOpen(true);
+                  }}
+                  className="px-3.5 py-2.5 bg-[#1c1c1c] hover:bg-brand-yellow hover:text-black text-white border border-[#333] rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition"
+                >
+                  <QrCode className="w-4 h-4 text-brand-yellow" />
+                  <span>Imprimir QR de Mesas</span>
                 </button>
 
                 <button
@@ -4745,7 +4792,10 @@ export default function AdminPage() {
                     <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
                       <button
                         type="button"
-                        onClick={() => handleOpenTableQr(t.id)}
+                        onClick={() => {
+                          setSelectedTableForQr(t.id);
+                          setIsMesasQrModalOpen(true);
+                        }}
                         className="flex-1 py-1.5 bg-[#1c1c1c] hover:bg-brand-yellow hover:text-black text-gray-300 text-[11px] font-bold rounded-lg border border-[#2c2c2c] transition-colors flex items-center justify-center gap-1.5"
                       >
                         <QrCode className="w-3.5 h-3.5" />
@@ -8100,6 +8150,22 @@ export default function AdminPage() {
         onClose={() => setIsReceiptModalOpen(false)}
         order={receiptOrder}
         ticketType={receiptType}
+      />
+
+      {/* Mesas QR Batch Generator & Printable Stands */}
+      <MesasQrGeneratorModal
+        isOpen={isMesasQrModalOpen}
+        onClose={() => setIsMesasQrModalOpen(false)}
+        tables={tables}
+        restaurant={{
+          nombre: activeRestaurant?.nombre || 'Punto G',
+          slug: activeRestaurant?.slug || 'punto-g',
+          logo: activeRestaurant?.logo || null,
+          eslogan: activeRestaurant?.eslogan || null,
+          colorPrimario: activeRestaurant?.colorPrimario || '#ffc928',
+          colorSecundario: activeRestaurant?.colorSecundario || '#E94B24',
+        }}
+        initialTableId={selectedTableForQr}
       />
 
     </div>

@@ -44,7 +44,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [addedItemNotice, setAddedItemNotice] = useState<string | null>(null);
   const [customizerProduct, setCustomizerProduct] = useState<any | null>(null);
 
   // Group active root categories (parentId == null)
@@ -156,8 +155,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   const handleAddToCart = (product: any) => {
     addToCart(product, 1);
-    setAddedItemNotice(product.nombre || product.name);
-    setTimeout(() => setAddedItemNotice(null), 2200);
   };
 
   const getItemCartQuantity = (productId: any) => {
@@ -166,39 +163,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-slate-100 pb-28">
-      {/* Toast Notification */}
-      {addedItemNotice && (
-        <div className="fixed bottom-24 right-6 z-50 bg-emerald-500 text-slate-950 font-black px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 animate-bounce border border-emerald-400">
-          <Check className="w-5 h-5 stroke-[3]" />
-          <span>¡{addedItemNotice} agregado al pedido!</span>
-        </div>
-      )}
-
-      {/* Floating Bottom Cart Bar (if items present) */}
-      {totalItems > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-lg mx-auto z-40 animate-fade-in-up">
-          <button
-            type="button"
-            onClick={() => setIsCartOpen(true)}
-            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black py-3.5 px-6 rounded-2xl shadow-2xl flex items-center justify-between border border-amber-300/40 transition transform active:scale-98"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center text-xs font-black">
-                {totalItems}
-              </div>
-              <span className="text-sm font-black uppercase tracking-wide">Ver Mi Pedido</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-base font-black font-mono">
-                ${totalPrice.toLocaleString('es-CO')}
-              </span>
-              <ChevronRight className="w-5 h-5 stroke-[3]" />
-            </div>
-          </button>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-[#090a0f] text-slate-100 pb-16">
       {/* Subheader Toolbar (Sticky right below main app Navbar) */}
       <div className="sticky top-16 sm:top-20 z-30 bg-[#10121a]/95 backdrop-blur-md border-b border-slate-800 px-4 lg:px-8 py-3 shadow-lg">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">

@@ -80,6 +80,52 @@ export const CartDrawer: React.FC = () => {
 
   const [webOrderSuccess, setWebOrderSuccess] = useState<any | null>(null);
   const [isCustomerPortalOpen, setIsCustomerPortalOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    type: 'percent' | 'fixed' | 'shipping';
+    value: number;
+    label: string;
+  } | null>(null);
+  const [couponMsg, setCouponMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return;
+
+    if (code === 'VIP10' || code === 'PUNTOG10') {
+      setAppliedCoupon({ code, type: 'percent', value: 10, label: '10% de Descuento VIP' });
+      setCouponMsg({ text: '¡Cupón VIP del 10% aplicado!', isError: false });
+    } else if (code === 'PROMO5' || code === 'BIENVENIDO') {
+      if (subtotal < 20000) {
+        setCouponMsg({ text: 'Este cupón aplica para pedidos mayores a $20.000', isError: true });
+        return;
+      }
+      setAppliedCoupon({ code, type: 'fixed', value: 5000, label: '$5.000 de Descuento' });
+      setCouponMsg({ text: '¡Descuento de $5.000 aplicado!', isError: false });
+    } else if (code === 'ENVIOFREE') {
+      if (deliveryType !== 'domicilio') {
+        setCouponMsg({ text: 'Este cupón es válido para pedidos con Domicilio', isError: true });
+        return;
+      }
+      setAppliedCoupon({ code, type: 'shipping', value: deliveryFee, label: 'Envío Gratis' });
+      setCouponMsg({ text: '¡Costo de envío bonificado!', isError: false });
+    } else {
+      setCouponMsg({ text: 'Cupón no válido o expirado', isError: true });
+    }
+  };
+
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.type === 'percent'
+      ? Math.round((subtotal * appliedCoupon.value) / 100)
+      : appliedCoupon.type === 'fixed'
+      ? appliedCoupon.value
+      : 0
+    : 0;
+
+  const effectiveDeliveryFee = appliedCoupon?.type === 'shipping' ? 0 : deliveryFee;
+  const finalPayableTotal = Math.max(0, subtotal - discountAmount + effectiveDeliveryFee + tip);
 
   if (!isCartOpen) return null;
 
@@ -103,7 +149,7 @@ export const CartDrawer: React.FC = () => {
         }}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
         <div className="w-screen max-w-md bg-[#101010] border-l border-[#242424] text-white flex flex-col shadow-2xl">
           
           {/* Header */}
@@ -159,11 +205,16 @@ export const CartDrawer: React.FC = () => {
                     className="text-[10px] font-black uppercase tracking-wider"
                     style={{ color: primaryColor }}
                   >
-                    ¡Registrado en Sistema!
+                    {webOrderSuccess.isOffline ? '⚡ ¡Guardado en este dispositivo (Modo Offline)!' : '¡Registrado en Sistema!'}
                   </span>
                   <h3 className="text-2xl font-black text-white uppercase font-display mt-0.5">
                     PEDIDO #{webOrderSuccess.codigo}
                   </h3>
+                  {webOrderSuccess.isOffline && (
+                    <div className="mt-2 p-2 bg-amber-500/15 border border-amber-500/40 rounded-lg text-[11px] text-amber-300 font-bold">
+                      📶 Se sincronizará automáticamente con la cocina y caja al restablecerse la conexión a internet.
+                    </div>
+                  )}
                 </div>
                 <div className="bg-[#1b1b1b] p-3 rounded-xl text-xs space-y-1 text-left border border-[#2b2b2b]">
                   <p className="text-gray-300">
@@ -700,15 +751,70 @@ export const CartDrawer: React.FC = () => {
           {/* Footer Summary & Checkout */}
           {!webOrderSuccess && items.length > 0 && (
             <div className="p-4 sm:p-5 border-t border-[#222] bg-[#141414] space-y-3">
+              {/* Cupón Promocional */}
+              <form onSubmit={handleApplyCoupon} className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Cupón (ej: VIP10, PROMO5)"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value);
+                    if (couponMsg) setCouponMsg(null);
+                  }}
+                  className="flex-1 bg-[#1a1a1c] border border-[#2e2e32] rounded-xl px-3 py-1.5 text-xs text-white uppercase placeholder:normal-case focus:border-brand-yellow outline-none font-bold"
+                />
+                <button
+                  type="submit"
+                  className="px-3.5 py-1.5 bg-[#252528] hover:bg-[#303036] text-gray-200 text-xs font-bold rounded-xl transition border border-[#38383e]"
+                >
+                  Aplicar
+                </button>
+              </form>
+
+              {couponMsg && (
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${couponMsg.isError ? 'bg-red-950/40 text-red-400 border border-red-800/40' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-800/40'}`}>
+                  {couponMsg.text}
+                </div>
+              )}
+
+              {appliedCoupon && (
+                <div className="flex justify-between items-center text-xs text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-2.5 py-1 rounded-lg">
+                  <span className="font-bold">🎉 {appliedCoupon.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedCoupon(null);
+                      setCouponCode('');
+                      setCouponMsg(null);
+                    }}
+                    className="text-gray-400 hover:text-white text-[10px] underline ml-2"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-1 text-xs text-gray-400">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
                   <span className="font-semibold text-white">{formatPrice(subtotal)}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-400 font-bold">
+                    <span>Descuento cupón:</span>
+                    <span>-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
                 {deliveryType === 'domicilio' && (
                   <div className="flex justify-between">
                     <span>Domicilio:</span>
-                    <span className="font-semibold text-white">{formatPrice(deliveryFee)}</span>
+                    <span className="font-semibold text-white">
+                      {appliedCoupon?.type === 'shipping' ? (
+                        <span className="text-emerald-400 font-bold line-through">{formatPrice(deliveryFee)} (Gratis)</span>
+                      ) : (
+                        formatPrice(deliveryFee)
+                      )}
+                    </span>
                   </div>
                 )}
                 {tip > 0 && (
@@ -719,7 +825,7 @@ export const CartDrawer: React.FC = () => {
                 )}
                 <div className="flex justify-between text-base font-extrabold text-white pt-2 border-t border-[#252525]">
                   <span>TOTAL A PAGAR:</span>
-                  <span className="text-lg font-black" style={{ color: primaryColor }}>{formatPrice(totalPrice)}</span>
+                  <span className="text-lg font-black" style={{ color: primaryColor }}>{formatPrice(finalPayableTotal)}</span>
                 </div>
               </div>
 

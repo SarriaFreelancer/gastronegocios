@@ -39,6 +39,7 @@ import {
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { sendBrowserNotification, requestNotificationPermission } from '@/lib/pwa-notifications';
+import { enqueueOfflineOrder, saveMenuCache, getMenuCache } from '@/lib/offlineStore';
 
 // Audio sintetizado con Web Audio API para alertas de mesero
 function playAlertSound(type: 'call' | 'bill') {
@@ -333,8 +334,29 @@ export default function MeseroPage() {
         const dataBranches = await resBranches.json();
         setBranches(dataBranches);
       }
+
+      // Guardar en caché local para que funcione si se cae el Wi-Fi
+      if (resProds.ok && resCats.ok && resTables.ok) {
+        try {
+          const cachedTables = await resTables.clone().json().catch(() => []);
+          const cachedProds = await resProds.clone().json().catch(() => []);
+          const cachedCats = await resCats.clone().json().catch(() => []);
+          saveMenuCache(tenantSlug, { products: cachedProds, categories: cachedCats, tables: cachedTables });
+        } catch (_) {}
+      }
     } catch (err) {
-      console.error('Error cargando datos de mesero:', err);
+      // Si se cae la red, cargar de la memoria interna IndexedDB
+      console.warn('Cargando mesas y productos desde memoria local offline:', err);
+      try {
+        const cached = await getMenuCache(tenantSlug);
+        if (cached) {
+          if (cached.tables && cached.tables.length > 0) setTables(cached.tables);
+          if (cached.products && cached.products.length > 0) setProducts(cached.products);
+          if (cached.categories && cached.categories.length > 0) setCategories(cached.categories);
+        }
+      } catch (errCache) {
+        console.error('Error leyendo caché offline en mesero:', errCache);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -528,32 +550,55 @@ export default function MeseroPage() {
     if (!confirm.isConfirmed) return;
 
     setIsSubmitting(true);
+    const orderPayload = {
+      cliente: customerName.trim() || `Comensal ${selectedTable.numero}`,
+      telefono: '3000000000',
+      tipo: 'mesa',
+      mesaId: selectedTable.id,
+      numeroMesa: selectedTable.numero,
+      branchId: selectedTable.branchId,
+      restaurantSlug: tenantSlug,
+      restaurantId: restaurant?.id,
+      subtotal: comandaSubtotal,
+      propina: comandaPropina,
+      total: comandaTotal,
+      metodoPago: 'Pendiente en Mesa',
+      notasCliente: `Comanda tomada por Mesero en Tablet`,
+      items: comandaItems.map((it) => ({
+        productoId: it.product.id,
+        nombre: it.product.nombre,
+        precio: it.product.precio,
+        cantidad: it.cantidad,
+        notas: it.notas || null,
+      })),
+    };
+
+    // Si el mesero está sin conexión, guardar en cola local
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const offlineRecord = await enqueueOfflineOrder(orderPayload);
+        await swalCustom.fire({
+          title: '👨‍🍳 ¡COMANDA GUARDADA SIN CONEXIÓN!',
+          html: `Comanda temporal <strong class="text-amber-400">#${offlineRecord.codigo}</strong> guardada en este dispositivo para la <strong>${selectedTable.numero}</strong>.<br/><br/><small class="text-gray-400">Se transmitirá automáticamente a cocina al volver el Wi-Fi.</small>`,
+          icon: 'info',
+          confirmButtonText: 'Entendido',
+        });
+        setCurrentView('mesas');
+        setSelectedTable(null);
+        setComandaItems([]);
+      } catch (errOffline) {
+        await showError('Error fuera de línea', 'No se pudo guardar la comanda local.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cliente: customerName.trim() || `Comensal ${selectedTable.numero}`,
-          telefono: '3000000000',
-          tipo: 'mesa',
-          mesaId: selectedTable.id,
-          numeroMesa: selectedTable.numero,
-          branchId: selectedTable.branchId,
-          restaurantSlug: tenantSlug,
-          restaurantId: restaurant?.id,
-          subtotal: comandaSubtotal,
-          propina: comandaPropina,
-          total: comandaTotal,
-          metodoPago: 'Pendiente en Mesa',
-          notasCliente: `Comanda tomada por Mesero en Tablet`,
-          items: comandaItems.map((it) => ({
-            productoId: it.product.id,
-            nombre: it.product.nombre,
-            precio: it.product.precio,
-            cantidad: it.cantidad,
-            notas: it.notas || null,
-          })),
-        }),
+        body: JSON.stringify(orderPayload),
       });
 
       if (res.ok) {
@@ -569,11 +614,34 @@ export default function MeseroPage() {
         setComandaItems([]);
         loadData();
       } else {
-        const err = await res.json();
-        await showError('Error al enviar', err.error || 'No se pudo crear la comanda.');
+        // Fallback a cola offline si el servidor falla
+        const offlineRecord = await enqueueOfflineOrder(orderPayload);
+        await swalCustom.fire({
+          title: '👨‍🍳 ¡GUARDADA EN DISPOSITIVO!',
+          html: `El servidor no respondió, pero la comanda <strong class="text-amber-400">#${offlineRecord.codigo}</strong> quedó resguardada en este dispositivo para la <strong>${selectedTable.numero}</strong>.`,
+          icon: 'warning',
+          confirmButtonText: 'Continuar',
+        });
+        setCurrentView('mesas');
+        setSelectedTable(null);
+        setComandaItems([]);
       }
     } catch (e) {
-      await showError('Error de conexión', 'No se pudo conectar con el servidor.');
+      // Fallback a cola offline por caída de red
+      try {
+        const offlineRecord = await enqueueOfflineOrder(orderPayload);
+        await swalCustom.fire({
+          title: '👨‍🍳 ¡GUARDADA SIN CONEXIÓN!',
+          html: `Se perdió la conexión, pero la comanda <strong class="text-amber-400">#${offlineRecord.codigo}</strong> se guardó localmente para la <strong>${selectedTable.numero}</strong>. Se transmitirá al reconectar.`,
+          icon: 'warning',
+          confirmButtonText: 'Continuar',
+        });
+        setCurrentView('mesas');
+        setSelectedTable(null);
+        setComandaItems([]);
+      } catch (errFallback) {
+        await showError('Error de conexión', 'No se pudo conectar con el servidor.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1139,7 +1207,16 @@ export default function MeseroPage() {
         </div>
 
         <div className="text-center text-xs text-neutral-500 py-6">
-          Desarrollado por SarriaTech Solutions S.A.S Todos los derechos reservados;
+          Desarrollado por{' '}
+          <a
+            href="https://sarriatech.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-neutral-400 hover:text-brand-yellow font-bold transition-colors underline decoration-brand-yellow/50 underline-offset-2"
+          >
+            SarriaTech Solutions S.A.S
+          </a>{' '}
+          Todos los derechos reservados;
         </div>
       </div>
     );

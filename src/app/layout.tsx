@@ -8,6 +8,7 @@ import { CartDrawer } from '@/components/cart/CartDrawer';
 import { CartToast } from '@/components/cart/CartToast';
 import { TableServiceBar } from '@/components/menu/TableServiceBar';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
+import { PwaProvider } from '@/components/pwa/PwaProvider';
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -113,14 +114,16 @@ export default function RootLayout({
       <body className="min-h-screen bg-[#080808] text-white flex flex-col antialiased selection:bg-brand-yellow selection:text-black">
         <GoogleAnalytics />
         <TenantProvider>
-          <CartProvider>
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-            <CartDrawer />
-            <CartToast />
-            <TableServiceBar />
-          </CartProvider>
+          <PwaProvider>
+            <CartProvider>
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <CartDrawer />
+              <CartToast />
+              <TableServiceBar />
+            </CartProvider>
+          </PwaProvider>
         </TenantProvider>
       </body>
     </html>
