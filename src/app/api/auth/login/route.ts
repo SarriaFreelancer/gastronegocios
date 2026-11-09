@@ -34,55 +34,94 @@ export async function POST(req: Request) {
       if (rest) targetRestaurantId = rest.id;
     }
 
+    const safeUserSelect = {
+      id: true,
+      nombre: true,
+      email: true,
+      password: true,
+      rol: true,
+      estado: true,
+      restaurantId: true,
+      branchId: true,
+      branch: {
+        select: { id: true, nombre: true, slug: true },
+      },
+      restaurant: {
+        select: { id: true, nombre: true, slug: true, logo: true, subdominio: true },
+      },
+    };
+
     // 2. If target restaurant is specified, prioritize matching its users
     let users: any[] = [];
-    if (targetRestaurantId) {
-      users = await prisma.user.findMany({
-        where: {
-          restaurantId: targetRestaurantId,
-          OR: [
-            { email: input },
-            { email: { startsWith: `${input}@` } },
-            { email: { contains: input } },
-            { email: { startsWith: `${localPart}@` } },
-            { nombre: { contains: input } },
-            { nombre: { contains: localPart } },
-            // If they typed 'admin' or 'admin@something', allow matching any admin user of this restaurant
-            ...(localPart === 'admin' ? [{ rol: { in: ['Administrador', 'Superadmin'] } }] : []),
-          ],
-        },
-        include: {
-          branch: true,
-          restaurant: true,
-        },
-      });
-    }
-
-    // If no users found within target restaurant, search globally
-    if (users.length === 0) {
-      const searchConditions: any[] = [
-        { email: input },
-        { email: { startsWith: `${input}@` } },
-        { email: { contains: input } },
-        { email: { startsWith: `${localPart}@` } },
-        { nombre: { contains: input } },
-        { nombre: { contains: localPart } },
-      ];
-
-      if (!input.includes('@')) {
-        searchConditions.push({ email: `${input}@gastronegocios.com` });
-        searchConditions.push({ email: `${input}@puntog.com` });
+    try {
+      if (targetRestaurantId) {
+        users = await prisma.user.findMany({
+          where: {
+            restaurantId: targetRestaurantId,
+            OR: [
+              { email: input },
+              { email: { startsWith: `${input}@` } },
+              { email: { contains: input } },
+              { email: { startsWith: `${localPart}@` } },
+              { nombre: { contains: input } },
+              { nombre: { contains: localPart } },
+              ...(localPart === 'admin' ? [{ rol: { in: ['Administrador', 'Superadmin'] } }] : []),
+            ],
+          },
+          select: safeUserSelect,
+        });
       }
 
-      users = await prisma.user.findMany({
-        where: {
-          OR: searchConditions,
-        },
-        include: {
-          branch: true,
-          restaurant: true,
-        },
-      });
+      // If no users found within target restaurant, search globally
+      if (users.length === 0) {
+        const searchConditions: any[] = [
+          { email: input },
+          { email: { startsWith: `${input}@` } },
+          { email: { contains: input } },
+          { email: { startsWith: `${localPart}@` } },
+          { nombre: { contains: input } },
+          { nombre: { contains: localPart } },
+        ];
+
+        if (!input.includes('@')) {
+          searchConditions.push({ email: `${input}@gastronegocios.com` });
+          searchConditions.push({ email: `${input}@puntog.com` });
+        }
+
+        users = await prisma.user.findMany({
+          where: {
+            OR: searchConditions,
+          },
+          select: safeUserSelect,
+        });
+      }
+    } catch (prismaErr: any) {
+      console.warn('Prisma query warning in login, attempting resilient raw SQL fallback:', prismaErr?.message);
+      try {
+        const rawRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT u.id, u.nombre, u.email, u.password, u.rol, u.estado, u.restaurantId, u.branchId,
+                 r.nombre as restNombre, r.slug as restSlug, r.logo as restLogo
+          FROM \`users\` u
+          LEFT JOIN \`restaurants\` r ON u.restaurantId = r.id
+          WHERE LOWER(u.email) = ? OR LOWER(u.email) = ? OR LOWER(u.email) LIKE ?
+          LIMIT 5;
+        `, input, `${localPart}@gastronegocios.com`, `%${localPart}%`);
+
+        users = rawRows.map(r => ({
+          id: r.id,
+          nombre: r.nombre,
+          email: r.email,
+          password: r.password,
+          rol: r.rol,
+          estado: r.estado || 'Activo',
+          restaurantId: r.restaurantId,
+          branchId: r.branchId,
+          restaurant: r.restNombre ? { id: r.restaurantId, nombre: r.restNombre, slug: r.restSlug, logo: r.restLogo } : null,
+        }));
+      } catch (rawErr: any) {
+        console.error('Raw query fallback error:', rawErr);
+        throw rawErr;
+      }
     }
 
     // 3. Find the user whose password matches (exact, trimmed, or case-insensitive)
@@ -112,10 +151,10 @@ export async function POST(req: Request) {
 
     const { password: _, ...safeUser } = matchedUser;
     return NextResponse.json({ success: true, user: safeUser });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor', details: error?.message || String(error) },
       { status: 500 }
     );
   }

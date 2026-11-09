@@ -9,11 +9,20 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const slug = (params.slug || 'punto-g').toLowerCase().trim();
+  const rawSlug = (params.slug || 'punto-g').toLowerCase().trim();
+  const slugWithHyphen = rawSlug === 'puntog' ? 'punto-g' : rawSlug;
+  const slugWithoutHyphen = rawSlug.replace(/-/g, '');
 
   try {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { slug },
+    const restaurant = await prisma.restaurant.findFirst({
+      where: {
+        OR: [
+          { slug: rawSlug },
+          { slug: slugWithHyphen },
+          { subdominio: rawSlug },
+          { subdominio: slugWithoutHyphen },
+        ],
+      },
       select: {
         nombre: true,
         eslogan: true,
@@ -41,7 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const title = restaurant.seoTitulo || `${restaurant.nombre} | ${restaurant.eslogan || 'Menú & Domicilios Online'}`;
     const description = restaurant.seoDescripcion || restaurant.descripcion || `Pide tu comida a domicilio en ${restaurant.nombre}. Carta completa y domicilios rápidos.`;
     const shareImage = restaurant.seoImagenCompartir || restaurant.bannerHero || restaurant.logo || '/images/hero-burger.png';
-    const canonical = restaurant.seoUrlCanonica || `https://puntog.com/r/${slug}`;
+    const canonical = restaurant.seoUrlCanonica || `https://puntog.com/r/${rawSlug}`;
     const keywords = restaurant.seoKeywords
       ? restaurant.seoKeywords.split(',').map((k: string) => k.trim())
       : [restaurant.nombre, 'restaurante', 'domicilios', 'comida rapida', 'menu digital'];
@@ -104,14 +113,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TenantLayout({ params, children }: Props) {
-  const slug = (params.slug || 'punto-g').toLowerCase().trim();
+  const rawSlug = (params.slug || 'punto-g').toLowerCase().trim();
+  const slugWithHyphen = rawSlug === 'puntog' ? 'punto-g' : rawSlug;
+  const slugWithoutHyphen = rawSlug.replace(/-/g, '');
+  const slug = slugWithHyphen;
 
   let schemaJson: any = null;
   let gaId: string | null = null;
 
   try {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { slug },
+    const restaurant = await prisma.restaurant.findFirst({
+      where: {
+        OR: [
+          { slug: rawSlug },
+          { slug: slugWithHyphen },
+          { subdominio: rawSlug },
+          { subdominio: slugWithoutHyphen },
+        ],
+      },
       include: {
         branches: {
           where: { activo: true },

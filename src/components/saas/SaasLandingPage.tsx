@@ -30,7 +30,14 @@ import {
   Check,
   Star,
   Tv,
-  Printer
+  Printer,
+  Volume2,
+  Play,
+  Receipt,
+  QrCode,
+  Tablet,
+  Monitor,
+  CheckCheck
 } from 'lucide-react';
 
 interface BrandPreset {
@@ -122,6 +129,99 @@ export function SaasLandingPage() {
   // FAQ Accordion State
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
+  // Interactive Live KDS & POS Simulator State
+  const [simView, setSimView] = useState<'kds' | 'pos' | 'qr'>('kds');
+  const [simOrders, setSimOrders] = useState([
+    {
+      id: 'PG-2045',
+      mesa: 'Mesa 4 (Terraza)',
+      items: '1x Hamburguesa Master Especial + 1x Papas Rústicas',
+      total: 38900,
+      minutos: 2,
+      estado: 'En preparación',
+      color: '#ffc928',
+    },
+    {
+      id: 'SR-102',
+      mesa: 'Mesa 2 (Salón Principal)',
+      items: '1x Salchipapa Salvaje Mixta + 1x Gaseosa 400ml',
+      total: 28500,
+      minutos: 4,
+      estado: 'Nuevo',
+      color: '#ef4444',
+    },
+    {
+      id: 'PG-2046',
+      mesa: 'Barra 1',
+      items: '1x Desgranado Mixto al Carbón',
+      total: 32000,
+      minutos: 6,
+      estado: 'Listo',
+      color: '#10b981',
+    },
+  ]);
+  const [simNotification, setSimNotification] = useState<string | null>(null);
+
+  const playKitchenChime = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch (e) {}
+  };
+
+  const handleSimulateNewOrder = () => {
+    playKitchenChime();
+    const newId = `PG-${Math.floor(2050 + Math.random() * 50)}`;
+    const tableNum = Math.floor(1 + Math.random() * 12);
+    const sampleItems = [
+      '1x Parrillada Mixta al Carbón + 1x Cerveza Corona',
+      '2x Hamburguesa Clásica Artesanal + Topping Queso Cheddar',
+      '1x Salchipapa Salvaje Extragrande para Compartir',
+      '1x Perro Gourmet Suizo + 1x Limonada Cerezada',
+    ];
+    const item = sampleItems[Math.floor(Math.random() * sampleItems.length)];
+    const price = 25000 + Math.floor(Math.random() * 30) * 1000;
+
+    const newOrder = {
+      id: newId,
+      mesa: `Mesa ${tableNum} (Salón)`,
+      items: item,
+      total: price,
+      minutos: 0,
+      estado: 'Nuevo',
+      color: '#ffc928',
+    };
+
+    setSimOrders((prev) => [newOrder, ...prev.slice(0, 3)]);
+    setSimNotification(`¡Comanda recibida en KDS: ${newId} (${newOrder.mesa})!`);
+    setTimeout(() => setSimNotification(null), 3500);
+  };
+
+  const handleAdvanceSimOrder = (id: string) => {
+    setSimOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === id) {
+          const nextState = o.estado === 'Nuevo' ? 'En preparación' : o.estado === 'En preparación' ? 'Listo' : 'Entregado';
+          return { ...o, estado: nextState };
+        }
+        return o;
+      })
+    );
+  };
+
   const formatCOP = (val: number) => '$' + Math.round(val).toLocaleString('es-CO');
 
   return (
@@ -184,6 +284,25 @@ export function SaasLandingPage() {
           </div>
         </div>
       </header>
+
+      {/* ======================================================== */}
+      {/* TICKER OPERATIVO EN VIVO (GASTRONOMÍA COLOMBIANA)        */}
+      {/* ======================================================== */}
+      <div className="bg-[#0b0b0e] border-b border-[#1b1b22] px-4 py-2.5 overflow-hidden text-xs z-40 relative">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">En Vivo</span>
+            <span className="hidden sm:inline text-gray-600">|</span>
+            <span className="hidden sm:inline text-[11px] text-gray-400 font-bold">Red GastroNegocios:</span>
+          </div>
+          <div className="overflow-hidden whitespace-nowrap text-right text-gray-300 text-xs font-medium">
+            <span>
+              🔥 <strong className="text-white">Punto G (Cali)</strong>: 18 comandas KDS procesadas hoy • 🍟 <strong className="text-white">Salchi Ricurras</strong>: 9 combos en línea activos • 🥩 <strong className="text-white">Don Carbón</strong>: $1.280.000 COP sin comisiones de apps • 📱 <strong className="text-white">Meseros</strong>: comanderas móviles conectadas
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* ======================================================== */}
       {/* HERO PRINCIPAL SAAS CON ANIMACIÓN Y PRODUCTO 3D          */}
@@ -342,6 +461,296 @@ export function SaasLandingPage() {
             </div>
 
           </div>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* SIMULADOR INTERACTIVO DE COCINA KDS & POS EN VIVO        */}
+      {/* ======================================================== */}
+      <section className="py-20 px-4 sm:px-6 bg-[#09090b] border-b border-[#1a1a20] relative overflow-hidden">
+        <div className="max-w-6xl mx-auto space-y-10 relative z-10">
+          
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-amber-400/10 border border-amber-400/30 text-brand-yellow text-xs font-black uppercase tracking-widest shadow-glow">
+              <Zap className="w-3.5 h-3.5 text-brand-yellow" />
+              <span>Tecnología en Acción</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-black uppercase font-display text-white tracking-tight">
+              PANTALLA DE COCINA (KDS) & <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">POS TÁCTIL EN VIVO</span>
+            </h2>
+            <p className="text-sm text-gray-400 max-w-2xl mx-auto leading-relaxed">
+              Prueba la velocidad del sistema. Haz clic en <strong>"Simular Comanda Entrante"</strong> para escuchar la campana sonora de cocina y ver la comanda organizarse automáticamente:
+            </p>
+          </div>
+
+          {/* Interactive Control Header */}
+          <div className="bg-[#121216] border border-[#26262e] rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            {/* View Switcher Tabs */}
+            <div className="flex items-center gap-2 bg-[#0c0c0e] p-1.5 rounded-2xl border border-[#22222a] w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => setSimView('kds')}
+                className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer ${
+                  simView === 'kds'
+                    ? 'bg-brand-yellow text-black shadow-glow'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <ChefHat className="w-4 h-4" />
+                <span>Pantalla Cocina (KDS)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSimView('pos')}
+                className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer ${
+                  simView === 'pos'
+                    ? 'bg-brand-yellow text-black shadow-glow'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Printer className="w-4 h-4" />
+                <span>Caja & POS Táctil</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSimView('qr')}
+                className={`flex-1 md:flex-initial px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer ${
+                  simView === 'qr'
+                    ? 'bg-brand-yellow text-black shadow-glow'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Menú QR Comensal</span>
+              </button>
+            </div>
+
+            {/* Chime and Test Action Button */}
+            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+              <button
+                type="button"
+                onClick={handleSimulateNewOrder}
+                className="w-full md:w-auto px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-black font-black text-xs uppercase tracking-wider shadow-glow transition hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Volume2 className="w-4 h-4 stroke-[2.5]" />
+                <span>🔔 Simular Comanda Entrante</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Toast Notification for incoming simulated order */}
+          {simNotification && (
+            <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl text-emerald-300 text-xs font-bold flex items-center justify-between shadow-2xl animate-bounce">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{simNotification}</span>
+              </span>
+              <span className="text-[10px] text-emerald-400 font-mono uppercase bg-emerald-900/60 px-2 py-0.5 rounded">
+                Campana Sonora 880Hz
+              </span>
+            </div>
+          )}
+
+          {/* SIMULATOR VIEW: KDS SCREEN */}
+          {simView === 'kds' && (
+            <div className="bg-[#0f0f13] border-2 border-[#202028] rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[#22222a] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="text-sm font-black uppercase text-white font-display">
+                    Comandera de Cocina Digital • Sede Principal
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#1e1e26] text-gray-400 text-[10px] font-bold">
+                    {simOrders.length} Comandas en Cola
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 font-mono hidden sm:inline">
+                  Auto-ordenado por tiempo de espera
+                </span>
+              </div>
+
+              {/* Grid of Kitchen Order Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                {simOrders.map((order) => {
+                  const isNew = order.estado === 'Nuevo';
+                  const isReady = order.estado === 'Listo';
+                  return (
+                    <div
+                      key={order.id}
+                      className={`bg-[#16161c] border-2 rounded-2xl p-5 space-y-4 shadow-xl transition-all ${
+                        isNew
+                          ? 'border-red-500/60 bg-red-950/10'
+                          : isReady
+                          ? 'border-emerald-500/60 bg-emerald-950/10'
+                          : 'border-brand-yellow/60 bg-amber-950/10'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-black text-white font-mono tracking-wider">
+                          #{order.id}
+                        </span>
+                        <span
+                          className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
+                            isNew
+                              ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                              : isReady
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                              : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                          }`}
+                        >
+                          {order.estado}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-xs font-bold text-gray-400 block flex items-center gap-1.5">
+                          <Store className="w-3.5 h-3.5 text-gray-500" />
+                          <span>{order.mesa}</span>
+                        </span>
+                        <p className="text-sm font-bold text-white leading-snug">
+                          {order.items}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-[#262630]">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-gray-500" />
+                          <span>Hace {order.minutos} min</span>
+                        </span>
+                        <span className="font-mono font-black text-brand-yellow">
+                          {formatCOP(order.total)}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAdvanceSimOrder(order.id)}
+                        className={`w-full py-2 px-3 rounded-xl font-black text-xs uppercase tracking-wider transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
+                          isReady
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-glow'
+                            : 'bg-[#22222c] hover:bg-brand-yellow hover:text-black text-gray-300'
+                        }`}
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                        <span>{isReady ? 'Despachar / Entregar' : 'Avanzar Estado'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* SIMULATOR VIEW: POS SCREEN */}
+          {simView === 'pos' && (
+            <div className="bg-[#0f0f13] border-2 border-[#202028] rounded-3xl p-6 sm:p-8 grid grid-cols-1 md:grid-cols-12 gap-8 shadow-2xl">
+              <div className="md:col-span-7 space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    Terminal POS Táctil
+                  </span>
+                  <span className="text-xs text-gray-400">• Factura Rápida & Cuentas Divididas</span>
+                </div>
+                <h3 className="text-2xl font-black uppercase text-white font-display">
+                  Cobro Ágil con 1 Clic
+                </h3>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Permite separar cuentas por comensal, propina sugerida legal del 10%, y cobro inmediato con códigos QR de Nequi, Daviplata o datáfono.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                  <div className="p-3 rounded-xl bg-[#181820] border border-[#2b2b36] text-center">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Medio</span>
+                    <span className="text-xs font-black text-emerald-400">Nequi QR</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#181820] border border-[#2b2b36] text-center">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Medio</span>
+                    <span className="text-xs font-black text-red-400">Daviplata</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#181820] border border-[#2b2b36] text-center">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Medio</span>
+                    <span className="text-xs font-black text-amber-400">Efectivo</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#181820] border border-[#2b2b36] text-center">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Medio</span>
+                    <span className="text-xs font-black text-blue-400">Datáfono</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thermal Receipt Mockup */}
+              <div className="md:col-span-5 flex justify-center">
+                <div className="bg-[#fcfcfc] text-black rounded-2xl p-5 w-full max-w-xs font-mono text-[11px] shadow-2xl border-4 border-[#333] space-y-3">
+                  <div className="text-center border-b border-dashed border-gray-400 pb-2">
+                    <span className="font-black text-sm block tracking-wider uppercase font-sans">PUNTO G GOURMET</span>
+                    <span className="text-[10px] text-gray-600 block">NIT 901.458.789-2 • Cali, Valle</span>
+                    <span className="text-[9px] text-gray-500 block">Factura POS Electrónica #F-4589</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <span>1x Hamburguesa Master</span>
+                      <span>$28.900</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span>1x Papas Rústicas Especial</span>
+                      <span>$10.000</span>
+                    </div>
+                    <div className="flex justify-between text-gray-700">
+                      <span>Propina Sugerida (10%)</span>
+                      <span>$3.890</span>
+                    </div>
+                  </div>
+                  <div className="border-t border-dashed border-gray-400 pt-2 flex justify-between font-black text-sm">
+                    <span>TOTAL PAGADO:</span>
+                    <span className="text-emerald-700">$42.790 COP</span>
+                  </div>
+                  <div className="text-center text-[9px] text-gray-500 border-t border-gray-200 pt-2">
+                    ¡Gracias por tu compra! • Escanea para calificar
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SIMULATOR VIEW: QR EXPERIENCE */}
+          {simView === 'qr' && (
+            <div className="bg-[#0f0f13] border-2 border-[#202028] rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl">
+              <div className="max-w-md mx-auto space-y-2">
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
+                  Experiencia del Comensal
+                </span>
+                <h3 className="text-2xl font-black uppercase text-white font-display">
+                  Menú Digital QR en Mesa
+                </h3>
+                <p className="text-xs text-gray-400">
+                  El cliente escanea el código QR de su mesa y pide directamente sin esperar al mesero, reduciendo tiempos de espera en un 40%.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+                <Link
+                  href="/r/punto-g"
+                  target="_blank"
+                  className="px-6 py-3 rounded-2xl bg-brand-yellow text-black font-black text-xs uppercase tracking-wider shadow-glow hover:scale-105 transition flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Abrir Demo Punto G en Vivo</span>
+                </Link>
+                <Link
+                  href="/r/salchiricurras"
+                  target="_blank"
+                  className="px-6 py-3 rounded-2xl bg-[#1c1c24] text-white border border-[#333] font-black text-xs uppercase tracking-wider hover:bg-[#282834] transition flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Abrir Demo Salchi Ricurras</span>
+                </Link>
+              </div>
+            </div>
+          )}
+
         </div>
       </section>
 

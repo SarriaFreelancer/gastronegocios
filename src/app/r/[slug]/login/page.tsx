@@ -26,6 +26,9 @@ import {
   Edit2,
   Save,
   ShieldCheck,
+  Mail,
+  Eye,
+  EyeOff,
   ChevronRight
 } from 'lucide-react';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
@@ -48,8 +51,24 @@ export default function TenantCustomerLoginPage() {
   const primaryColor = restaurant?.colorPrimario || '#ffc928';
   const restaurantName = restaurant?.nombre || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-  // Active view: 'orders' | 'addresses' | 'favorites' | 'login' | 'register'
-  const [activeTab, setActiveTab] = useState<'orders' | 'addresses' | 'favorites' | 'login' | 'register'>('login');
+  // Active view: 'orders' | 'addresses' | 'favorites' | 'login' | 'register' | 'staff'
+  const [activeTab, setActiveTab] = useState<'orders' | 'addresses' | 'favorites' | 'login' | 'register' | 'staff'>('login');
+
+  // Staff / Admin Login state
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffShowPassword, setStaffShowPassword] = useState(false);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get('tab') === 'staff') {
+        setActiveTab('staff');
+      }
+    }
+  }, []);
 
   // Form states
   const [loginPhone, setLoginPhone] = useState('');
@@ -152,6 +171,51 @@ export default function TenantCustomerLoginPage() {
       setLoginError('Error al iniciar sesión.');
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  const handleStaffLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStaffError('');
+    setStaffLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: staffEmail.trim(),
+          password: staffPassword,
+          restaurantSlug: slug,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.user) {
+        localStorage.setItem('punto_g_admin_logged_in', JSON.stringify(data.user));
+        localStorage.setItem('puntog_user', JSON.stringify(data.user));
+        localStorage.setItem('punto_g_user', JSON.stringify(data.user));
+        if (data.user.restaurant) {
+          localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data.user.restaurant));
+        }
+
+        const role = (data.user.rol || data.user.role || '').toLowerCase();
+        if (role === 'superadmin') {
+          router.push('/superadmin');
+        } else if (role === 'cocina' || role === 'cocinero') {
+          router.push(`/r/${slug}/cocina`);
+        } else if (role === 'mesero') {
+          router.push(`/r/${slug}/mesero`);
+        } else {
+          router.push(`/r/${slug}/admin`);
+        }
+      } else {
+        setStaffError(data.error || 'Credenciales de acceso no válidas para este restaurante.');
+      }
+    } catch (err: any) {
+      setStaffError(err.message || 'Error de conexión con el servidor.');
+    } finally {
+      setStaffLoading(false);
     }
   };
 
@@ -401,7 +465,7 @@ export default function TenantCustomerLoginPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('login')}
-                className={`flex-1 py-3.5 px-4 flex items-center justify-center gap-2 border-b-2 transition cursor-pointer ${
+                className={`flex-1 py-3.5 px-3 flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
                   activeTab === 'login'
                     ? 'border-brand-yellow text-brand-yellow bg-black/25'
                     : 'border-transparent text-gray-400 hover:text-white'
@@ -409,13 +473,13 @@ export default function TenantCustomerLoginPage() {
                 style={activeTab === 'login' ? { borderColor: primaryColor, color: primaryColor } : {}}
               >
                 <Lock className="w-4 h-4" />
-                <span>Iniciar Sesión</span>
+                <span>Cliente</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('register')}
-                className={`flex-1 py-3.5 px-4 flex items-center justify-center gap-2 border-b-2 transition cursor-pointer ${
+                className={`flex-1 py-3.5 px-3 flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
                   activeTab === 'register'
                     ? 'border-brand-yellow text-brand-yellow bg-black/25'
                     : 'border-transparent text-gray-400 hover:text-white'
@@ -423,7 +487,21 @@ export default function TenantCustomerLoginPage() {
                 style={activeTab === 'register' ? { borderColor: primaryColor, color: primaryColor } : {}}
               >
                 <User className="w-4 h-4" />
-                <span>Crear Cuenta</span>
+                <span>Registrarme</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('staff')}
+                className={`flex-1 py-3.5 px-3 flex items-center justify-center gap-1.5 border-b-2 transition cursor-pointer ${
+                  activeTab === 'staff'
+                    ? 'border-brand-yellow text-brand-yellow bg-black/25'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+                style={activeTab === 'staff' ? { borderColor: primaryColor, color: primaryColor } : {}}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Staff / Admin</span>
               </button>
             </div>
           )}
@@ -500,6 +578,90 @@ export default function TenantCustomerLoginPage() {
                     style={{ color: primaryColor }}
                   >
                     Crear mi cuenta gratis aquí
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB: STAFF / ADMIN LOGIN */}
+            {!currentCustomer && activeTab === 'staff' && (
+              <form onSubmit={handleStaffLogin} className="space-y-4 max-w-md mx-auto py-2">
+                <div className="text-center space-y-1 mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[11px] font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Acceso para Empleados y Administradores</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white mt-1">Iniciar Sesión de Colaborador</h3>
+                  <p className="text-xs text-gray-400">
+                    Ingresa con tu correo institucional y contraseña para acceder al panel de {restaurantName}.
+                  </p>
+                </div>
+
+                {staffError && (
+                  <div className="p-3 bg-red-950/60 border border-red-800/80 rounded-xl text-xs text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{staffError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">
+                    Correo electrónico *:
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin@gastronegocios.com"
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl pl-9 pr-3 py-3 outline-none transition"
+                    />
+                    <Mail className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">
+                    Contraseña *:
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={staffShowPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      className="w-full bg-[#1c1c1c] border border-[#303030] focus:border-brand-yellow text-white text-xs rounded-xl pl-9 pr-10 py-3 outline-none transition"
+                    />
+                    <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <button
+                      type="button"
+                      onClick={() => setStaffShowPassword(!staffShowPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    >
+                      {staffShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={staffLoading}
+                  className="w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black shadow-lg transition active:scale-98 disabled:opacity-50 cursor-pointer"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {staffLoading ? 'Verificando credenciales...' : 'Entrar al Panel de Control'}
+                </button>
+
+                <div className="pt-2 text-center text-xs text-gray-500">
+                  ¿Eres cliente y quieres pedir comida?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('login')}
+                    className="font-bold underline cursor-pointer text-gray-300 hover:text-white"
+                  >
+                    Ingresar como Cliente
                   </button>
                 </div>
               </form>
@@ -1006,12 +1168,13 @@ export default function TenantCustomerLoginPage() {
         <div className="mt-8 text-center border-t border-[#1c1c1c] pt-6">
           <p className="text-xs text-gray-500">
             ¿Eres administrador o colaborador de este restaurante?{' '}
-            <Link
-              href={`/login?redirect=/r/${slug}/admin`}
-              className="text-gray-400 hover:text-brand-yellow font-bold underline transition"
+            <button
+              type="button"
+              onClick={() => setActiveTab('staff')}
+              className="text-gray-400 hover:text-brand-yellow font-bold underline transition cursor-pointer"
             >
               Ingresa al Panel Administrativo aquí
-            </Link>
+            </button>
           </p>
         </div>
 

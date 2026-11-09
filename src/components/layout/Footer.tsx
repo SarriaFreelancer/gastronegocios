@@ -354,7 +354,7 @@ export const Footer: React.FC = () => {
               </Link>
 
               <Link 
-                href="/login" 
+                href={pathSlug ? `/r/${pathSlug}/login?tab=staff` : "/login"} 
                 className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#141418] text-gray-500 hover:text-gray-300 transition group text-[11px]"
               >
                 <span className="flex items-center gap-1.5">

@@ -610,7 +610,11 @@ export default function AdminPage() {
     try {
       const auth = localStorage.getItem(LOCAL_STORAGE_AUTH);
       if (!auth) {
-        router.replace('/login');
+        if (routeSlug) {
+          router.replace(`/r/${routeSlug}/login?tab=staff`);
+        } else {
+          router.replace('/login');
+        }
         return;
       }
 
@@ -2133,11 +2137,11 @@ export default function AdminPage() {
 
           <div className="pt-2 space-y-2">
             <Link
-              href="/login"
+              href={routeSlug ? `/r/${routeSlug}/login?tab=staff` : "/login"}
               className="inline-flex items-center justify-center gap-2 w-full py-3 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-glow transition-all transform hover:scale-[1.01] active:scale-[0.99]"
             >
               <Lock className="w-4 h-4" />
-              <span>INICIAR SESIÓN EN /login</span>
+              <span>{routeSlug ? `INICIAR SESIÓN EN /r/${routeSlug}/login` : "INICIAR SESIÓN EN /login"}</span>
             </Link>
 
             <Link
