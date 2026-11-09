@@ -4,8 +4,54 @@ const path = require('path');
 
 const prisma = new PrismaClient();
 
+async function ensureDatabaseColumns() {
+  try {
+    const existingCols = await prisma.$queryRawUnsafe(`
+      SELECT TABLE_NAME, COLUMN_NAME 
+      FROM information_schema.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE();
+    `);
+
+    const colMap = new Set(existingCols.map(c => `${c.TABLE_NAME.toLowerCase()}.${c.COLUMN_NAME.toLowerCase()}`));
+
+    const checkAndAdd = async (table, column, def) => {
+      const key = `${table.toLowerCase()}.${column.toLowerCase()}`;
+      if (!colMap.has(key)) {
+        console.log(`Auto-healing: Agregando columna faltante '${column}' a la tabla '${table}'...`);
+        try {
+          await prisma.$queryRawUnsafe(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${def};`);
+          colMap.add(key);
+        } catch (addErr) {
+          console.warn(`Nota auto-healing (${table}.${column}):`, addErr.message);
+        }
+      }
+    };
+
+    await checkAndAdd('users', 'permisos', 'TEXT NULL');
+    await checkAndAdd('users', 'roleId', 'INT NULL');
+    await checkAndAdd('products', 'stockMinimo', 'INT NULL DEFAULT 5');
+    await checkAndAdd('products', 'controlarStock', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await checkAndAdd('products', 'costo', 'DOUBLE NULL');
+    await checkAndAdd('products', 'codigoBarras', 'VARCHAR(191) NULL');
+    await checkAndAdd('products', 'sku', 'VARCHAR(191) NULL');
+    await checkAndAdd('orders', 'repartidor', 'VARCHAR(191) NULL');
+    await checkAndAdd('orders', 'repartidorTel', 'VARCHAR(191) NULL');
+    await checkAndAdd('orders', 'customerId', 'INT NULL');
+    await checkAndAdd('orders', 'cuentaDividida', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await checkAndAdd('orders', 'numFacturas', 'INT NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurant_tables', 'llamandoMesero', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await checkAndAdd('restaurant_tables', 'llamadoEn', 'DATETIME(3) NULL');
+    await checkAndAdd('restaurant_tables', 'solicitudCuenta', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await checkAndAdd('restaurant_tables', 'solicitudCuentaEn', 'DATETIME(3) NULL');
+    await checkAndAdd('restaurant_tables', 'metodoPagoCuenta', 'VARCHAR(191) NULL');
+  } catch (err) {
+    console.warn('Advertencia en verificación preventiva de columnas:', err.message);
+  }
+}
+
 async function main() {
   console.log('🚀 Iniciando sincronización y carga inicial de base de datos Punto G...');
+  await ensureDatabaseColumns();
 
   // 1. SEDES (BRANCHES)
   console.log('🏢 Sincronizando sedes del negocio...');
@@ -362,8 +408,8 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Error ejecutando seed-db:', e);
-    process.exit(1);
+    console.error('⚠️ Advertencia ejecutando seed-db:', e.message || e);
+    // No usar process.exit(1) para garantizar que el contenedor y Next.js arranquen
   })
   .finally(async () => {
     await prisma.$disconnect();

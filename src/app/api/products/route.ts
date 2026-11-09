@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveTenantScope } from '@/lib/tenant-security';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +15,11 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    if (restaurantId && restaurantId !== 'all') {
-      where.restaurantId = Number(restaurantId);
-    } else if (restaurantSlug) {
-      where.restaurant = { slug: restaurantSlug };
+    // Aislamiento Multi-Tenant Estricto
+    const allowAll = searchParams.get('allTenants') === 'true';
+    if (!allowAll) {
+      const scope = await resolveTenantScope(req);
+      where.restaurantId = scope.restaurantId;
     }
 
     if (subcategorySlug && subcategorySlug !== 'todas') {

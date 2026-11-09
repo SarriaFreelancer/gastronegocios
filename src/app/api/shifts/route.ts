@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveTenantScope } from '@/lib/tenant-security';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,8 +9,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const isCurrent = searchParams.get('current') === 'true';
     const branchId = searchParams.get('branchId');
-    const restaurantId = searchParams.get('restaurantId');
-    const restId = restaurantId ? Number(restaurantId) : undefined;
+    const allTenants = searchParams.get('allTenants') === 'true';
+    const scope = await resolveTenantScope(req);
+    const restId = allTenants ? undefined : (searchParams.get('restaurantId') ? Number(searchParams.get('restaurantId')) : scope.restaurantId);
 
     const branchFilter: any = {};
     if (branchId && branchId !== 'all') {
@@ -53,6 +55,7 @@ export async function GET(req: Request) {
         const orderWhere: any = {
           createdAt: { gte: shift.createdAt },
           estado: { not: 'Cancelado' },
+          ...(shift.restaurantId ? { restaurantId: shift.restaurantId } : {}),
         };
         if (shift.branchId) {
           orderWhere.branchId = shift.branchId;
@@ -121,8 +124,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cajero = 'Admin', baseInicial = 0, notas = '', branchId, restaurantId, forceClosePrevious = false } = body;
-    const restId = restaurantId ? Number(restaurantId) : 1;
+    const scope = await resolveTenantScope(req, body);
+    const { cajero = 'Admin', baseInicial = 0, notas = '', branchId, forceClosePrevious = false } = body;
+    const restId = body.restaurantId ? Number(body.restaurantId) : scope.restaurantId;
 
     // Check if an open shift already exists for this branch and restaurant
     const openShiftWhere: any = { estado: 'Abierto', restaurantId: restId };
@@ -201,6 +205,7 @@ export async function PUT(req: Request) {
       where: {
         createdAt: { gte: shift.createdAt },
         estado: { not: 'Cancelado' },
+        ...(shift.restaurantId ? { restaurantId: shift.restaurantId } : {}),
       },
     });
 

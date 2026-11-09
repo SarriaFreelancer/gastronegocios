@@ -6,7 +6,10 @@
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
     "postbuild": "node -e \"const fs=require('fs'); if(fs.existsSync('.next/standalone')){fs.cpSync('public','.next/standalone/public',{recursive:true});fs.cpSync('.next/static','.next/standalone/.next/static',{recursive:true});} try{fs.rmSync('.next/cache',{recursive:true,force:true});}catch(e){}\"",
-    "start": "npx prisma migrate deploy && node scripts/seed-db.js && node .next/standalone/server.js"
+    "start": "npx prisma migrate deploy && node scripts/seed-db.js && node .next/standalone/server.js",
+    "test": "node --test tests/*.test.js",
+    "test:security": "node --test tests/security-isolation.test.js",
+    "test:e2e": "node --test tests/e2e-order-flow.test.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
