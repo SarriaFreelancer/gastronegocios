@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -128,6 +128,20 @@ export function SaasLandingPage() {
 
   // FAQ Accordion State
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  // Dynamic Live Showcase Restaurants from DB
+  const [liveRestaurants, setLiveRestaurants] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/restaurants?landing=true')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setLiveRestaurants(data);
+        }
+      })
+      .catch((e) => console.error('Error fetching landing restaurants:', e));
+  }, []);
 
   // Interactive Live KDS & POS Simulator State
   const [simView, setSimView] = useState<'kds' | 'pos' | 'qr'>('kds');
@@ -886,166 +900,107 @@ export function SaasLandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          
-          {/* Tarjeta Demo 1: Punto G */}
-          <div className="bg-[#111] border-2 border-[#222] hover:border-brand-yellow/60 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-brand-yellow text-black flex items-center justify-center font-black text-xl shadow-glow">
-                    G
+          {(liveRestaurants.length > 0 ? liveRestaurants : [
+            {
+              id: 1,
+              nombre: 'Punto G Gourmet',
+              slug: 'punto-g',
+              eslogan: 'Hamburguesas, picadas & parrilla',
+              descripcion: 'Restaurante gastronómico con sedes en Cali. Maneja menú digital interactivo, pantalla táctil de cocina (KDS) y control de mesas.',
+              colorPrimario: '#ffc928',
+              _count: { products: 30 }
+            },
+            {
+              id: 2,
+              nombre: 'Salchi Ricurras',
+              slug: 'salchiricurras',
+              eslogan: 'Salchipapas artesanales & maíz',
+              descripcion: 'Salchipapas gigantes, mazorcadas con queso gratinado y combos para compartir con identidad visual roja y pedidos por WhatsApp.',
+              colorPrimario: '#E53E3E',
+              _count: { products: 15 }
+            },
+            {
+              id: 3,
+              nombre: 'Azados Bryan',
+              slug: 'bryan',
+              eslogan: 'Parrilla al carbón & asados',
+              descripcion: 'Asados al carbón con carnes seleccionadas, costillas BBQ, picadas mixtas y carta digital con despacho rápido.',
+              colorPrimario: '#D97706',
+              _count: { products: 18 }
+            }
+          ]).map((rest) => {
+            const primaryColor = rest.colorPrimario || '#ffc928';
+            const initial = rest.nombre ? rest.nombre.charAt(0).toUpperCase() : 'R';
+            return (
+              <div
+                key={rest.id || rest.slug}
+                className="bg-[#111] border-2 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
+                style={{ borderColor: `${primaryColor}50` }}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-glow text-black"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        {initial}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black uppercase text-white font-display">
+                          {rest.nombre}
+                        </h3>
+                        <span className="text-xs text-gray-400">
+                          {rest.eslogan || 'Menú digital & POS'}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className="px-3 py-1 rounded-full text-[10px] font-black uppercase border"
+                      style={{
+                        backgroundColor: `${primaryColor}20`,
+                        color: primaryColor,
+                        borderColor: `${primaryColor}50`,
+                      }}
+                    >
+                      En Vivo
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black uppercase text-white font-display">
-                      Punto G Gourmet
-                    </h3>
-                    <span className="text-xs text-gray-400">Hamburguesas, picadas & parrilla</span>
-                  </div>
+
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    {rest.descripcion || 'Restaurante activo con sistema gastronómico multisede, menú QR y comanderas.'}
+                  </p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30">
-                  En Vivo
-                </span>
-              </div>
 
-              <p className="text-xs text-gray-300 leading-relaxed">
-                Restaurante gastronómico con sedes en Cali. Maneja menú digital interactivo, pantalla táctil de cocina (KDS) y control de mesas.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
-              <Link
-                href="/r/punto-g"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Landing</span>
-                <ExternalLink className="w-3.5 h-3.5 text-brand-yellow" />
-              </Link>
-              <Link
-                href="/r/punto-g/cocina"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Cocina</span>
-                <ChefHat className="w-3.5 h-3.5 text-amber-400" />
-              </Link>
-              <Link
-                href="/r/punto-g/mesero"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Mesero</span>
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Tarjeta Demo 2: Salchi Ricurras */}
-          <div className="bg-[#111] border-2 border-[#222] hover:border-red-500/60 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl shadow-glow">
-                    S
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black uppercase text-white font-display">
-                      Salchi Ricurras
-                    </h3>
-                    <span className="text-xs text-gray-400">Salchipapas artesanales & maíz</span>
-                  </div>
+                <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
+                  <Link
+                    href={`/r/${rest.slug}`}
+                    target="_blank"
+                    className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
+                  >
+                    <span>Carta</span>
+                    <ExternalLink className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                  </Link>
+                  <Link
+                    href={`/r/${rest.slug}/cocina`}
+                    target="_blank"
+                    className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
+                  >
+                    <span>Cocina</span>
+                    <ChefHat className="w-3.5 h-3.5 text-amber-400" />
+                  </Link>
+                  <Link
+                    href={`/r/${rest.slug}/mesero`}
+                    target="_blank"
+                    className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
+                  >
+                    <span>Mesero</span>
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                  </Link>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-400 border border-red-500/30">
-                  En Vivo
-                </span>
               </div>
-
-              <p className="text-xs text-gray-300 leading-relaxed">
-                Salchipapas gigantes, mazorcadas con queso gratinado y combos para compartir con identidad visual roja y pedidos por WhatsApp.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
-              <Link
-                href="/r/salchiricurras"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Landing</span>
-                <ExternalLink className="w-3.5 h-3.5 text-red-400" />
-              </Link>
-              <Link
-                href="/r/salchiricurras/cocina"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Cocina</span>
-                <ChefHat className="w-3.5 h-3.5 text-amber-400" />
-              </Link>
-              <Link
-                href="/r/salchiricurras/mesero"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Mesero</span>
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Tarjeta Demo 3: Azados Bryan */}
-          <div className="bg-[#111] border-2 border-[#222] hover:border-amber-500/60 rounded-3xl p-6 space-y-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center font-black text-xl shadow-glow">
-                    B
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black uppercase text-white font-display">
-                      Azados Bryan
-                    </h3>
-                    <span className="text-xs text-gray-400">Parrilla al carbón & asados</span>
-                  </div>
-                </div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                  En Vivo
-                </span>
-              </div>
-
-              <p className="text-xs text-gray-300 leading-relaxed">
-                Asados al carbón con carnes seleccionadas, costillas BBQ, picadas mixtas y carta digital con despacho rápido.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wider">
-              <Link
-                href="/r/bryan"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Landing</span>
-                <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-              </Link>
-              <Link
-                href="/r/bryan/cocina"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Cocina</span>
-                <ChefHat className="w-3.5 h-3.5 text-amber-400" />
-              </Link>
-              <Link
-                href="/r/bryan/mesero"
-                target="_blank"
-                className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-[#282828] text-white border border-[#333] flex items-center justify-center gap-1.5 transition text-center"
-              >
-                <span>Mesero</span>
-                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-              </Link>
-            </div>
-          </div>
-
+            );
+          })}
         </div>
       </section>
 

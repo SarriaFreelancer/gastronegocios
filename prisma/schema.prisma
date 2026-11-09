@@ -88,6 +88,7 @@ model Restaurant {
   propinaSugeridaPct Float             @default(10)
   plan               String            @default("Pro") // "Basico", "Pro", "Enterprise"
   activo             Boolean           @default(true)
+  mostrarEnLanding   Boolean           @default(true)
   fechaVencimiento   DateTime?
   limiteSedes        Int               @default(3)
   limiteProductos    Int               @default(100)

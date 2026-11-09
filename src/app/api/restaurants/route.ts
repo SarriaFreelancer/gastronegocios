@@ -9,11 +9,42 @@ export async function GET(req: Request) {
     const slug = searchParams.get('slug');
     const subdominio = searchParams.get('subdominio');
     const id = searchParams.get('id');
+    const forLanding = searchParams.get('landing') === 'true';
+
+    // Listado público optimizado para la Landing Page
+    if (forLanding) {
+      const landingRests = await prisma.restaurant.findMany({
+        where: {
+          activo: true,
+          mostrarEnLanding: true,
+        },
+        select: {
+          id: true,
+          nombre: true,
+          slug: true,
+          subdominio: true,
+          eslogan: true,
+          descripcion: true,
+          logo: true,
+          colorPrimario: true,
+          colorSecundario: true,
+          colorBoton: true,
+          colorBotonTexto: true,
+          mostrarEnLanding: true,
+          activo: true,
+          _count: {
+            select: { products: true, branches: true },
+          },
+        },
+        orderBy: { id: 'asc' },
+      });
+      return NextResponse.json(landingRests);
+    }
 
     // Consulta específica de un restaurante por slug, subdominio o id
     if (slug || subdominio || id) {
       const searchKey = (slug || subdominio || '').trim();
-      const variantWithHyphen = searchKey === 'puntog' ? 'punto-g' : searchKey.includes('-') ? searchKey : searchKey.replace(/([a-z])([A-Z])/g, '$1-$2');
+      const variantWithHyphen = searchKey === 'puntog' ? 'punto-g' : (searchKey === 'don-carbon-parrilla' || searchKey === 'doncarbon') ? 'bryan' : searchKey.includes('-') ? searchKey : searchKey.replace(/([a-z])([A-Z])/g, '$1-$2');
       const variantWithoutHyphen = searchKey.replace(/-/g, '');
 
       const restaurant = await prisma.restaurant.findFirst({

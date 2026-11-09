@@ -12,6 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rawSlug = (params.slug || 'punto-g').toLowerCase().trim();
   const slugWithHyphen = rawSlug === 'puntog' ? 'punto-g' : rawSlug;
   const slugWithoutHyphen = rawSlug.replace(/-/g, '');
+  const slugAlias = rawSlug === 'puntog' ? 'punto-g' : (rawSlug === 'don-carbon-parrilla' || rawSlug === 'doncarbon') ? 'bryan' : rawSlug;
 
   try {
     const restaurant = await prisma.restaurant.findFirst({
@@ -19,8 +20,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         OR: [
           { slug: rawSlug },
           { slug: slugWithHyphen },
+          { slug: slugAlias },
           { subdominio: rawSlug },
           { subdominio: slugWithoutHyphen },
+          { subdominio: slugAlias },
         ],
       },
       select: {
@@ -116,6 +119,7 @@ export default async function TenantLayout({ params, children }: Props) {
   const rawSlug = (params.slug || 'punto-g').toLowerCase().trim();
   const slugWithHyphen = rawSlug === 'puntog' ? 'punto-g' : rawSlug;
   const slugWithoutHyphen = rawSlug.replace(/-/g, '');
+  const slugAlias = rawSlug === 'puntog' ? 'punto-g' : (rawSlug === 'don-carbon-parrilla' || rawSlug === 'doncarbon') ? 'bryan' : rawSlug;
   const slug = slugWithHyphen;
 
   let schemaJson: any = null;
@@ -127,8 +131,10 @@ export default async function TenantLayout({ params, children }: Props) {
         OR: [
           { slug: rawSlug },
           { slug: slugWithHyphen },
+          { slug: slugAlias },
           { subdominio: rawSlug },
           { subdominio: slugWithoutHyphen },
+          { subdominio: slugAlias },
         ],
       },
       include: {

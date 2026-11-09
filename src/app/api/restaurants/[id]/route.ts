@@ -121,6 +121,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (body.propinaSugeridaPct !== undefined) data.propinaSugeridaPct = Number(body.propinaSugeridaPct);
     if (body.plan !== undefined) data.plan = body.plan;
     if (body.activo !== undefined) data.activo = Boolean(body.activo);
+    if (body.mostrarEnLanding !== undefined) data.mostrarEnLanding = Boolean(body.mostrarEnLanding);
     if (body.dominio !== undefined) data.dominio = body.dominio || null;
 
     // Control de Licencias y Suscripciones SaaS

@@ -651,13 +651,13 @@ export default function AdminPage() {
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
               if (data?.slug) router.replace(`/r/${data.slug}/admin`);
-              else router.replace('/login');
+              else router.replace('/r/punto-g/admin');
             })
-            .catch(() => router.replace('/login'));
+            .catch(() => router.replace('/r/punto-g/admin'));
           return;
         }
 
-        router.replace('/login');
+        router.replace('/r/punto-g/admin');
         return;
       }
 

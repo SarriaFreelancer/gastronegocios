@@ -58,6 +58,9 @@ function LoginForm() {
             // If redirected to /superadmin but current user is not superadmin, do NOT auto-redirect back into restriction!
             if (redirectPath.startsWith('/superadmin') && role !== 'superadmin') {
               // Stay on login page so user can log in with their superadmin account
+            } else if (redirectPath === '/admin' && role !== 'superadmin') {
+              router.replace(user.restaurant?.slug ? `/r/${user.restaurant.slug}/admin` : '/r/punto-g/admin');
+              return;
             } else {
               router.replace(redirectPath);
               return;
@@ -114,20 +117,27 @@ function LoginForm() {
         // Smart redirect based on role and tenant
         let target = redirectPath;
         const userRole = (data.user.rol || data.user.role || '').toLowerCase();
+        const restSlug = data.user.restaurant?.slug || 'punto-g';
+
         if (userRole === 'superadmin') {
           // El Superadmin SIEMPRE va a /superadmin a menos que explícitamente haya solicitado un restaurante específico
           if (!target || target === '/admin' || target === '/' || !target.includes('/r/')) {
             target = '/superadmin';
           }
-        } else if (!target) {
-          if (data.user.rol === 'Cocina') {
-            target = data.user.restaurant?.slug ? `/r/${data.user.restaurant.slug}/cocina` : '/cocina';
-          } else if (data.user.rol === 'Mesero') {
-            target = data.user.restaurant?.slug ? `/r/${data.user.restaurant.slug}/mesero` : '/mesero';
-          } else if (data.user.restaurant?.slug) {
-            target = `/r/${data.user.restaurant.slug}/admin`;
-          } else {
-            target = '/admin';
+        } else {
+          // Para usuarios NO superadmin: NUNCA permitir acceso o redirección a /superadmin
+          if (target && target.startsWith('/superadmin')) {
+            target = '';
+          }
+
+          if (!target || target === '/admin' || target === '/') {
+            if (userRole === 'cocina' || userRole === 'cocinero') {
+              target = `/r/${restSlug}/cocina`;
+            } else if (userRole === 'mesero') {
+              target = `/r/${restSlug}/mesero`;
+            } else {
+              target = `/r/${restSlug}/admin`;
+            }
           }
         }
         router.push(target);

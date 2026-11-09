@@ -34,7 +34,8 @@ import {
   EyeOff,
   Lock,
   Key,
-  UserPlus
+  UserPlus,
+  Globe
 } from 'lucide-react';
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
@@ -57,6 +58,7 @@ interface RestaurantItem {
   ciudad: string;
   plan: string;
   activo: boolean;
+  mostrarEnLanding?: boolean;
   fechaVencimiento?: string | null;
   limiteSedes?: number;
   limiteProductos?: number;
@@ -515,6 +517,27 @@ export default function SuperadminPage() {
       showError('Error', 'Fallo de conexión');
     } finally {
       setSavingDb(false);
+    }
+  };
+
+  // Alternar visibilidad en la Landing Page
+  const handleToggleLanding = async (rest: RestaurantItem) => {
+    const newState = rest.mostrarEnLanding === false ? true : false;
+    try {
+      const res = await fetch(`/api/restaurants/${rest.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mostrarEnLanding: newState }),
+      });
+      if (res.ok) {
+        showSuccess(
+          newState ? 'Visible en Landing' : 'Oculto en Landing',
+          `El negocio ${rest.nombre} ahora ${newState ? 'aparece' : 'no aparece'} en la vitrina de la landing page.`
+        );
+        loadRestaurants();
+      }
+    } catch (e) {
+      showError('Error', 'Fallo al cambiar visibilidad en landing');
     }
   };
 
@@ -1079,18 +1102,34 @@ export default function SuperadminPage() {
 
                 {/* Acciones */}
                 <div className="pt-2 border-t border-[#1e1e1e] flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(rest)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition flex items-center gap-1 cursor-pointer ${
-                      rest.activo
-                        ? 'bg-[#1c1c1c] hover:bg-red-950/40 text-gray-400 hover:text-red-400 border border-[#2e2e2e]'
-                        : 'bg-emerald-600 text-white'
-                    }`}
-                  >
-                    <Power className="w-3.5 h-3.5" />
-                    <span>{rest.activo ? 'Suspender' : 'Activar'}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(rest)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition flex items-center gap-1 cursor-pointer ${
+                        rest.activo
+                          ? 'bg-[#1c1c1c] hover:bg-red-950/40 text-gray-400 hover:text-red-400 border border-[#2e2e2e]'
+                          : 'bg-emerald-600 text-white'
+                      }`}
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>{rest.activo ? 'Suspender' : 'Activar'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleLanding(rest)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${
+                        rest.mostrarEnLanding !== false
+                          ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40'
+                          : 'bg-[#1c1c1c] hover:bg-[#282828] text-gray-500 border border-[#2e2e2e]'
+                      }`}
+                      title={rest.mostrarEnLanding !== false ? 'Visible en la vitrina de la Landing Page' : 'Oculto en la Landing Page'}
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>{rest.mostrarEnLanding !== false ? 'En Landing' : 'Oculto'}</span>
+                    </button>
+                  </div>
 
                   <div className="flex items-center gap-1.5">
                     {/* Botón de Servidor de Base de Datos y Migración */}
