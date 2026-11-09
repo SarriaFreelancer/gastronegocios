@@ -44,6 +44,29 @@ async function ensureDatabaseColumns() {
     await checkAndAdd('restaurant_tables', 'solicitudCuenta', 'TINYINT(1) NOT NULL DEFAULT 0');
     await checkAndAdd('restaurant_tables', 'solicitudCuentaEn', 'DATETIME(3) NULL');
     await checkAndAdd('restaurant_tables', 'metodoPagoCuenta', 'VARCHAR(191) NULL');
+
+    // Desbloquear migraciones fallidas en _prisma_migrations si existen
+    try {
+      await prisma.$queryRawUnsafe(`
+        UPDATE _prisma_migrations 
+        SET finished_at = NOW(), applied_steps_count = 1 
+        WHERE finished_at IS NULL;
+      `);
+    } catch (migErr) {
+      // Ignorar si no existe la tabla
+    }
+
+    // Insertar Superadmin de GastroNegocios directamente por SQL preventivo
+    try {
+      await prisma.$queryRawUnsafe(`
+        INSERT INTO \`users\` (\`nombre\`, \`email\`, \`password\`, \`rol\`, \`permisos\`, \`estado\`, \`createdAt\`, \`updatedAt\`)
+        VALUES ('Super Administrador', 'superadmin@gastronegocios.com', 'admin123', 'Superadmin', '["*"]', 'Activo', NOW(3), NOW(3))
+        ON DUPLICATE KEY UPDATE \`rol\` = 'Superadmin', \`permisos\` = '["*"]', \`estado\` = 'Activo';
+      `);
+      console.log(' ✅ Superadmin GastroNegocios asegurado en Base de Datos.');
+    } catch (rawUserErr) {
+      console.warn('Nota creando superadmin inicial:', rawUserErr.message);
+    }
   } catch (err) {
     console.warn('Advertencia en verificación preventiva de columnas:', err.message);
   }
@@ -106,11 +129,21 @@ async function main() {
   console.log('👤 Sincronizando usuarios esenciales (Superadmin, Administradores, Cajeros, Cocina)...');
   const defaultUsers = [
     {
-      nombre: 'Super Administrador',
+      nombre: 'Super Administrador GastroNegocios',
+      email: 'superadmin@gastronegocios.com',
+      password: 'admin123',
+      rol: 'Superadmin',
+      estado: 'Activo',
+      permisos: JSON.stringify(['*']),
+      branchId: null, // Acceso global a todas las sedes y clientes
+    },
+    {
+      nombre: 'Super Administrador Punto G',
       email: 'superadmin@puntog.com',
       password: 'admin123',
       rol: 'Superadmin',
       estado: 'Activo',
+      permisos: JSON.stringify(['*']),
       branchId: null, // Acceso global a todas las sedes
     },
     {

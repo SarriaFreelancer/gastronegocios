@@ -423,7 +423,7 @@ function LoginForm() {
                 <button
                   type="button"
                   onClick={() => {
-                    setEmail('superadmin@puntog.com');
+                    setEmail('superadmin@gastronegocios.com');
                     setPassword('admin123');
                   }}
                   className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"

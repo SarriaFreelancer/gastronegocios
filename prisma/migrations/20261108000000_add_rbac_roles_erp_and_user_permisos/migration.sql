@@ -326,3 +326,8 @@ ALTER TABLE `restaurants`
     ADD COLUMN `limiteUsuarios` INTEGER NOT NULL DEFAULT 10,
     ADD COLUMN `diasGracia` INTEGER NOT NULL DEFAULT 5,
     ADD COLUMN `estadoLicencia` VARCHAR(191) NOT NULL DEFAULT 'ACTIVA';
+
+-- Insert default superadmin user for GastroNegocios
+INSERT INTO `users` (`nombre`, `email`, `password`, `rol`, `permisos`, `estado`, `createdAt`, `updatedAt`)
+VALUES ('Super Administrador', 'superadmin@gastronegocios.com', 'admin123', 'Superadmin', '["*"]', 'Activo', NOW(3), NOW(3))
+ON DUPLICATE KEY UPDATE `rol` = 'Superadmin', `permisos` = '["*"]', `estado` = 'Activo';

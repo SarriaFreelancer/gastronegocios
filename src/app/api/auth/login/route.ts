@@ -70,6 +70,7 @@ export async function POST(req: Request) {
       ];
 
       if (!input.includes('@')) {
+        searchConditions.push({ email: `${input}@gastronegocios.com` });
         searchConditions.push({ email: `${input}@puntog.com` });
       }
 
