@@ -180,7 +180,12 @@ export default async function TenantLayout({ params, children }: Props) {
         );
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      let rawBase = (process.env.NEXT_PUBLIC_APP_URL || 'https://gastronegocios.sarriatech.tech').trim();
+      rawBase = rawBase.replace(/^["']|["']$/g, '');
+      if (!rawBase.startsWith('http://') && !rawBase.startsWith('https://')) {
+        rawBase = `https://${rawBase}`;
+      }
+      const baseUrl = rawBase.replace(/\/+$/, '');
       const restaurantUrl = restaurant.seoUrlCanonica || `${baseUrl}/r/${slug}`;
       const menuUrl = `${baseUrl}/r/${slug}/menu`;
 

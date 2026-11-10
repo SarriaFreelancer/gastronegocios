@@ -12,44 +12,54 @@ export default async function MenuGeneralPage({
 }: {
   searchParams?: { category?: string; sub?: string; layout?: string };
 }) {
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { id: 1 },
-    select: {
-      id: true,
-      nombre: true,
-      slug: true,
-      aparienciaMenu: true,
-      colorPrimario: true,
-      colorBoton: true,
-      colorBotonTexto: true,
-    },
-  });
+  let restaurant: any = null;
+  let effectiveCategories = defaultCategories;
+  let effectiveProducts = defaultProducts;
 
-  const dbCategories = await prisma.category.findMany({
-    where: { restaurantId: 1, activo: true },
-    orderBy: { orden: 'asc' },
-  });
+  try {
+    restaurant = await prisma.restaurant.findUnique({
+      where: { id: 1 },
+      select: {
+        id: true,
+        nombre: true,
+        slug: true,
+        aparienciaMenu: true,
+        colorPrimario: true,
+        colorBoton: true,
+        colorBotonTexto: true,
+      },
+    });
 
-  const effectiveCategories = dbCategories.length > 0 ? dbCategories : defaultCategories;
+    const dbCategories = await prisma.category.findMany({
+      where: { restaurantId: 1, activo: true },
+      orderBy: { orden: 'asc' },
+    });
 
-  const dbProducts = await prisma.product.findMany({
-    where: { restaurantId: 1, disponibilidad: true },
-    include: {
-      categoria: { select: { id: true, nombre: true, slug: true } },
-      subcategoria: { select: { id: true, nombre: true, slug: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+    if (dbCategories.length > 0) {
+      effectiveCategories = dbCategories as any;
+    }
 
-  const formattedProducts = dbProducts.map((p) => ({
-    ...p,
-    categoria: p.categoria.slug,
-    categoriaNombre: p.categoria.nombre,
-    subcategoria: p.subcategoria?.slug || null,
-    subcategoriaNombre: p.subcategoria?.nombre || null,
-  }));
+    const dbProducts = await prisma.product.findMany({
+      where: { restaurantId: 1, disponibilidad: true },
+      include: {
+        categoria: { select: { id: true, nombre: true, slug: true } },
+        subcategoria: { select: { id: true, nombre: true, slug: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-  const effectiveProducts = formattedProducts.length > 0 ? formattedProducts : defaultProducts;
+    if (dbProducts.length > 0) {
+      effectiveProducts = dbProducts.map((p) => ({
+        ...p,
+        categoria: p.categoria?.slug || '',
+        categoriaNombre: p.categoria?.nombre || '',
+        subcategoria: p.subcategoria?.slug || null,
+        subcategoriaNombre: p.subcategoria?.nombre || null,
+      })) as any;
+    }
+  } catch (err) {
+    console.error('Error loading menu from database, falling back to default static menu:', err);
+  }
 
   const isLateral =
     restaurant?.aparienciaMenu === 'lateral' ||

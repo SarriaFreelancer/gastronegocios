@@ -18,10 +18,17 @@ interface CategoryPageProps {
 }
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const cat =
-    (await prisma.category.findFirst({
+  let cat: any = null;
+  try {
+    cat = await prisma.category.findFirst({
       where: { slug: params.category, restaurantId: 1 },
-    })) || defaultCategories.find((c) => c.slug === params.category);
+    });
+  } catch (err) {
+    // fallback
+  }
+  if (!cat) {
+    cat = defaultCategories.find((c) => c.slug === params.category);
+  }
 
   if (!cat) {
     return {
@@ -39,44 +46,50 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const subParam = searchParams?.sub;
   const restaurantId = 1;
 
-  // Si el restaurante configuró el menú lateral, redirigir al menú lateral con la categoría seleccionada
-  const restConfig = await prisma.restaurant.findUnique({
-    where: { id: restaurantId },
-    select: { aparienciaMenu: true },
-  });
-  if (restConfig?.aparienciaMenu === 'lateral') {
-    redirect(`/menu?category=${encodeURIComponent(categoryParam)}${subParam ? `&sub=${encodeURIComponent(subParam)}` : ''}`);
+  let restConfig: any = null;
+  let effectiveCategories = defaultCategories;
+  let effectiveProducts = defaultProducts;
+
+  try {
+    restConfig = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { aparienciaMenu: true },
+    });
+
+    if (restConfig?.aparienciaMenu === 'lateral') {
+      redirect(`/menu?category=${encodeURIComponent(categoryParam)}${subParam ? `&sub=${encodeURIComponent(subParam)}` : ''}`);
+    }
+
+    const dbCategories = await prisma.category.findMany({
+      where: { restaurantId, activo: true },
+      orderBy: { orden: 'asc' },
+    });
+
+    if (dbCategories.length > 0) {
+      effectiveCategories = dbCategories as any;
+    }
+
+    const dbProducts = await prisma.product.findMany({
+      where: { restaurantId, disponibilidad: true },
+      include: {
+        categoria: { select: { id: true, nombre: true, slug: true } },
+        subcategoria: { select: { id: true, nombre: true, slug: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (dbProducts.length > 0) {
+      effectiveProducts = dbProducts.map((p) => ({
+        ...p,
+        categoria: p.categoria?.slug || '',
+        categoriaNombre: p.categoria?.nombre || '',
+        subcategoria: p.subcategoria?.slug || null,
+        subcategoriaNombre: p.subcategoria?.nombre || null,
+      })) as any;
+    }
+  } catch (err) {
+    console.error('Error fetching category page data:', err);
   }
-
-  // Categorías de Punto G
-  const dbCategories = await prisma.category.findMany({
-    where: { restaurantId, activo: true },
-    orderBy: { orden: 'asc' },
-  });
-
-  const effectiveCategories =
-    dbCategories.length > 0 ? dbCategories : defaultCategories;
-
-  // Productos de Punto G
-  const dbProducts = await prisma.product.findMany({
-    where: { restaurantId, disponibilidad: true },
-    include: {
-      categoria: { select: { id: true, nombre: true, slug: true } },
-      subcategoria: { select: { id: true, nombre: true, slug: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const formattedProducts = dbProducts.map((p) => ({
-    ...p,
-    categoria: p.categoria.slug,
-    categoriaNombre: p.categoria.nombre,
-    subcategoria: p.subcategoria?.slug || null,
-    subcategoriaNombre: p.subcategoria?.nombre || null,
-  }));
-
-  const effectiveProducts =
-    formattedProducts.length > 0 ? formattedProducts : defaultProducts;
 
   // Buscar categoría coincidente (puede ser categoría principal o subcategoría)
   let category = effectiveCategories.find((c) => c.slug === categoryParam);

@@ -10,10 +10,26 @@ import { TableServiceBar } from '@/components/menu/TableServiceBar';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 import { PwaProvider } from '@/components/pwa/PwaProvider';
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+function getSafeAppUrl(): URL {
+  let raw = (process.env.NEXT_PUBLIC_APP_URL || 'https://gastronegocios.sarriatech.tech').trim();
+  raw = raw.replace(/^["']|["']$/g, '');
+  if (!raw) {
+    raw = 'https://gastronegocios.sarriatech.tech';
+  } else if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+    raw = `https://${raw}`;
+  }
+  try {
+    return new URL(raw);
+  } catch {
+    return new URL('https://gastronegocios.sarriatech.tech');
+  }
+}
+
+const safeAppUrl = getSafeAppUrl();
+const appUrl = safeAppUrl.origin;
 
 export const metadata: Metadata = {
-  metadataBase: new URL(appUrl),
+  metadataBase: safeAppUrl,
   title: {
     default: 'GastroNegocios | Plataforma y Software Integral para Restaurantes',
     template: '%s | GastroNegocios',

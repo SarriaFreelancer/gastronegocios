@@ -5,7 +5,12 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://puntog.app';
+  let raw = (process.env.NEXT_PUBLIC_APP_URL || 'https://gastronegocios.sarriatech.tech').trim();
+  raw = raw.replace(/^["']|["']$/g, '');
+  if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+    raw = `https://${raw}`;
+  }
+  const baseUrl = raw.replace(/\/+$/, '');
 
   // Base public routes
   const routes: MetadataRoute.Sitemap = [
