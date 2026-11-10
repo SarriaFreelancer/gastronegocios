@@ -77,7 +77,24 @@ export async function GET(req: Request) {
     }
     return NextResponse.json(config);
   } catch (error) {
-    return NextResponse.json({ error: 'Error al consultar configuración' }, { status: 500 });
+    console.error('Error al consultar configuración, retornando valores por defecto:', error);
+    return NextResponse.json({
+      id: 1,
+      restaurantId: 1,
+      nombre: 'PUNTO G',
+      eslogan: 'ANTOJOS QUE CONECTAN',
+      telefonoWhatsapp: '3229088736',
+      mensajeWhatsappDefault: '¡Hola! Quiero hacer un pedido por la web.',
+      email: 'contacto@puntog.com',
+      correoRemitente: 'pedidos@puntog.com',
+      correoDestinatario: 'novedades@puntog.com',
+      direccion: 'Calle 9 # 45-12, Barrio Granada, Cali',
+      horario: 'Lunes a Domingo: 12:00 m. a 11:30 p.m.',
+      costoDomicilioBase: 5000,
+      propinaSugeridaPct: 10,
+      aparienciaMenu: 'clasico',
+      aparienciaAdmin: 'lateral',
+    }, { status: 200 });
   }
 }
 

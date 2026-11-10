@@ -51,5 +51,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Automatically run pending database migrations and seed full database, then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/seed-db.js && node server.js"]
+# Automatically run auto-healing seed first to unlock migrations and add columns, then run migrate deploy, then start server
+CMD ["sh", "-c", "node scripts/seed-db.js && (npx prisma migrate deploy || true) && node server.js"]

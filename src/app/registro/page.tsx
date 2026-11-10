@@ -18,7 +18,9 @@ import {
   Flame,
   CheckCircle2,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { showSuccess, showError } from '@/lib/swal';
 
@@ -77,7 +79,8 @@ const CATEGORY_PRESETS: CategoryPreset[] = [
 export default function RegisterRestaurantPage() {
   const router = useRouter();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [createdData, setCreatedData] = useState<any>(null);
   const [selectedPreset, setSelectedPreset] = useState<CategoryPreset>(CATEGORY_PRESETS[0]);
 
   // Form State
@@ -152,22 +155,20 @@ export default function RegisterRestaurantPage() {
         throw new Error(data.error || 'Error al crear el restaurante.');
       }
 
-      // Guardar sesión automática en localStorage
+      // Guardar sesión automática completa en localStorage
       if (data.user) {
+        localStorage.setItem('punto_g_admin_logged_in', JSON.stringify(data.user));
         localStorage.setItem('puntog_auth', JSON.stringify(data.user));
         localStorage.setItem('puntog_user', JSON.stringify(data.user));
+        localStorage.setItem('punto_g_user', JSON.stringify(data.user));
         if (data.restaurant) {
           localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data.restaurant));
         }
       }
 
-      showSuccess(
-        '¡Restaurante Creado con Éxito!',
-        `Bienvenido a GastroNegocios. Tu periodo de prueba gratuito de 14 días ha iniciado para ${data.restaurant.nombre}.`
-      );
-
-      // Redirigir directamente a su panel de administración aislado
-      router.replace(data.redirectUrl || `/r/${data.restaurant.slug}/admin`);
+      setCreatedData(data);
+      setStep(4);
+      setLoading(false);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || 'Error de conexión. Intenta de nuevo.');
@@ -550,6 +551,93 @@ export default function RegisterRestaurantPage() {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* STEP 4: CELEBRACIÓN Y ACCESO DIRECTO */}
+          {step === 4 && createdData && (
+            <div className="space-y-6 text-center py-4">
+              <div className="w-20 h-20 rounded-3xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-glow">
+                <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
+              </div>
+
+              <div className="space-y-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5" /> 14 Días de Prueba Activos (0% Comisiones)
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-white font-display uppercase tracking-wide">
+                  ¡Felicitaciones, {createdData.restaurant.nombre}!
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-400 max-w-lg mx-auto">
+                  Tu restaurante y carta digital han sido creados correctamente en GastroNegocios. Tu sesión de administrador ya está activa.
+                </p>
+              </div>
+
+              {/* Tarjeta con Credenciales y Enlaces */}
+              <div className="bg-[#141414] border border-[#262626] rounded-3xl p-5 sm:p-6 text-left max-w-xl mx-auto space-y-4 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-[#222] pb-3">
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest block">Restaurante</span>
+                    <strong className="text-white text-base font-black">{createdData.restaurant.nombre}</strong>
+                  </div>
+                  <span className="text-xs bg-brand-yellow/15 text-brand-yellow font-black px-2.5 py-1 rounded-lg border border-brand-yellow/30 font-mono">
+                    /r/{createdData.restaurant.slug}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-[#1a1a1a] p-3 rounded-2xl border border-[#2a2a2a] space-y-1">
+                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Usuario Administrador</span>
+                    <div className="font-mono text-emerald-400 font-bold truncate select-all">{createdData.user.email}</div>
+                  </div>
+                  <div className="bg-[#1a1a1a] p-3 rounded-2xl border border-[#2a2a2a] space-y-1">
+                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Contraseña Asignada</span>
+                    <div className="font-mono text-emerald-400 font-black select-all">{password || '••••••••'}</div>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-gray-400 bg-black/40 p-3 rounded-xl border border-white/5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-gray-300 font-bold">
+                    <Globe className="w-3.5 h-3.5 text-brand-yellow" /> Enlace de tu Menú Digital:
+                  </div>
+                  <code className="text-brand-yellow font-mono text-xs block break-all select-all">
+                    https://gastronegocios.sarriatech.tech/r/{createdData.restaurant.slug}
+                  </code>
+                </div>
+              </div>
+
+              {/* Botones de Acción Directa */}
+              <div className="max-w-xl mx-auto space-y-3 pt-2">
+                <Link
+                  href={`/r/${createdData.restaurant.slug}/admin`}
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-400 via-brand-yellow to-yellow-500 hover:brightness-110 text-black font-black text-sm uppercase tracking-wider shadow-glow flex items-center justify-center gap-2 transition hover:scale-[1.02] active:scale-95"
+                >
+                  <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
+                  <span>🚀 Ir a Administrar mi Restaurante (Panel POS & Carta)</span>
+                  <ArrowRight className="w-5 h-5 ml-auto stroke-[2.5]" />
+                </Link>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Link
+                    href={`/r/${createdData.restaurant.slug}/login?tab=staff`}
+                    className="py-3 px-4 rounded-xl bg-[#181818] hover:bg-[#222] text-white font-bold text-xs uppercase tracking-wider border border-[#2d2d2d] flex items-center justify-center gap-2 transition hover:scale-105"
+                  >
+                    <Lock className="w-4 h-4 text-brand-yellow" />
+                    <span>Iniciar Sesión Admin</span>
+                  </Link>
+
+                  <Link
+                    href={`/r/${createdData.restaurant.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-3 px-4 rounded-xl bg-[#181818] hover:bg-[#222] text-white font-bold text-xs uppercase tracking-wider border border-[#2d2d2d] flex items-center justify-center gap-2 transition hover:scale-105"
+                  >
+                    <Store className="w-4 h-4 text-emerald-400" />
+                    <span>Ver Menú Digital</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                  </Link>
+                </div>
+              </div>
+            </div>
           )}
 
         </div>

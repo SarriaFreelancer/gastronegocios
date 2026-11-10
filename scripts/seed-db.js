@@ -75,6 +75,18 @@ async function ensureDatabaseColumns() {
 
 async function main() {
   console.log('🚀 Iniciando sincronización y carga inicial de base de datos GastroNegocios / Punto G...');
+
+  // Esperar a que la base de datos responda (hasta 10 intentos)
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    try {
+      await prisma.$queryRawUnsafe('SELECT 1');
+      break;
+    } catch (connErr) {
+      console.log(`[Intento ${attempt}/10] Esperando conexión activa con la base de datos...`);
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
   await ensureDatabaseColumns();
 
   // =========================================================================

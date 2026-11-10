@@ -251,15 +251,38 @@ export default function SuperadminPage() {
       });
 
       if (res.ok) {
+        const createdData = await res.json();
+        const createdSlug = createdData.slug || formData.slug || formData.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const adminEmail = createdData.adminUser?.email || formData.adminEmail || `admin@${createdSlug}.com`;
+        const adminPass = createdData.adminUser?.password || formData.adminPassword || 'admin123';
+
         await swalCustom.fire({
           title: '🏢 ¡RESTAURANTE CREADO CON ÉXITO!',
           html: `
-            El negocio <strong class="text-brand-yellow">${formData.nombre}</strong> fue registrado.<br>
-            Su Landing Page ya está disponible en:<br>
-            <code class="text-xs text-brand-yellow bg-black/60 px-2 py-1 rounded block mt-2">/r/${formData.slug || formData.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}</code>
+            <div class="text-left text-xs space-y-3">
+              <p>El restaurante <strong class="text-brand-yellow font-bold">${formData.nombre}</strong> está listo.</p>
+              
+              <div class="bg-black/60 p-3 rounded-xl border border-white/10 space-y-2">
+                <div class="text-gray-300"><strong>🌐 Menú Web:</strong> <code class="text-brand-yellow">/r/${createdSlug}</code></div>
+                <div class="text-gray-300"><strong>👤 Admin Email:</strong> <code class="text-emerald-400 font-bold">${adminEmail}</code></div>
+                <div class="text-gray-300"><strong>🔑 Contraseña:</strong> <code class="text-emerald-400 font-bold">${adminPass}</code></div>
+              </div>
+
+              <div class="pt-2 flex flex-col gap-2">
+                <a href="/r/${createdSlug}/admin" target="_blank" class="py-2.5 px-4 bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black uppercase text-center rounded-xl shadow-glow block">
+                  🚀 Ir a Administrar este Restaurante (/r/${createdSlug}/admin)
+                </a>
+                <a href="/r/${createdSlug}/login?tab=staff" target="_blank" class="py-2 px-3 bg-[#222] hover:bg-[#333] text-white font-bold uppercase text-center rounded-xl border border-[#444] block">
+                  🔑 Iniciar Sesión como Administrador
+                </a>
+                <a href="/r/${createdSlug}" target="_blank" class="py-2 px-3 bg-[#111] hover:bg-[#222] text-gray-300 font-bold uppercase text-center rounded-xl border border-[#333] block">
+                  📱 Ver Carta Digital
+                </a>
+              </div>
+            </div>
           `,
           icon: 'success',
-          confirmButtonText: 'Genial',
+          confirmButtonText: 'Cerrar',
         });
         setIsCreateModalOpen(false);
         setFormData({
@@ -1042,6 +1065,21 @@ export default function SuperadminPage() {
                             colorPrimario: rest.colorPrimario,
                           })
                         );
+                        const adminUser = rest.users?.find((u) => u.rol === 'Administrador' || u.rol === 'Superadmin');
+                        if (adminUser) {
+                          const authUser = {
+                            id: adminUser.id,
+                            nombre: adminUser.nombre,
+                            email: adminUser.email,
+                            rol: adminUser.rol,
+                            restaurantId: rest.id,
+                            restaurant: { id: rest.id, nombre: rest.nombre, slug: rest.slug },
+                          };
+                          localStorage.setItem('punto_g_admin_logged_in', JSON.stringify(authUser));
+                          localStorage.setItem('puntog_auth', JSON.stringify(authUser));
+                          localStorage.setItem('puntog_user', JSON.stringify(authUser));
+                          localStorage.setItem('punto_g_user', JSON.stringify(authUser));
+                        }
                       }
                     }}
                     className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 via-brand-yellow to-yellow-500 hover:brightness-110 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-glow transition hover:scale-[1.01] active:scale-95"
@@ -1050,6 +1088,30 @@ export default function SuperadminPage() {
                     <span>Administrar este Restaurante</span>
                     <ExternalLink className="w-4 h-4 ml-auto stroke-[2.5]" />
                   </Link>
+
+                  {/* Botones Secundarios: Iniciar Sesión Admin & Ver Menú Digital */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href={`/r/${rest.slug}/login?tab=staff`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 px-3 bg-[#1e1e1e] hover:bg-[#282828] text-white border border-[#333] font-bold text-[11px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition hover:scale-105"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-brand-yellow" />
+                      <span>Login Admin</span>
+                      <ExternalLink className="w-3 h-3 text-gray-400 ml-auto" />
+                    </Link>
+                    <Link
+                      href={`/r/${rest.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 px-3 bg-[#1e1e1e] hover:bg-[#282828] text-white border border-[#333] font-bold text-[11px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition hover:scale-105"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Ver Carta Web</span>
+                      <ExternalLink className="w-3 h-3 text-gray-400 ml-auto" />
+                    </Link>
+                  </div>
 
                   {/* Control de Licencia SaaS */}
                   <div className="bg-[#181818] border border-[#282828] rounded-2xl p-3 space-y-2">
@@ -1395,6 +1457,7 @@ export default function SuperadminPage() {
                     </label>
                     <input
                       type="password"
+                      autoComplete="new-password"
                       placeholder="••••••••"
                       value={formData.adminPassword}
                       onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
@@ -2136,6 +2199,7 @@ export default function SuperadminPage() {
                 </label>
                 <input
                   type="password"
+                  autoComplete="current-password"
                   placeholder="••••••••••••"
                   value={dbFormData.dbPassword}
                   onChange={(e) => setDbFormData({ ...dbFormData, dbPassword: e.target.value })}
