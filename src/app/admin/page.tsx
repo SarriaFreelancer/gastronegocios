@@ -86,8 +86,11 @@ import {
   Menu as MenuIcon,
   ChevronDown,
   Tv,
-  X
+  X,
+  Smartphone,
+  Monitor
 } from 'lucide-react';
+import { usePwa } from '@/components/pwa/PwaProvider';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
 import { exportSalesReportToExcel, exportSalesReportToPDF } from '@/lib/reports';
@@ -235,6 +238,7 @@ export default function AdminPage() {
   const router = useRouter();
   const params = useParams();
   const routeSlug = (params?.slug as string) || null;
+  const { canInstall, triggerInstall } = usePwa();
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -6474,6 +6478,70 @@ export default function AdminPage() {
                 <span>GUARDAR CONFIGURACIÓN Y CANALES EN MYSQL</span>
               </button>
             </form>
+
+            {/* SECCIÓN PWA: DESCARGA E INSTALACIÓN DE LA APLICACIÓN */}
+            <div className="bg-[#181818] border border-[#262626] rounded-2xl p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#2b2b2b]">
+                <div className="flex items-center gap-2 text-brand-yellow font-black uppercase tracking-wider text-xs">
+                  <Smartphone className="w-4 h-4" />
+                  <span>APLICACIÓN MÓVIL Y DE ESCRITORIO (PWA)</span>
+                </div>
+                <span className="self-start sm:self-auto px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  Instalable para Admin, Cocina y Meseros
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Descarga e instala la aplicación GastroPOS directamente en este dispositivo (Android, iOS, Windows o Mac). Permite operar a pantalla completa, recibir alertas sonoras de comandas y funcionar en modo 100% offline sin internet.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                {/* Botón de Instalación */}
+                <div className="p-4 rounded-xl bg-[#121212] border border-[#2a2a2a] flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-white font-bold text-xs mb-1">
+                      <Download className="w-4 h-4 text-brand-yellow" />
+                      <span>Instalador Directo</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      Descarga e instala la aplicación oficial en este equipo o celular.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (canInstall) {
+                        await triggerInstall();
+                      } else {
+                        showAlert({
+                          title: 'Instalación de Aplicación GastroPOS',
+                          text: 'Para instalar la aplicación en este dispositivo:\n\n• En Chrome / Edge (PC o Android): Haz clic en el ícono de instalación (⊕ o monitor con flecha) en la barra superior de direcciones.\n• En Android: Toca el menú de tres puntos (⋮) y selecciona "Instalar aplicación" o "Agregar a pantalla principal".\n• En iPhone / iPad (Safari): Toca el botón Compartir (⎋) y selecciona "Agregar al inicio (➕)".',
+                          icon: 'info',
+                        });
+                      }
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 via-brand-yellow to-yellow-500 hover:brightness-110 text-black font-black text-xs uppercase tracking-wider shadow-glow flex items-center justify-center gap-2 transition hover:scale-[1.01] active:scale-95 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 stroke-[2.5]" />
+                    <span>{canInstall ? 'Descargar e Instalar GastroPOS App' : 'Instalar / Guía de Descarga'}</span>
+                  </button>
+                </div>
+
+                {/* Compatibilidad y Guía */}
+                <div className="p-4 rounded-xl bg-[#121212] border border-[#2a2a2a] space-y-2 text-[11px]">
+                  <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                    <Monitor className="w-4 h-4 text-emerald-400" />
+                    <span>Compatibilidad de Dispositivos</span>
+                  </div>
+                  <ul className="space-y-1.5 text-gray-400 list-disc list-inside">
+                    <li><strong className="text-gray-200">Android:</strong> Abre Chrome y selecciona <em>"Instalar aplicación"</em>.</li>
+                    <li><strong className="text-gray-200">iPhone / iPad:</strong> En Safari pulsa <em>Compartir (⎋)</em> y <em>"Agregar al inicio (➕)"</em>.</li>
+                    <li><strong className="text-gray-200">Windows / Mac:</strong> Haz clic en el botón de instalar en la barra de URL del navegador.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
 
             {/* Módulo Preparado: Pasarela de Pagos en Línea (Superadmin) */}
             <div className="pt-6 border-t border-[#222] space-y-4">

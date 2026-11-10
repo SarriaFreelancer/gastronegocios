@@ -113,10 +113,8 @@ export const PwaProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setInstallPrompt(e);
-      // Si no ha sido descartado en la sesión
-      if (!sessionStorage.getItem('gastropos_install_dismissed')) {
-        setShowInstallBanner(true);
-      }
+      // Banner flotante deshabilitado a petición del usuario. La instalación se realiza desde la sección de Configuración en el panel Admin.
+      setShowInstallBanner(false);
     };
 
     window.addEventListener('online', handleOnline);
@@ -213,38 +211,7 @@ export const PwaProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* BANNER 4: INSTALADOR PWA FLOTANTE DISCRETO               */}
-      {/* ======================================================== */}
-      {showInstallBanner && installPrompt && (
-        <div className="fixed bottom-20 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[99998] bg-[#141416]/95 backdrop-blur-md border border-[#2c2c30] p-4 rounded-2xl shadow-2xl text-white flex items-center justify-between gap-3 animate-in slide-in-from-bottom">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-yellow/20 text-brand-yellow flex items-center justify-center shrink-0">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-black text-white">Instalar GastroPOS App</p>
-              <p className="text-[11px] text-gray-400">Opera a pantalla completa, más rápido y 100% offline.</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={triggerInstall}
-              className="px-3.5 py-1.5 rounded-full bg-brand-yellow text-black font-extrabold text-xs hover:scale-105 active:scale-95 transition"
-            >
-              Instalar
-            </button>
-            <button
-              onClick={dismissInstall}
-              className="p-1.5 text-gray-400 hover:text-white"
-              aria-label="Cerrar aviso de instalación"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* BANNER 4: INSTALADOR PWA FLOTANTE DESHABILITADO (Disponible en Configuración del Admin) */}
     </PwaContext.Provider>
   );
 };
