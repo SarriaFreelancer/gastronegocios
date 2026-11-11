@@ -1,260 +1,433 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant } from '@/lib/db-autoheal';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export const dynamic = 'force-dynamic';
+
+// PUT /api/restaurants/[id]
+export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { id: Number(params.id) },
-      include: {
-        branches: true,
-        users: {
-          select: {
-            id: true,
-            nombre: true,
-            email: true,
-            rol: true,
-            estado: true,
-            password: true,
-            branchId: true,
-          },
-        },
-        _count: {
-          select: {
-            branches: true,
-            products: true,
-            categories: true,
-            orders: true,
-            tables: true,
-            users: true,
-          },
-        },
-      },
-    });
+    await ensureRestaurantBranchesAndSchema();
 
-    if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurante no encontrado' }, { status: 404 });
+    const { id } = await context.params;
+    const restaurantId = Number(id);
+    const body = await request.json();
+
+    if (!restaurantId || isNaN(restaurantId)) {
+      return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     }
 
-    return NextResponse.json(restaurant);
-  } catch (error) {
-    return NextResponse.json({ error: 'Error al consultar restaurante' }, { status: 500 });
-  }
-}
-
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  try {
-    const restaurantId = Number(params.id);
-    const body = await req.json();
-
     const data: any = {};
-    if (body.nombre !== undefined) data.nombre = body.nombre;
-    if (body.eslogan !== undefined) data.eslogan = body.eslogan;
-    if (body.descripcion !== undefined) data.descripcion = body.descripcion;
-    if (body.logo !== undefined) data.logo = body.logo;
-    if (body.bannerHero !== undefined) data.bannerHero = body.bannerHero;
-    if (body.colorPrimario !== undefined) data.colorPrimario = body.colorPrimario;
-    if (body.colorSecundario !== undefined) data.colorSecundario = body.colorSecundario;
-    if (body.colorTerciario !== undefined) data.colorTerciario = body.colorTerciario;
-    if (body.colorAcento !== undefined) data.colorAcento = body.colorAcento;
-    if (body.colorFondo !== undefined) data.colorFondo = body.colorFondo;
-    if (body.colorSuperficie !== undefined) data.colorSuperficie = body.colorSuperficie;
-    if (body.colorTexto !== undefined) data.colorTexto = body.colorTexto;
-    if (body.colorTextoSecundario !== undefined) data.colorTextoSecundario = body.colorTextoSecundario;
-    if (body.colorBorde !== undefined) data.colorBorde = body.colorBorde;
-    if (body.colorBoton !== undefined) data.colorBoton = body.colorBoton;
-    if (body.colorBotonTexto !== undefined) data.colorBotonTexto = body.colorBotonTexto;
-    if (body.colorNavegacion !== undefined) data.colorNavegacion = body.colorNavegacion;
-    if (body.colorExito !== undefined) data.colorExito = body.colorExito;
-    if (body.colorAlerta !== undefined) data.colorAlerta = body.colorAlerta;
-    if (body.colorError !== undefined) data.colorError = body.colorError;
 
-    // Plantillas y Secciones
-    if (body.plantilla !== undefined) data.plantilla = body.plantilla;
-    if (body.tituloHero !== undefined) data.tituloHero = body.tituloHero;
-    if (body.subtituloHero !== undefined) data.subtituloHero = body.subtituloHero;
-    if (body.descripcionHero !== undefined) data.descripcionHero = body.descripcionHero;
-    if (body.textoBotonHero !== undefined) data.textoBotonHero = body.textoBotonHero;
-    if (body.bannerPromocional !== undefined) data.bannerPromocional = body.bannerPromocional;
-    if (body.textoPromocional !== undefined) data.textoPromocional = body.textoPromocional;
-    if (body.tituloSeccionMenu !== undefined) data.tituloSeccionMenu = body.tituloSeccionMenu;
-    if (body.tituloSeccionDestacados !== undefined) data.tituloSeccionDestacados = body.tituloSeccionDestacados;
-    if (body.mostrarHero !== undefined) data.mostrarHero = Boolean(body.mostrarHero);
-    if (body.mostrarCategorias !== undefined) data.mostrarCategorias = Boolean(body.mostrarCategorias);
-    if (body.mostrarDestacados !== undefined) data.mostrarDestacados = Boolean(body.mostrarDestacados);
-    if (body.mostrarPromociones !== undefined) data.mostrarPromociones = Boolean(body.mostrarPromociones);
-    if (body.mostrarResenas !== undefined) data.mostrarResenas = Boolean(body.mostrarResenas);
-    if (body.mostrarHorarios !== undefined) data.mostrarHorarios = Boolean(body.mostrarHorarios);
-    if (body.ordenSecciones !== undefined) data.ordenSecciones = body.ordenSecciones;
-    if (body.horarioAtencion !== undefined) data.horarioAtencion = body.horarioAtencion;
-    if (body.redesSociales !== undefined) data.redesSociales = typeof body.redesSociales === 'string' ? body.redesSociales : JSON.stringify(body.redesSociales);
+    const stringFields = [
+      'nombre',
+      'slug',
+      'subdominio',
+      'dominio',
+      'eslogan',
+      'descripcion',
+      'logo',
+      'favicon',
+      'bannerHero',
+      'colorPrimario',
+      'colorSecundario',
+      'colorTerciario',
+      'colorAcento',
+      'colorFondo',
+      'colorSuperficie',
+      'colorTexto',
+      'colorTextoSecundario',
+      'colorBorde',
+      'colorBoton',
+      'colorBotonTexto',
+      'colorNavegacion',
+      'colorExito',
+      'colorAlerta',
+      'colorError',
+      'plantilla',
+      'tituloHero',
+      'subtituloHero',
+      'descripcionHero',
+      'textoBotonHero',
+      'bannerPromocional',
+      'textoPromocional',
+      'tituloSeccionMenu',
+      'tituloSeccionDestacados',
+      'ordenSecciones',
+      'horarioAtencion',
+      'redesSociales',
+      'tipografia',
+      'radioBordes',
+      'estiloTarjetas',
+      'aparienciaMenu',
+      'aparienciaAdmin',
+      'politicaStockNegativo',
+      'telefono',
+      'telefonoWhatsapp',
+      'mensajeWhatsappDefault',
+      'email',
+      'correoRemitente',
+      'correoDestinatario',
+      'imagenHero',
+      'instagram',
+      'direccionCentral',
+      'ciudad',
+      'plan',
+      'estadoLicencia',
+      'notasSuperadmin',
+      'modulosActivos',
+      'seoTitulo',
+      'seoDescripcion',
+      'seoKeywords',
+      'seoTipoNegocio',
+      'seoImagenCompartir',
+      'seoUrlCanonica',
+      'googleSearchConsoleCode',
+      'googleAnalyticsId',
+    ];
 
-    // Tipografía y Estilo
-    if (body.tipografia !== undefined) data.tipografia = body.tipografia;
-    if (body.radioBordes !== undefined) data.radioBordes = body.radioBordes;
-    if (body.estiloTarjetas !== undefined) data.estiloTarjetas = body.estiloTarjetas;
-    if (body.columnasMenu !== undefined) data.columnasMenu = Number(body.columnasMenu);
-    if (body.aparienciaMenu !== undefined) data.aparienciaMenu = body.aparienciaMenu;
-    if (body.aparienciaAdmin !== undefined) data.aparienciaAdmin = body.aparienciaAdmin;
-    if (body.politicaStockNegativo !== undefined) data.politicaStockNegativo = body.politicaStockNegativo;
-    if (body.diasAnticipacionVencimiento !== undefined) data.diasAnticipacionVencimiento = Number(body.diasAnticipacionVencimiento);
-    if (body.modulosHabilitados !== undefined) data.modulosHabilitados = typeof body.modulosHabilitados === 'string' ? body.modulosHabilitados : JSON.stringify(body.modulosHabilitados);
-
-    // SEO y Posicionamiento
-    if (body.seoTitulo !== undefined) data.seoTitulo = body.seoTitulo;
-    if (body.seoDescripcion !== undefined) data.seoDescripcion = body.seoDescripcion;
-    if (body.seoKeywords !== undefined) data.seoKeywords = body.seoKeywords;
-    if (body.seoTipoNegocio !== undefined) data.seoTipoNegocio = body.seoTipoNegocio;
-    if (body.seoImagenCompartir !== undefined) data.seoImagenCompartir = body.seoImagenCompartir;
-    if (body.seoUrlCanonica !== undefined) data.seoUrlCanonica = body.seoUrlCanonica;
-    if (body.googleSearchConsoleCode !== undefined) data.googleSearchConsoleCode = body.googleSearchConsoleCode;
-    if (body.googleAnalyticsId !== undefined) data.googleAnalyticsId = body.googleAnalyticsId;
-    if (body.favicon !== undefined) data.favicon = body.favicon;
-    if (body.telefonoWhatsapp !== undefined) data.telefonoWhatsapp = body.telefonoWhatsapp;
-    if (body.mensajeWhatsappDefault !== undefined) data.mensajeWhatsappDefault = body.mensajeWhatsappDefault;
-    if (body.email !== undefined) data.email = body.email;
-    if (body.correoRemitente !== undefined) data.correoRemitente = body.correoRemitente;
-    if (body.correoDestinatario !== undefined) data.correoDestinatario = body.correoDestinatario;
-    if (body.instagram !== undefined) data.instagram = body.instagram;
-    if (body.direccionCentral !== undefined) data.direccionCentral = body.direccionCentral;
-    if (body.ciudad !== undefined) data.ciudad = body.ciudad;
-    if (body.costoDomicilioBase !== undefined) data.costoDomicilioBase = Number(body.costoDomicilioBase);
-    if (body.propinaSugeridaPct !== undefined) data.propinaSugeridaPct = Number(body.propinaSugeridaPct);
-    if (body.plan !== undefined) data.plan = body.plan;
-    if (body.activo !== undefined) data.activo = Boolean(body.activo);
-    if (body.mostrarEnLanding !== undefined) data.mostrarEnLanding = Boolean(body.mostrarEnLanding);
-    if (body.dominio !== undefined) data.dominio = body.dominio || null;
-
-    // Control de Licencias y Suscripciones SaaS
-    if (body.fechaVencimiento !== undefined) data.fechaVencimiento = body.fechaVencimiento ? new Date(body.fechaVencimiento) : null;
-    if (body.limiteSedes !== undefined) data.limiteSedes = Number(body.limiteSedes);
-    if (body.limiteProductos !== undefined) data.limiteProductos = Number(body.limiteProductos);
-    if (body.limiteUsuarios !== undefined) data.limiteUsuarios = Number(body.limiteUsuarios);
-    if (body.diasGracia !== undefined) data.diasGracia = Number(body.diasGracia);
-    if (body.estadoLicencia !== undefined) data.estadoLicencia = body.estadoLicencia;
-
-    // Database server configuration (Superadmin only)
-    if (body.databaseType !== undefined) data.databaseType = body.databaseType;
-    if (body.dbHost !== undefined) data.dbHost = body.dbHost || null;
-    if (body.dbPort !== undefined) data.dbPort = body.dbPort ? Number(body.dbPort) : null;
-    if (body.dbName !== undefined) data.dbName = body.dbName || null;
-    if (body.dbUser !== undefined) data.dbUser = body.dbUser || null;
-    if (body.dbPassword !== undefined) data.dbPassword = body.dbPassword || null;
-    if (body.dbConnectionUrl !== undefined) data.dbConnectionUrl = body.dbConnectionUrl || null;
-    if (body.dbStatus !== undefined) data.dbStatus = body.dbStatus || null;
-
-    const updated = await prisma.restaurant.update({
-      where: { id: restaurantId },
-      data,
-      include: {
-        branches: true,
-      },
-    });
-
-    // Handle Admin user updates or password changes
-    if (body.adminEmail || body.adminPassword || body.adminNombre) {
-      const existingAdmin = await prisma.user.findFirst({
-        where: {
-          restaurantId,
-          rol: { in: ['Administrador', 'Superadmin'] },
-        },
-      });
-
-      if (existingAdmin) {
-        await prisma.user.update({
-          where: { id: existingAdmin.id },
-          data: {
-            ...(body.adminNombre ? { nombre: body.adminNombre } : {}),
-            ...(body.adminEmail ? { email: body.adminEmail.trim().toLowerCase() } : {}),
-            ...(body.adminPassword ? { password: body.adminPassword.trim() } : {}),
-          },
-        });
-      } else if (body.adminEmail && body.adminPassword) {
-        await prisma.user.create({
-          data: {
-            nombre: body.adminNombre || `Admin ${body.nombre || 'Restaurante'}`,
-            email: body.adminEmail.trim().toLowerCase(),
-            password: body.adminPassword.trim(),
-            rol: 'Administrador',
-            estado: 'Activo',
-            restaurantId,
-          },
-        });
+    for (const field of stringFields) {
+      if (body[field] !== undefined) {
+        data[field] = body[field];
       }
     }
 
-    // Handle updates for other restaurant staff users (passwords, roles, names)
-    if (Array.isArray(body.updatedUsers)) {
-      for (const u of body.updatedUsers) {
-        if (u.id) {
-          const updateData: any = {};
-          if (u.nombre) updateData.nombre = u.nombre;
-          if (u.email) updateData.email = u.email.trim().toLowerCase();
-          if (u.password && u.password.trim()) updateData.password = u.password.trim();
-          if (u.rol) updateData.rol = u.rol;
-          if (u.estado) updateData.estado = u.estado;
+    if (body.slug) {
+      data.slug = String(body.slug)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
 
-          await prisma.user.update({
-            where: { id: Number(u.id) },
-            data: updateData,
-          });
+    if (body.subdominio !== undefined) {
+      data.subdominio = body.subdominio
+        ? String(body.subdominio)
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9-]/g, '')
+        : null;
+    }
+
+    const booleanFields = [
+      'mostrarHero',
+      'mostrarCategorias',
+      'mostrarDestacados',
+      'mostrarPromociones',
+      'mostrarResenas',
+      'mostrarHorarios',
+      'mostrarEnLanding',
+      'activo',
+    ];
+
+    for (const field of booleanFields) {
+      if (body[field] !== undefined) {
+        data[field] = Boolean(body[field]);
+      }
+    }
+
+    if (body.columnasMenu !== undefined) {
+      data.columnasMenu = Number(body.columnasMenu);
+    }
+    if (body.costoDomicilioBase !== undefined) {
+      data.costoDomicilioBase = Number(body.costoDomicilioBase);
+    }
+    if (body.propinaSugeridaPct !== undefined) {
+      data.propinaSugeridaPct = Number(body.propinaSugeridaPct);
+    }
+    if (body.fechaVencimiento !== undefined) {
+      data.fechaVencimiento = body.fechaVencimiento ? new Date(body.fechaVencimiento) : null;
+    }
+
+    // 1. Always apply direct SQL updates for critical status/visibility fields first
+    // so Suspend / Activate / Landing Toggle ALWAYS succeed immediately
+    if (data.activo !== undefined) {
+      const activeInt = data.activo ? 1 : 0;
+      const licState = data.estadoLicencia || (data.activo ? 'ACTIVA' : 'SUSPENDIDA');
+      await prisma.$executeRawUnsafe(
+        "UPDATE `restaurants` SET `activo` = ?, `updatedAt` = NOW() WHERE `id` = ?;",
+        activeInt,
+        restaurantId
+      ).catch(() => {});
+      await prisma.$executeRawUnsafe(
+        "UPDATE `restaurants` SET `estadoLicencia` = ? WHERE `id` = ?;",
+        licState,
+        restaurantId
+      ).catch(() => {});
+    } else if (data.estadoLicencia !== undefined) {
+      await prisma.$executeRawUnsafe(
+        "UPDATE `restaurants` SET `estadoLicencia` = ? WHERE `id` = ?;",
+        data.estadoLicencia,
+        restaurantId
+      ).catch(() => {});
+    }
+
+    if (data.mostrarEnLanding !== undefined) {
+      await prisma.$executeRawUnsafe(
+        "UPDATE `restaurants` SET `mostrarEnLanding` = ? WHERE `id` = ?;",
+        data.mostrarEnLanding ? 1 : 0,
+        restaurantId
+      ).catch(() => {});
+    }
+
+    if (data.fechaVencimiento !== undefined && data.fechaVencimiento) {
+      await prisma.$executeRawUnsafe(
+        "UPDATE `restaurants` SET `fechaVencimiento` = ? WHERE `id` = ?;",
+        data.fechaVencimiento,
+        restaurantId
+      ).catch(() => {});
+    }
+
+    // 2. Update full restaurant fields if present
+    if (Object.keys(data).length > 0) {
+      try {
+        await prisma.restaurant.update({
+          where: { id: restaurantId },
+          data,
+        });
+      } catch (updateErr: any) {
+        console.warn('Extended restaurant update failed, retrying core fields:', updateErr?.message);
+        const coreFields = [
+          'nombre',
+          'slug',
+          'subdominio',
+          'dominio',
+          'eslogan',
+          'descripcion',
+          'logo',
+          'bannerHero',
+          'colorPrimario',
+          'colorSecundario',
+          'colorFondo',
+          'telefonoWhatsapp',
+          'direccionCentral',
+          'ciudad',
+          'costoDomicilioBase',
+          'propinaSugeridaPct',
+          'plan',
+          'activo',
+        ];
+        const coreData: any = {};
+        for (const k of coreFields) {
+          if (data[k] !== undefined) coreData[k] = data[k];
+        }
+
+        if (Object.keys(coreData).length > 0) {
+          try {
+            await prisma.restaurant.update({
+              where: { id: restaurantId },
+              data: coreData,
+            });
+          } catch {
+            // Raw SQL fallback for core fields
+            if (coreData.nombre !== undefined) {
+              await prisma.$executeRawUnsafe(
+                `UPDATE \`restaurants\`
+                 SET \`nombre\` = COALESCE(?, \`nombre\`),
+                     \`slug\` = COALESCE(?, \`slug\`),
+                     \`subdominio\` = COALESCE(?, \`subdominio\`),
+                     \`eslogan\` = COALESCE(?, \`eslogan\`),
+                     \`descripcion\` = COALESCE(?, \`descripcion\`),
+                     \`logo\` = COALESCE(?, \`logo\`),
+                     \`bannerHero\` = COALESCE(?, \`bannerHero\`),
+                     \`colorPrimario\` = COALESCE(?, \`colorPrimario\`),
+                     \`colorSecundario\` = COALESCE(?, \`colorSecundario\`),
+                     \`colorFondo\` = COALESCE(?, \`colorFondo\`),
+                     \`telefonoWhatsapp\` = COALESCE(?, \`telefonoWhatsapp\`),
+                     \`direccionCentral\` = COALESCE(?, \`direccionCentral\`),
+                     \`ciudad\` = COALESCE(?, \`ciudad\`),
+                     \`plan\` = COALESCE(?, \`plan\`),
+                     \`updatedAt\` = NOW()
+                 WHERE \`id\` = ?;`,
+                coreData.nombre ?? null,
+                coreData.slug ?? null,
+                coreData.subdominio ?? null,
+                coreData.eslogan ?? null,
+                coreData.descripcion ?? null,
+                coreData.logo ?? null,
+                coreData.bannerHero ?? null,
+                coreData.colorPrimario ?? null,
+                coreData.colorSecundario ?? null,
+                coreData.colorFondo ?? null,
+                coreData.telefonoWhatsapp ?? null,
+                coreData.direccionCentral ?? null,
+                coreData.ciudad ?? null,
+                coreData.plan ?? null,
+                restaurantId
+              ).catch(() => {});
+            }
+          }
         }
       }
     }
 
-    // Handle creating a new user for this restaurant
+    // 3. Ensure restaurant has at least 1 default branch (Sede Principal)
+    const branches = await getOrCreateBranchesForRestaurant(restaurantId);
+    const defaultBranchId = branches[0]?.id || null;
+
+    // 4. Optional update of administrator user credentials
+    if (body.adminEmail || body.adminPassword || body.adminNombre) {
+      const cleanEmail = body.adminEmail ? String(body.adminEmail).trim().toLowerCase() : undefined;
+      const cleanPassword = body.adminPassword ? String(body.adminPassword).trim() : undefined;
+      const cleanName = body.adminNombre ? String(body.adminNombre).trim() : undefined;
+
+      try {
+        const existingAdmins: any[] = await prisma.$queryRawUnsafe(
+          "SELECT `id` FROM `users` WHERE `restaurantId` = ? AND `rol` IN ('Administrador', 'Admin') ORDER BY `id` ASC LIMIT 1;",
+          restaurantId
+        );
+
+        if (existingAdmins.length > 0) {
+          const adminId = Number(existingAdmins[0].id);
+          await prisma.user.update({
+            where: { id: adminId },
+            data: {
+              ...(cleanEmail ? { email: cleanEmail } : {}),
+              ...(cleanPassword ? { password: cleanPassword } : {}),
+              ...(cleanName ? { nombre: cleanName } : {}),
+            },
+          });
+        } else if (cleanEmail) {
+          await prisma.user.create({
+            data: {
+              nombre: cleanName || `Admin ${data.nombre || 'Restaurante'}`,
+              email: cleanEmail,
+              password: cleanPassword || 'admin123',
+              rol: 'Administrador',
+              estado: 'Activo',
+              restaurantId,
+              branchId: defaultBranchId,
+            },
+          });
+        }
+      } catch (uErr) {
+        console.warn('Error updating admin user:', uErr);
+      }
+    }
+
+    // 5. Optional update of existing staff users
+    if (Array.isArray(body.updatedUsers)) {
+      for (const u of body.updatedUsers) {
+        if (u.id) {
+          await prisma.user
+            .update({
+              where: { id: Number(u.id) },
+              data: {
+                ...(u.nombre ? { nombre: String(u.nombre).trim() } : {}),
+                ...(u.email ? { email: String(u.email).trim().toLowerCase() } : {}),
+                ...(u.password ? { password: String(u.password).trim() } : {}),
+                ...(u.rol ? { rol: String(u.rol) } : {}),
+                ...(u.estado ? { estado: String(u.estado) } : {}),
+                ...(u.branchId !== undefined ? { branchId: u.branchId ? Number(u.branchId) : defaultBranchId } : {}),
+              },
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
+    // 6. Optional creation of a new staff user
     if (body.newUser && body.newUser.email && body.newUser.password) {
-      await prisma.user.create({
-        data: {
-          nombre: body.newUser.nombre || 'Nuevo Usuario',
-          email: body.newUser.email.trim().toLowerCase(),
-          password: body.newUser.password.trim(),
-          rol: body.newUser.rol || 'Mesero',
-          estado: 'Activo',
-          restaurantId,
-          branchId: body.newUser.branchId ? Number(body.newUser.branchId) : null,
-        },
-      });
+      await prisma.user
+        .create({
+          data: {
+            nombre: String(body.newUser.nombre || 'Colaborador').trim(),
+            email: String(body.newUser.email).trim().toLowerCase(),
+            password: String(body.newUser.password).trim(),
+            rol: String(body.newUser.rol || 'Cajero'),
+            estado: 'Activo',
+            restaurantId,
+            branchId: body.newUser.branchId ? Number(body.newUser.branchId) : defaultBranchId,
+          },
+        })
+        .catch(() => {});
     }
 
-    // Handle deleting a user
+    // 7. Optional deletion of a staff user
     if (body.deleteUserId) {
-      await prisma.user.delete({
-        where: { id: Number(body.deleteUserId) },
-      }).catch(console.error);
+      await prisma.user
+        .delete({
+          where: { id: Number(body.deleteUserId) },
+        })
+        .catch(() => {});
     }
 
-    // Fetch the updated restaurant with users and branches
-    const finalRestaurant = await prisma.restaurant.findUnique({
-      where: { id: restaurantId },
-      include: {
-        branches: true,
-        users: {
-          select: {
-            id: true,
-            nombre: true,
-            email: true,
-            rol: true,
-            estado: true,
-            password: true,
-            branchId: true,
+    // 8. Return full updated restaurant object with branches and users
+    try {
+      const fullUpdated = await prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+        include: {
+          branches: { orderBy: { id: 'asc' } },
+          users: {
+            select: {
+              id: true,
+              nombre: true,
+              email: true,
+              password: true,
+              rol: true,
+              estado: true,
+              branchId: true,
+            },
+            orderBy: { id: 'asc' },
           },
         },
-      },
-    });
+      });
+      if (fullUpdated) {
+        return NextResponse.json({
+          ...fullUpdated,
+          branches: fullUpdated.branches?.length ? fullUpdated.branches : branches,
+        });
+      }
+    } catch {}
 
-    return NextResponse.json(finalRestaurant || updated);
+    // Raw SQL fallback for returning the updated restaurant
+    const rawRestRows: any[] = await prisma.$queryRawUnsafe(
+      "SELECT * FROM `restaurants` WHERE `id` = ? LIMIT 1;",
+      restaurantId
+    );
+    const rawUsers: any[] = (await prisma
+      .$queryRawUnsafe(
+        "SELECT `id`, `nombre`, `email`, `password`, `rol`, `estado`, `branchId` FROM `users` WHERE `restaurantId` = ? ORDER BY `id` ASC;",
+        restaurantId
+      )
+      .catch(() => [])) as any[];
+
+    const r = rawRestRows[0] || { id: restaurantId, ...data };
+    const isActivo = r.activo !== undefined ? Boolean(r.activo) : true;
+
+    return NextResponse.json({
+      ...r,
+      id: restaurantId,
+      activo: isActivo,
+      mostrarEnLanding: r.mostrarEnLanding !== undefined ? Boolean(r.mostrarEnLanding) : true,
+      estadoLicencia: r.estadoLicencia || (isActivo ? 'ACTIVA' : 'SUSPENDIDA'),
+      branches,
+      users: rawUsers,
+    });
   } catch (error) {
     console.error('Error updating restaurant:', error);
-    return NextResponse.json({ error: 'Error al actualizar restaurante' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al actualizar el restaurante' }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+// DELETE /api/restaurants/[id]
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const restaurantId = Number(params.id);
-    // Proteger restaurante principal Punto G (id 1)
+    const { id } = await context.params;
+    const restaurantId = Number(id);
+
     if (restaurantId === 1) {
-      return NextResponse.json({ error: 'No es posible eliminar el restaurante principal de la plataforma' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No se puede eliminar el restaurante matriz principal (ID 1).' },
+        { status: 400 }
+      );
     }
 
     await prisma.restaurant.delete({
@@ -263,6 +436,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error deleting restaurant:', error);
     return NextResponse.json({ error: 'Error al eliminar restaurante' }, { status: 500 });
   }
 }

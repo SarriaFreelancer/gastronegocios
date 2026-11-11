@@ -115,11 +115,23 @@ export default function TenantCustomerLoginPage() {
   }, [currentCustomer]);
 
   useEffect(() => {
+    const isStaffTabInUrl =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('tab') === 'staff';
+
+    if (isStaffTabInUrl) {
+      setActiveTab('staff');
+      if (currentCustomer) {
+        fetchCustomerOrders();
+      }
+      return;
+    }
+
     if (currentCustomer) {
-      setActiveTab('orders');
+      setActiveTab((prev) => (prev === 'staff' ? 'staff' : 'orders'));
       fetchCustomerOrders();
     } else {
-      setActiveTab('login');
+      setActiveTab((prev) => (prev === 'staff' ? 'staff' : 'login'));
     }
   }, [currentCustomer, slug]);
 
@@ -459,6 +471,20 @@ export default function TenantCustomerLoginPage() {
                 <Sparkles className="w-4 h-4" />
                 <span>Pedidos Habituales</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('staff')}
+                className={`flex-1 py-3.5 px-4 flex items-center justify-center gap-2 border-b-2 transition whitespace-nowrap cursor-pointer ${
+                  activeTab === 'staff'
+                    ? 'border-brand-yellow text-brand-yellow bg-black/25'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+                style={activeTab === 'staff' ? { borderColor: primaryColor, color: primaryColor } : {}}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Staff / Admin</span>
+              </button>
             </div>
           ) : (
             <div className="flex border-b border-[#222] bg-[#151515] text-xs font-bold">
@@ -584,7 +610,7 @@ export default function TenantCustomerLoginPage() {
             )}
 
             {/* TAB: STAFF / ADMIN LOGIN */}
-            {!currentCustomer && activeTab === 'staff' && (
+            {activeTab === 'staff' && (
               <form onSubmit={handleStaffLogin} className="space-y-4 max-w-md mx-auto py-2">
                 <div className="text-center space-y-1 mb-4">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 text-brand-yellow text-[11px] font-bold">

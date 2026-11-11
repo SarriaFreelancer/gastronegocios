@@ -11,47 +11,54 @@ export function SaasFeatureStrip() {
   const features = [
     {
       icon: Zap,
-      title: 'Configuración en 5 minutos',
-      color: 'text-amber-400',
+      line1: 'Configuración',
+      line2: 'en 5 minutos',
     },
     {
       icon: BarChart3,
-      title: 'Control total desde un solo lugar',
-      color: 'text-orange-400',
+      line1: 'Control total',
+      line2: 'desde un solo lugar',
     },
     {
       icon: ShieldCheck,
-      title: 'Seguro y confiable',
-      color: 'text-emerald-400',
+      line1: 'Seguro y',
+      line2: 'confiable',
     },
     {
       icon: Headphones,
-      title: 'Soporte especializado',
-      color: 'text-purple-400',
+      line1: 'Soporte',
+      line2: 'especializado',
     },
     {
       icon: Cloud,
-      title: 'Funciona en todos tus dispositivos',
-      color: 'text-blue-400',
+      line1: 'Funciona en',
+      line2: 'todos tus dispositivos',
     },
   ];
 
   return (
-    <div className="border-y border-white/10 bg-[#0C0F1C]/90 backdrop-blur-md py-6 px-4 sm:px-6 relative z-20">
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-4 items-center justify-between">
+    <div className="max-w-7xl mx-4 xl:mx-auto rounded-2xl border border-[#4E2322]/90 bg-gradient-to-b from-[#1B1113]/95 via-[#120B0D]/95 to-[#0C0709]/98 backdrop-blur-md py-4 px-4 sm:px-6 relative z-20 shadow-[0_14px_40px_rgba(0,0,0,0.9)]">
+      {/* Intense bottom crimson-amber neon glow line matching reference */}
+      <div className="absolute inset-x-8 bottom-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#F10F1A]/75 to-transparent shadow-[0_0_12px_#F10F1A]" />
+      <div className="absolute inset-x-20 top-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/25 to-transparent" />
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-0 lg:divide-x lg:divide-white/15 items-center">
         {features.map((feat, idx) => {
           const Icon = feat.icon;
           return (
             <div
               key={idx}
-              className="flex items-center gap-3 justify-center sm:justify-start group"
+              className="flex items-center gap-3 justify-start lg:justify-center px-2 sm:px-4"
             >
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <Icon className={`w-4 h-4 ${feat.color}`} />
+              <Icon className="w-7 h-7 text-[#FA9B23] stroke-[2] shrink-0 drop-shadow-[0_0_10px_rgba(250,155,35,0.45)]" />
+              <div className="flex flex-col leading-tight">
+                <span className="text-xs sm:text-[13.5px] font-bold text-white">
+                  {feat.line1}
+                </span>
+                <span className="text-[11px] sm:text-xs font-normal text-gray-300">
+                  {feat.line2}
+                </span>
               </div>
-              <span className="text-xs sm:text-xs font-bold text-gray-200 leading-tight">
-                {feat.title}
-              </span>
             </div>
           );
         })}

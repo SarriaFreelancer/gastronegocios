@@ -283,16 +283,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (detectedSlug) {
       fetchTenant(detectedSlug);
+    } else if (
+      pathname === '/' ||
+      pathname.startsWith('/registro') ||
+      pathname.startsWith('/superadmin') ||
+      pathname.startsWith('/login')
+    ) {
+      // Global GastroNegocios SaaS routes: do not inject Punto G tenant branding
+      setTenant(null);
+      applyThemeTokens(null);
     } else {
-      // We are on root '/' or non-tenant route
-      // Initial theme with default, then fetch fresh configuration from database
+      // Legacy root client routes (/menu, /checkout, etc.)
       if (!tenant) {
         setTenant(defaultTenantPuntoG);
         applyThemeTokens(defaultTenantPuntoG);
       }
       fetchTenant('punto-g');
     }
-  }, [detectedSlug]);
+  }, [detectedSlug, pathname]);
 
   // Listen for global tenant updates (e.g. when configurations are updated in admin)
   useEffect(() => {

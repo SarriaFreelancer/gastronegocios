@@ -14,9 +14,12 @@ export function TableServiceBar() {
   const [tempTableInput, setTempTableInput] = useState('');
 
   if (
+    pathname === '/' ||
+    pathname.startsWith('/registro') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/superadmin') ||
     pathname.startsWith('/login') ||
+    pathname.includes('/admin') ||
     pathname.includes('/cocina') ||
     pathname.includes('/mesero') ||
     pathname.includes('/entregas') ||

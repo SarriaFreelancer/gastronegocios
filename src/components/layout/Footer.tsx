@@ -36,9 +36,14 @@ export const Footer: React.FC = () => {
   // Excluir de páginas operativas o que tienen su propio layout de pantalla completa
   if (
     pathname === '/' ||
+    pathname.startsWith('/registro') ||
+    pathname.includes('/registro') ||
     pathname.startsWith('/admin') ||
+    pathname.includes('/admin') ||
     pathname.startsWith('/superadmin') ||
+    pathname.includes('/superadmin') ||
     pathname.startsWith('/login') ||
+    pathname.includes('/login') ||
     pathname.includes('/cocina') ||
     pathname.includes('/mesero') ||
     pathname.includes('/entregas') ||

@@ -6,63 +6,59 @@ import { ArrowRight, Star, Headphones, Handshake } from 'lucide-react';
 
 export function SaasTrustBanner() {
   return (
-    <div className="relative bg-[#07090F] border-t border-b border-white/5 py-8 text-white overflow-hidden">
-      {/* Red ambient bottom light wave / ribbon effect */}
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-[#E53E3E] to-transparent shadow-[0_0_25px_#E53E3E]" />
-      <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-red-600/20 blur-[90px] pointer-events-none" />
+    <div className="relative bg-gradient-to-b from-[#12090B]/95 to-[#070405] border-t border-red-500/20 py-5 sm:py-6 text-white overflow-hidden">
+      {/* Intense warm crimson glow from top wave */}
+      <div className="absolute -top-12 left-1/4 w-1/2 h-24 bg-[#F10F1A]/30 blur-[65px] pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           
-          {/* STATS: 3 items (Exact match with reference image) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 w-full lg:w-auto text-center sm:text-left">
+          {/* STATS: 3 items with vertical dividers and intense golden icons */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-0 sm:divide-x sm:divide-white/20 w-full lg:w-auto">
             
             {/* Stat 1: +1.000 Restaurantes */}
-            <div className="flex items-center justify-center sm:justify-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 shrink-0">
-                <Handshake className="w-5 h-5" />
-              </div>
+            <div className="flex items-center justify-center sm:justify-start gap-3 sm:pr-7">
+              <Handshake className="w-8 h-8 text-[#FA9B23] stroke-[2] shrink-0 drop-shadow-[0_0_10px_rgba(250,155,35,0.45)]" />
               <div>
-                <div className="text-xl sm:text-2xl font-black text-white font-display tracking-tight">+1.000</div>
-                <div className="text-xs text-gray-400 font-medium">Restaurantes confían en nosotros</div>
+                <div className="text-xl sm:text-2xl font-black text-white font-display leading-tight">+1.000</div>
+                <div className="text-[11.5px] text-gray-200 font-normal">Restaurantes confían en nosotros</div>
               </div>
             </div>
 
             {/* Stat 2: 4.9/5 Satisfacción */}
-            <div className="flex items-center justify-center sm:justify-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 shrink-0">
-                <Star className="w-5 h-5 fill-current" />
-              </div>
+            <div className="flex items-center justify-center sm:justify-start gap-3 sm:px-7">
+              <Star className="w-8 h-8 text-[#FA9B23] fill-[#FA9B23] shrink-0 drop-shadow-[0_0_10px_rgba(250,155,35,0.45)]" />
               <div>
-                <div className="text-xl sm:text-2xl font-black text-white font-display tracking-tight">4.9/5</div>
-                <div className="text-xs text-gray-400 font-medium">Satisfacción de nuestros clientes</div>
+                <div className="text-xl sm:text-2xl font-black text-white font-display leading-tight">4.9/5</div>
+                <div className="text-[11.5px] text-gray-200 font-normal">Satisfacción de nuestros clientes</div>
               </div>
             </div>
 
             {/* Stat 3: Soporte 24/7 */}
-            <div className="flex items-center justify-center sm:justify-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 shrink-0">
-                <Headphones className="w-5 h-5" />
-              </div>
+            <div className="flex items-center justify-center sm:justify-start gap-3 sm:pl-7">
+              <Headphones className="w-8 h-8 text-[#FA9B23] stroke-[2] shrink-0 drop-shadow-[0_0_10px_rgba(250,155,35,0.45)]" />
               <div>
-                <div className="text-xl sm:text-2xl font-black text-white font-display tracking-tight">Soporte 24/7</div>
-                <div className="text-xs text-gray-400 font-medium">Siempre contigo</div>
+                <div className="text-xl sm:text-2xl font-black text-white font-display leading-tight">Soporte 24/7</div>
+                <div className="text-[11.5px] text-gray-200 font-normal">Siempre contigo</div>
               </div>
             </div>
 
           </div>
 
-          {/* RIGHT ACTION BUTTON: Solid Red Pill Button (Exact match with reference) */}
+          {/* RIGHT ACTION BUTTON: 2-line Intense Red Pill Button with Rocket + White Circle Arrow */}
           <div className="w-full sm:w-auto flex justify-center lg:justify-end">
             <Link
               href="/registro"
-              className="inline-flex items-center justify-center gap-3 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#E53E3E] hover:bg-[#D42B2B] text-white font-black text-sm sm:text-base tracking-wide shadow-[0_0_30px_rgba(229,62,62,0.5)] hover:shadow-[0_0_40px_rgba(229,62,62,0.7)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
+              className="inline-flex items-center justify-between gap-4 px-6 py-3 rounded-full bg-gradient-to-b from-[#FF2E36] via-[#F10F1A] to-[#A5040C] hover:brightness-110 text-white shadow-[0_0_35px_rgba(241,15,26,0.75)] border border-red-300/45 hover:scale-[1.02] transition-all duration-200 group"
             >
-              <span className="text-lg">🚀</span>
-              <span>¡Empieza hoy y lleva tu restaurante al futuro!</span>
-              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                <ArrowRight className="w-3.5 h-3.5 text-white" />
-              </div>
+              <span className="text-3xl leading-none drop-shadow-md">🚀</span>
+              <span className="text-xs sm:text-[14px] font-extrabold leading-tight text-left drop-shadow">
+                ¡Empieza hoy y lleva tu <br />
+                restaurante al futuro!
+              </span>
+              <span className="w-8 h-8 rounded-full bg-white text-gray-950 flex items-center justify-center shrink-0 shadow-md group-hover:translate-x-0.5 transition-transform">
+                <ArrowRight className="w-4 h-4 stroke-[3]" />
+              </span>
             </Link>
           </div>
 

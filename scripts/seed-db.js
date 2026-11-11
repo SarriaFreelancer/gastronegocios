@@ -28,8 +28,76 @@ async function ensureDatabaseColumns() {
     };
 
     await checkAndAdd('restaurants', 'mostrarEnLanding', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'colorTerciario', "VARCHAR(191) NOT NULL DEFAULT '#1a1a1a'");
+    await checkAndAdd('restaurants', 'colorAcento', "VARCHAR(191) NOT NULL DEFAULT '#ffc928'");
+    await checkAndAdd('restaurants', 'colorSuperficie', "VARCHAR(191) NOT NULL DEFAULT '#121212'");
+    await checkAndAdd('restaurants', 'colorTexto', "VARCHAR(191) NOT NULL DEFAULT '#ffffff'");
+    await checkAndAdd('restaurants', 'colorTextoSecundario', "VARCHAR(191) NOT NULL DEFAULT '#9ca3af'");
+    await checkAndAdd('restaurants', 'colorBorde', "VARCHAR(191) NOT NULL DEFAULT '#262626'");
+    await checkAndAdd('restaurants', 'colorBoton', "VARCHAR(191) NOT NULL DEFAULT '#ffc928'");
+    await checkAndAdd('restaurants', 'colorBotonTexto', "VARCHAR(191) NOT NULL DEFAULT '#000000'");
+    await checkAndAdd('restaurants', 'colorNavegacion', "VARCHAR(191) NOT NULL DEFAULT '#0a0a0a'");
+    await checkAndAdd('restaurants', 'colorExito', "VARCHAR(191) NOT NULL DEFAULT '#10b981'");
+    await checkAndAdd('restaurants', 'colorAlerta', "VARCHAR(191) NOT NULL DEFAULT '#f59e0b'");
+    await checkAndAdd('restaurants', 'colorError', "VARCHAR(191) NOT NULL DEFAULT '#ef4444'");
+    await checkAndAdd('restaurants', 'plantilla', "VARCHAR(191) NOT NULL DEFAULT 'plantilla-actual'");
+    await checkAndAdd('restaurants', 'tituloHero', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'subtituloHero', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'descripcionHero', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'textoBotonHero', "VARCHAR(191) NULL DEFAULT 'Ver la Carta'");
+    await checkAndAdd('restaurants', 'bannerPromocional', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'textoPromocional', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'tituloSeccionMenu', "VARCHAR(191) NULL DEFAULT 'Nuestra Carta'");
+    await checkAndAdd('restaurants', 'tituloSeccionDestacados', "VARCHAR(191) NULL DEFAULT 'Los Más Pedidos'");
+    await checkAndAdd('restaurants', 'mostrarHero', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'mostrarCategorias', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'mostrarDestacados', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'mostrarPromociones', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'mostrarResenas', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'mostrarHorarios', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurants', 'ordenSecciones', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'horarioAtencion', "VARCHAR(191) NULL DEFAULT 'Lunes a Domingo: 12:00 m. a 11:30 p.m.'");
+    await checkAndAdd('restaurants', 'redesSociales', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'tipografia', "VARCHAR(191) NOT NULL DEFAULT 'system'");
+    await checkAndAdd('restaurants', 'radioBordes', "VARCHAR(191) NOT NULL DEFAULT 'rounded-2xl'");
+    await checkAndAdd('restaurants', 'estiloTarjetas', "VARCHAR(191) NOT NULL DEFAULT 'card-glass'");
+    await checkAndAdd('restaurants', 'columnasMenu', 'INT NOT NULL DEFAULT 3');
+    await checkAndAdd('restaurants', 'aparienciaMenu', "VARCHAR(191) NOT NULL DEFAULT 'clasico'");
+    await checkAndAdd('restaurants', 'aparienciaAdmin', "VARCHAR(191) NOT NULL DEFAULT 'lateral'");
+    await checkAndAdd('restaurants', 'politicaStockNegativo', "VARCHAR(191) NOT NULL DEFAULT 'BLOQUEAR'");
+    await checkAndAdd('restaurants', 'diasAnticipacionVencimiento', 'INT NOT NULL DEFAULT 7');
+    await checkAndAdd('restaurants', 'modulosHabilitados', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'seoTitulo', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'seoDescripcion', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'seoKeywords', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'seoTipoNegocio', "VARCHAR(191) NOT NULL DEFAULT 'Restaurant'");
+    await checkAndAdd('restaurants', 'seoImagenCompartir', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'seoUrlCanonica', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'googleSearchConsoleCode', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'googleAnalyticsId', 'VARCHAR(191) NULL');
+    await checkAndAdd('restaurants', 'mensajeWhatsappDefault', "VARCHAR(191) NULL DEFAULT '¡Hola! Quiero hacer un pedido por la web.'");
+    await checkAndAdd('restaurants', 'email', "VARCHAR(191) NULL DEFAULT 'contacto@puntog.com'");
+    await checkAndAdd('restaurants', 'correoRemitente', "VARCHAR(191) NULL DEFAULT 'pedidos@puntog.com'");
+    await checkAndAdd('restaurants', 'correoDestinatario', "VARCHAR(191) NULL DEFAULT 'novedades@puntog.com'");
+    await checkAndAdd('restaurants', 'fechaVencimiento', 'DATETIME(3) NULL');
+    await checkAndAdd('restaurants', 'limiteSedes', 'INT NOT NULL DEFAULT 3');
+    await checkAndAdd('restaurants', 'limiteProductos', 'INT NOT NULL DEFAULT 100');
+    await checkAndAdd('restaurants', 'limiteUsuarios', 'INT NOT NULL DEFAULT 10');
+    await checkAndAdd('restaurants', 'diasGracia', 'INT NOT NULL DEFAULT 5');
+    await checkAndAdd('restaurants', 'estadoLicencia', "VARCHAR(191) NOT NULL DEFAULT 'ACTIVA'");
+    await checkAndAdd('restaurants', 'databaseType', "VARCHAR(191) NOT NULL DEFAULT 'SHARED'");
+    await checkAndAdd('restaurants', 'dbHost', 'VARCHAR(191) NULL');
+    await checkAndAdd('restaurants', 'dbPort', 'INT NULL DEFAULT 3306');
+    await checkAndAdd('restaurants', 'dbName', 'VARCHAR(191) NULL');
+    await checkAndAdd('restaurants', 'dbUser', 'VARCHAR(191) NULL');
+    await checkAndAdd('restaurants', 'dbPassword', 'VARCHAR(191) NULL');
+    await checkAndAdd('restaurants', 'dbConnectionUrl', 'TEXT NULL');
+    await checkAndAdd('restaurants', 'dbStatus', "VARCHAR(191) NULL DEFAULT 'COMPARTIDA'");
+    await checkAndAdd('restaurants', 'migratedAt', 'DATETIME(3) NULL');
     await checkAndAdd('users', 'permisos', 'TEXT NULL');
     await checkAndAdd('users', 'roleId', 'INT NULL');
+    await checkAndAdd('users', 'sedeId', 'INT NULL');
+    await checkAndAdd('products', 'stock', 'INT NULL');
     await checkAndAdd('products', 'stockMinimo', 'INT NULL DEFAULT 5');
     await checkAndAdd('products', 'controlarStock', 'TINYINT(1) NOT NULL DEFAULT 0');
     await checkAndAdd('products', 'costo', 'DOUBLE NULL');
@@ -40,11 +108,241 @@ async function ensureDatabaseColumns() {
     await checkAndAdd('orders', 'customerId', 'INT NULL');
     await checkAndAdd('orders', 'cuentaDividida', 'TINYINT(1) NOT NULL DEFAULT 0');
     await checkAndAdd('orders', 'numFacturas', 'INT NOT NULL DEFAULT 1');
+    await checkAndAdd('restaurant_tables', 'sedeId', 'INT NULL');
     await checkAndAdd('restaurant_tables', 'llamandoMesero', 'TINYINT(1) NOT NULL DEFAULT 0');
     await checkAndAdd('restaurant_tables', 'llamadoEn', 'DATETIME(3) NULL');
     await checkAndAdd('restaurant_tables', 'solicitudCuenta', 'TINYINT(1) NOT NULL DEFAULT 0');
     await checkAndAdd('restaurant_tables', 'solicitudCuentaEn', 'DATETIME(3) NULL');
     await checkAndAdd('restaurant_tables', 'metodoPagoCuenta', 'VARCHAR(191) NULL');
+    await checkAndAdd('restaurant_config', 'mensajeWhatsappDefault', "VARCHAR(191) NULL DEFAULT '¡Hola! Quiero hacer un pedido por la web.'");
+    await checkAndAdd('restaurant_config', 'email', "VARCHAR(191) NULL DEFAULT 'contacto@puntog.com'");
+    await checkAndAdd('restaurant_config', 'correoRemitente', "VARCHAR(191) NULL DEFAULT 'pedidos@puntog.com'");
+    await checkAndAdd('restaurant_config', 'correoDestinatario', "VARCHAR(191) NULL DEFAULT 'novedades@puntog.com'");
+    await checkAndAdd('supplies', 'fechaVencimiento', 'DATETIME(3) NULL');
+    await checkAndAdd('supplies', 'lote', 'VARCHAR(191) NULL');
+    await checkAndAdd('supplies', 'estado', "VARCHAR(191) NOT NULL DEFAULT 'Activo'");
+    await checkAndAdd('supplies', 'observaciones', 'TEXT NULL');
+    await checkAndAdd('inventory_movements', 'tipoMovimiento', "VARCHAR(191) NOT NULL DEFAULT 'AJUSTE_POSITIVO'");
+    await checkAndAdd('inventory_movements', 'unidad', "VARCHAR(191) NOT NULL DEFAULT 'g'");
+    await checkAndAdd('inventory_movements', 'stockAnterior', 'DOUBLE NOT NULL DEFAULT 0');
+    await checkAndAdd('inventory_movements', 'stockResultante', 'DOUBLE NOT NULL DEFAULT 0');
+    await checkAndAdd('inventory_movements', 'esNegativo', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await checkAndAdd('inventory_movements', 'autorizadoPor', 'VARCHAR(191) NULL');
+    await checkAndAdd('inventory_movements', 'usuarioResponsable', "VARCHAR(191) NULL DEFAULT 'Sistema'");
+    await checkAndAdd('recipes', 'productId', 'INT NOT NULL DEFAULT 1');
+    await checkAndAdd('recipes', 'rendimiento', 'DOUBLE NOT NULL DEFAULT 100');
+    await checkAndAdd('recipes', 'tiempoPreparacion', 'INT NULL DEFAULT 15');
+    await checkAndAdd('recipes', 'costoTotal', 'DOUBLE NOT NULL DEFAULT 0');
+    await checkAndAdd('recipes', 'costoPorcion', 'DOUBLE NOT NULL DEFAULT 0');
+    await checkAndAdd('recipes', 'margenUtilidad', 'DOUBLE NULL');
+    await checkAndAdd('recipes', 'observaciones', 'TEXT NULL');
+    await checkAndAdd('recipes', 'activo', 'TINYINT(1) NOT NULL DEFAULT 1');
+
+    // Asegurar que las tablas ERP existan en caso de que la migración haya sido bloqueada previamente
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`roles\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`nombre\` VARCHAR(191) NOT NULL,
+          \`descripcion\` VARCHAR(191) NULL,
+          \`permisos\` TEXT NOT NULL,
+          \`restaurantId\` INTEGER NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          KEY \`roles_restaurantId_fkey\` (\`restaurantId\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`invoices\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`numeroFactura\` VARCHAR(191) NOT NULL,
+          \`orderId\` INTEGER NULL,
+          \`cliente\` VARCHAR(191) NOT NULL,
+          \`telefono\` VARCHAR(191) NULL,
+          \`tipo\` VARCHAR(191) NOT NULL DEFAULT 'mesa',
+          \`numeroMesa\` VARCHAR(191) NULL,
+          \`subtotal\` DOUBLE NOT NULL DEFAULT 0,
+          \`propina\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoEnvio\` DOUBLE NOT NULL DEFAULT 0,
+          \`total\` DOUBLE NOT NULL DEFAULT 0,
+          \`metodoPago\` VARCHAR(191) NOT NULL DEFAULT 'Efectivo',
+          \`estado\` VARCHAR(191) NOT NULL DEFAULT 'Pagada',
+          \`itemsJson\` TEXT NOT NULL,
+          \`esDividida\` BOOLEAN NOT NULL DEFAULT false,
+          \`dinerNombre\` VARCHAR(191) NULL,
+          \`dinerIndex\` INTEGER NULL DEFAULT 1,
+          \`totalDiners\` INTEGER NULL DEFAULT 1,
+          \`notas\` TEXT NULL,
+          \`cajero\` VARCHAR(191) NULL DEFAULT 'Mesero / Caja',
+          \`branchId\` INTEGER NULL,
+          \`restaurantId\` INTEGER NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          UNIQUE INDEX \`invoices_numeroFactura_key\`(\`numeroFactura\`),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`suppliers\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`nombre\` VARCHAR(191) NOT NULL,
+          \`nit\` VARCHAR(191) NULL,
+          \`contacto\` VARCHAR(191) NULL,
+          \`telefono\` VARCHAR(191) NULL,
+          \`email\` VARCHAR(191) NULL,
+          \`direccion\` TEXT NULL,
+          \`ciudad\` VARCHAR(191) NULL DEFAULT 'Cali',
+          \`categoria\` VARCHAR(191) NULL DEFAULT 'General',
+          \`activo\` BOOLEAN NOT NULL DEFAULT true,
+          \`restaurantId\` INTEGER NOT NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`supplies\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`codigoInterno\` VARCHAR(191) NOT NULL,
+          \`codigoBarras\` VARCHAR(191) NULL,
+          \`nombre\` VARCHAR(191) NOT NULL,
+          \`descripcion\` TEXT NULL,
+          \`categoria\` VARCHAR(191) NOT NULL DEFAULT 'General',
+          \`unidadMedida\` VARCHAR(191) NOT NULL DEFAULT 'g',
+          \`unidadCompra\` VARCHAR(191) NULL DEFAULT 'kg',
+          \`factorConversion\` DOUBLE NOT NULL DEFAULT 1,
+          \`stockActual\` DOUBLE NOT NULL DEFAULT 0,
+          \`stockMinimo\` DOUBLE NOT NULL DEFAULT 0,
+          \`stockMaximo\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoUnitario\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoPromedio\` DOUBLE NOT NULL DEFAULT 0,
+          \`proveedorId\` INTEGER NULL,
+          \`restaurantId\` INTEGER NOT NULL,
+          \`branchId\` INTEGER NULL,
+          \`fechaVencimiento\` DATETIME(3) NULL,
+          \`lote\` VARCHAR(191) NULL,
+          \`estado\` VARCHAR(191) NOT NULL DEFAULT 'Activo',
+          \`observaciones\` TEXT NULL,
+          \`activo\` BOOLEAN NOT NULL DEFAULT true,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`inventory_movements\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`supplyId\` INTEGER NOT NULL,
+          \`tipoMovimiento\` VARCHAR(191) NOT NULL DEFAULT 'AJUSTE_POSITIVO',
+          \`cantidad\` DOUBLE NOT NULL,
+          \`unidad\` VARCHAR(191) NOT NULL DEFAULT 'g',
+          \`stockAnterior\` DOUBLE NOT NULL DEFAULT 0,
+          \`stockResultante\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoUnitario\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoTotal\` DOUBLE NOT NULL DEFAULT 0,
+          \`esNegativo\` BOOLEAN NOT NULL DEFAULT false,
+          \`autorizadoPor\` VARCHAR(191) NULL,
+          \`motivo\` TEXT NULL,
+          \`referencia\` VARCHAR(191) NULL,
+          \`usuarioResponsable\` VARCHAR(191) NULL DEFAULT 'Sistema',
+          \`branchId\` INTEGER NULL,
+          \`restaurantId\` INTEGER NOT NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`recipes\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`productId\` INTEGER NOT NULL,
+          \`nombre\` VARCHAR(191) NOT NULL,
+          \`porciones\` DOUBLE NOT NULL DEFAULT 1,
+          \`rendimiento\` DOUBLE NOT NULL DEFAULT 100,
+          \`tiempoPreparacion\` INTEGER NULL DEFAULT 15,
+          \`costoTotal\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoPorcion\` DOUBLE NOT NULL DEFAULT 0,
+          \`margenUtilidad\` DOUBLE NULL,
+          \`instrucciones\` TEXT NULL,
+          \`observaciones\` TEXT NULL,
+          \`activo\` BOOLEAN NOT NULL DEFAULT true,
+          \`restaurantId\` INTEGER NOT NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          UNIQUE INDEX \`recipes_productId_key\`(\`productId\`),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`recipe_items\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`recipeId\` INTEGER NOT NULL,
+          \`supplyId\` INTEGER NOT NULL,
+          \`cantidad\` DOUBLE NOT NULL,
+          \`unidad\` VARCHAR(191) NOT NULL,
+          \`costoUnitarioCalculado\` DOUBLE NOT NULL DEFAULT 0,
+          \`costoSubtotal\` DOUBLE NOT NULL DEFAULT 0,
+          \`notas\` VARCHAR(191) NULL,
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`purchases\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`numeroFactura\` VARCHAR(191) NOT NULL,
+          \`supplierId\` INTEGER NULL,
+          \`fecha\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`total\` DOUBLE NOT NULL DEFAULT 0,
+          \`estado\` VARCHAR(191) NOT NULL DEFAULT 'Recibido',
+          \`metodoPago\` VARCHAR(191) NOT NULL DEFAULT 'Efectivo',
+          \`observaciones\` TEXT NULL,
+          \`registradoPor\` VARCHAR(191) NULL DEFAULT 'Admin',
+          \`restaurantId\` INTEGER NOT NULL,
+          \`branchId\` INTEGER NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`purchase_items\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`purchaseId\` INTEGER NOT NULL,
+          \`supplyId\` INTEGER NOT NULL,
+          \`cantidad\` DOUBLE NOT NULL,
+          \`unidad\` VARCHAR(191) NOT NULL,
+          \`precioUnitario\` DOUBLE NOT NULL,
+          \`subtotal\` DOUBLE NOT NULL,
+          \`lote\` VARCHAR(191) NULL,
+          \`fechaVencimiento\` DATETIME(3) NULL,
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`customers\` (
+          \`id\` INTEGER NOT NULL AUTO_INCREMENT,
+          \`nombre\` VARCHAR(191) NOT NULL,
+          \`documento\` VARCHAR(191) NULL,
+          \`telefono\` VARCHAR(191) NULL,
+          \`email\` VARCHAR(191) NULL,
+          \`direccion\` TEXT NULL,
+          \`ciudad\` VARCHAR(191) NULL DEFAULT 'Cali',
+          \`barrio\` VARCHAR(191) NULL,
+          \`totalComprado\` DOUBLE NOT NULL DEFAULT 0,
+          \`totalPedidos\` INTEGER NOT NULL DEFAULT 0,
+          \`ultimaCompra\` DATETIME(3) NULL,
+          \`notas\` TEXT NULL,
+          \`activo\` BOOLEAN NOT NULL DEFAULT true,
+          \`restaurantId\` INTEGER NOT NULL,
+          \`password\` VARCHAR(191) NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+    } catch (tblErr) {
+      console.warn('Nota verificando tablas ERP:', tblErr.message);
+    }
 
     // Desbloquear migraciones fallidas en _prisma_migrations si existen
     try {
@@ -905,6 +1203,47 @@ async function main() {
     });
   }
   console.log(' ✅ Configuración general de Punto G actualizada con eslogan "PUNTO G TU MÁXIMO PLACER".');
+
+  // =========================================================================
+  // 8. AUTO-HEAL SEDE PRINCIPAL PARA TODOS LOS RESTAURANTES
+  // =========================================================================
+  try {
+    const allRests = await prisma.$queryRawUnsafe("SELECT `id`, `nombre`, `slug`, `direccionCentral`, `telefonoWhatsapp`, `ciudad` FROM `restaurants` ORDER BY `id` ASC;");
+    for (const r of allRests) {
+      const rId = Number(r.id);
+      const bCountRows = await prisma.$queryRawUnsafe("SELECT COUNT(*) as cnt FROM `branches` WHERE `restaurantId` = ?;", rId);
+      const cnt = Number(bCountRows[0]?.cnt || 0);
+      if (cnt === 0) {
+        const cleanSlug = String(r.slug || `rest-${rId}`).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const bSlug = `${cleanSlug}-sede-principal-${rId}`;
+        const bName = r.nombre ? `Sede Principal - ${r.nombre}` : 'Sede Principal';
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO \`branches\` (\`nombre\`, \`slug\`, \`direccion\`, \`telefono\`, \`ciudad\`, \`activo\`, \`restaurantId\`, \`createdAt\`, \`updatedAt\`)
+           VALUES (?, ?, ?, ?, ?, 1, ?, NOW(), NOW());`,
+          bName,
+          bSlug,
+          r.direccionCentral || 'Sede Principal',
+          r.telefonoWhatsapp || '3000000000',
+          r.ciudad || 'Cali',
+          rId
+        ).catch(() => {});
+        console.log(` ✅ Auto-creada Sede Principal para restaurante #${rId} (${r.nombre})`);
+      }
+    }
+    await prisma.$executeRawUnsafe(`
+      UPDATE \`users\` u
+      INNER JOIN (
+        SELECT \`restaurantId\`, MIN(\`id\`) AS firstBranchId
+        FROM \`branches\`
+        WHERE \`restaurantId\` IS NOT NULL
+        GROUP BY \`restaurantId\`
+      ) b ON u.\`restaurantId\` = b.\`restaurantId\`
+      SET u.\`branchId\` = b.firstBranchId
+      WHERE u.\`branchId\` IS NULL AND u.\`rol\` != 'Superadmin';
+    `).catch(() => {});
+  } catch (e) {
+    console.warn('⚠️ Auto-heal de sedes:', e.message);
+  }
 
   console.log('\n🎉 ¡SINCRONIZACIÓN COMPLETA! Punto G, Salchi Ricurras y Azados Bryan listos en la Base de Datos.');
 }

@@ -68,6 +68,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (customer.activo === false) {
+      return NextResponse.json(
+        { error: 'Tu cuenta de cliente se encuentra temporalmente suspendida en este restaurante.' },
+        { status: 403 }
+      );
+    }
+
     if (!customer.password) {
       return NextResponse.json(
         { error: 'Esta cuenta aún no tiene contraseña. Por favor usa la opción "Registrarme" para asignarla.' },

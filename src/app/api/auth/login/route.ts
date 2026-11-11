@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant } from '@/lib/db-autoheal';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    await ensureRestaurantBranchesAndSchema();
+
     const body = await req.json();
     const { email, password, restaurantSlug, restaurantId } = body;
 
@@ -240,23 +243,73 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5. Cargar restaurante asociado si falta en la consulta
+    // 5. Cargar restaurante asociado si falta en la consulta (o vincular a Punto G si es usuario del restaurante principal sin restaurantId asignado)
     let userRestaurant = matchedUser.restaurant;
-    if (!userRestaurant && matchedUser.restaurantId) {
+    let effectiveRestaurantId = matchedUser.restaurantId;
+
+    if (!userRestaurant && matchedUser.rol !== 'Superadmin') {
       try {
-        const dbRest = await prisma.restaurant.findUnique({
-          where: { id: matchedUser.restaurantId },
-          select: { id: true, nombre: true, slug: true, logo: true, subdominio: true },
-        });
-        if (dbRest) userRestaurant = dbRest;
+        if (effectiveRestaurantId) {
+          const dbRest = await prisma.restaurant.findUnique({
+            where: { id: effectiveRestaurantId },
+            select: { id: true, nombre: true, slug: true, logo: true, subdominio: true },
+          });
+          if (dbRest) userRestaurant = dbRest;
+        }
+        // Si sigue sin restaurante pero es un usuario @puntog.com o del restaurante objetivo, vincularlo
+        if (!userRestaurant) {
+          const fallbackRest = await prisma.restaurant.findFirst({
+            where: targetRestaurantId
+              ? { id: targetRestaurantId }
+              : { OR: [{ slug: 'punto-g' }, { id: 1 }] },
+            select: { id: true, nombre: true, slug: true, logo: true, subdominio: true },
+          });
+          if (fallbackRest) {
+            userRestaurant = fallbackRest;
+            effectiveRestaurantId = fallbackRest.id;
+            // Actualizar en BD para futuras consultas
+            await prisma.user.update({
+              where: { id: matchedUser.id },
+              data: { restaurantId: fallbackRest.id },
+            }).catch(() => {});
+          }
+        }
       } catch (e) {
         // Ignorar si falla
       }
     }
 
+    let effectiveBranchId = matchedUser.branchId;
+    let effectiveBranch = matchedUser.branch;
+
+    if (effectiveRestaurantId && matchedUser.rol !== 'Superadmin') {
+      try {
+        const restBranches = await getOrCreateBranchesForRestaurant(Number(effectiveRestaurantId));
+        if (userRestaurant) {
+          userRestaurant = { ...userRestaurant, branches: restBranches };
+        }
+        if (!effectiveBranchId && restBranches.length > 0) {
+          effectiveBranchId = restBranches[0].id;
+          effectiveBranch = {
+            id: restBranches[0].id,
+            nombre: restBranches[0].nombre,
+            slug: restBranches[0].slug,
+          };
+          await prisma.$executeRawUnsafe(
+            "UPDATE `users` SET `branchId` = ? WHERE `id` = ?;",
+            Number(effectiveBranchId),
+            Number(matchedUser.id)
+          ).catch(() => {});
+        }
+      } catch {}
+    }
+
     const { password: _, ...safeUser } = {
       ...matchedUser,
+      restaurantId: effectiveRestaurantId,
       restaurant: userRestaurant,
+      branchId: effectiveBranchId,
+      branch: effectiveBranch,
     };
 
     return NextResponse.json({ success: true, user: safeUser });

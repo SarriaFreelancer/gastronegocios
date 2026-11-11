@@ -126,24 +126,57 @@ export default async function TenantLayout({ params, children }: Props) {
   let gaId: string | null = null;
 
   try {
-    const restaurant = await prisma.restaurant.findFirst({
-      where: {
-        OR: [
-          { slug: rawSlug },
-          { slug: slugWithHyphen },
-          { slug: slugAlias },
-          { subdominio: rawSlug },
-          { subdominio: slugWithoutHyphen },
-          { subdominio: slugAlias },
-        ],
-      },
-      include: {
-        branches: {
-          where: { activo: true },
-          take: 10,
+    let restaurant: any = null;
+    try {
+      restaurant = await prisma.restaurant.findFirst({
+        where: {
+          OR: [
+            { slug: rawSlug },
+            { slug: slugWithHyphen },
+            { slug: slugAlias },
+            { subdominio: rawSlug },
+            { subdominio: slugWithoutHyphen },
+            { subdominio: slugAlias },
+          ],
         },
-      },
-    });
+        include: {
+          branches: {
+            where: { activo: true },
+            take: 10,
+          },
+        },
+      });
+    } catch {
+      restaurant = await prisma.restaurant.findFirst({
+        where: {
+          OR: [
+            { slug: rawSlug },
+            { slug: slugWithHyphen },
+            { slug: slugAlias },
+            { subdominio: rawSlug },
+            { subdominio: slugWithoutHyphen },
+            { subdominio: slugAlias },
+          ],
+        },
+        select: {
+          id: true,
+          nombre: true,
+          slug: true,
+          eslogan: true,
+          descripcion: true,
+          logo: true,
+          bannerHero: true,
+          telefonoWhatsapp: true,
+          direccionCentral: true,
+          ciudad: true,
+          activo: true,
+          branches: {
+            where: { activo: true },
+            take: 10,
+          },
+        },
+      });
+    }
 
     if (restaurant) {
       gaId = restaurant.googleAnalyticsId || null;
@@ -251,7 +284,7 @@ export default async function TenantLayout({ params, children }: Props) {
           ],
         },
         ...(restaurant.branches && restaurant.branches.length > 0 ? {
-          department: restaurant.branches.map((b) => ({
+          department: restaurant.branches.map((b: any) => ({
             '@type': 'Restaurant',
             name: `${restaurant.nombre} - ${b.nombre}`,
             telephone: b.telefono || restaurant.telefonoWhatsapp,

@@ -1,165 +1,296 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant } from '@/lib/db-autoheal';
 
 export const dynamic = 'force-dynamic';
 
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // remove accents
-    .replace(/[^a-z0-9]+/g, '-') // replace non-alphanumeric with -
-    .replace(/^-+|-+$/g, ''); // remove leading/trailing -
-}
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
+    await ensureRestaurantBranchesAndSchema(true);
+
+    const body = await request.json();
     const {
-      nombreRestaurante,
-      nombreAdmin,
-      email,
-      password,
+      nombre,
+      slug,
+      eslogan,
+      ciudad,
+      direccionCentral,
       telefonoWhatsapp,
-      ciudad = 'Cali',
-      colorPrimario = '#FFC928',
-      bannerHero = '/images/assets/burger-hero-transparent.png',
-      eslogan = 'Tu Máximo Placer Gastronómico',
-      descripcion = '',
-      plantilla = 'plantilla-actual',
+      plan,
+      plantilla,
+      colorPrimario,
+      colorSecundario,
+      adminNombre,
+      adminEmail,
+      adminPassword,
     } = body;
 
-    // Validaciones básicas
-    if (!nombreRestaurante?.trim()) {
-      return NextResponse.json({ error: 'El nombre del restaurante es obligatorio' }, { status: 400 });
-    }
-    if (!nombreAdmin?.trim()) {
-      return NextResponse.json({ error: 'El nombre del administrador es obligatorio' }, { status: 400 });
-    }
-    if (!email?.trim() || !email.includes('@')) {
-      return NextResponse.json({ error: 'Debes proporcionar un correo electrónico válido' }, { status: 400 });
-    }
-    if (!password || password.length < 4) {
-      return NextResponse.json({ error: 'La contraseña debe tener al menos 4 caracteres' }, { status: 400 });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    // Validar si el correo ya está registrado
-    const existingUser = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-    });
-    if (existingUser) {
+    if (!nombre || !slug || !adminEmail || !adminPassword) {
       return NextResponse.json(
-        { error: 'Ya existe una cuenta registrada con este correo electrónico. Inicia sesión o usa otro correo.' },
-        { status: 409 }
+        { error: 'Por favor completa el nombre del restaurante, correo de administrador y contraseña.' },
+        { status: 400 }
       );
     }
 
-    // Generar slug único para el restaurante
-    let baseSlug = slugify(nombreRestaurante);
-    if (!baseSlug || baseSlug.length < 2) baseSlug = 'restaurante';
+    const cleanSlug = String(slug)
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
 
-    let uniqueSlug = baseSlug;
-    let counter = 1;
-    while (await prisma.restaurant.findUnique({ where: { slug: uniqueSlug } })) {
-      counter++;
-      uniqueSlug = `${baseSlug}-${counter}`;
+    if (!cleanSlug || cleanSlug.length < 2) {
+      return NextResponse.json(
+        { error: 'El identificador URL (slug) del restaurante no es válido.' },
+        { status: 400 }
+      );
     }
 
-    // Calcular fecha de vencimiento del periodo de prueba (14 días gratis)
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 14);
+    const cleanEmail = String(adminEmail).trim().toLowerCase();
+    const cleanSubdomain = cleanSlug.replace(/[^a-z0-9]/g, '');
 
-    // Crear el Restaurante en la base de datos
-    const restaurant = await prisma.restaurant.create({
-      data: {
-        nombre: nombreRestaurante.trim(),
-        slug: uniqueSlug,
-        subdominio: uniqueSlug.replace(/-/g, ''),
-        eslogan: eslogan.trim(),
-        descripcion: descripcion.trim() || `Los mejores sabores en ${ciudad}. Haz tu pedido en línea o por WhatsApp.`,
-        bannerHero,
-        colorPrimario,
-        colorBoton: colorPrimario,
-        colorAcento: colorPrimario,
-        colorFondo: '#080808',
-        colorSuperficie: '#121212',
-        colorTexto: '#ffffff',
-        plantilla,
-        tituloHero: nombreRestaurante.trim().toUpperCase(),
-        subtituloHero: eslogan.trim(),
-        descripcionHero: `Bienvenidos a ${nombreRestaurante.trim()}. Disfruta de nuestras especialidades preparadas con ingredientes frescos y recetas de la casa.`,
-        telefonoWhatsapp: telefonoWhatsapp ? telefonoWhatsapp.replace(/\D/g, '') : '',
-        ciudad: ciudad.trim() || 'Cali',
-        plan: 'Trial',
-        activo: true,
-        fechaVencimiento: trialEndDate,
-        estadoLicencia: 'PRUEBA_GRATIS',
-        limiteSedes: 2,
-        limiteProductos: 50,
-        limiteUsuarios: 5,
-        diasGracia: 5,
-      },
-    });
+    // 1. Verificar que el slug y email no estén en uso
+    const existingRests: any[] = await prisma.$queryRawUnsafe(
+      "SELECT `id` FROM `restaurants` WHERE `slug` = ? OR `subdominio` = ? LIMIT 1;",
+      cleanSlug,
+      cleanSubdomain
+    );
 
-    // Crear la primera sede por defecto para el restaurante
-    const branchSlug = `${uniqueSlug}-principal`;
-    const branch = await prisma.branch.create({
-      data: {
-        nombre: `Sede Principal - ${restaurant.nombre}`,
-        slug: branchSlug,
-        ciudad: restaurant.ciudad,
-        direccion: `Sede Principal, ${restaurant.ciudad}`,
-        telefono: restaurant.telefonoWhatsapp || '',
-        activo: true,
-        restaurantId: restaurant.id,
-      },
-    });
+    if (existingRests.length > 0) {
+      return NextResponse.json(
+        { error: `El enlace /r/${cleanSlug} ya está registrado. Elige otro nombre o identificador.` },
+        { status: 400 }
+      );
+    }
 
-    // Crear el usuario administrador del restaurante
-    const user = await prisma.user.create({
-      data: {
-        nombre: nombreAdmin.trim(),
-        email: cleanEmail,
-        password: password.trim(), // En producción se recomienda bcrypt
-        rol: 'Administrador',
-        estado: 'Activo',
-        restaurantId: restaurant.id,
-        branchId: branch.id,
-      },
-    });
+    const existingUsers: any[] = await prisma.$queryRawUnsafe(
+      "SELECT `id` FROM `users` WHERE LOWER(`email`) = ? LIMIT 1;",
+      cleanEmail
+    );
 
-    return NextResponse.json({
-      success: true,
-      message: '¡Restaurante y cuenta creados con éxito! Tu periodo de prueba de 14 días está activo.',
-      restaurant: {
-        id: restaurant.id,
-        nombre: restaurant.nombre,
-        slug: restaurant.slug,
-        plan: restaurant.plan,
-        colorPrimario: restaurant.colorPrimario,
-      },
-      user: {
-        id: user.id,
-        nombre: user.nombre,
-        email: user.email,
-        rol: user.rol,
-        restaurantId: restaurant.id,
-        restaurant: {
-          id: restaurant.id,
-          nombre: restaurant.nombre,
-          slug: restaurant.slug,
+    if (existingUsers.length > 0) {
+      return NextResponse.json(
+        { error: 'Ese correo electrónico ya está registrado. Usa otro correo o inicia sesión.' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Calcular fecha de vencimiento de prueba gratuita (14 días)
+    const trialEnds = new Date();
+    trialEnds.setDate(trialEnds.getDate() + 14);
+
+    // 3. Crear Restaurante (con fallback resiliente)
+    let restaurant: any = null;
+    try {
+      restaurant = await prisma.restaurant.create({
+        data: {
+          nombre: String(nombre).trim(),
+          slug: cleanSlug,
+          subdominio: cleanSubdomain,
+          eslogan: eslogan ? String(eslogan).trim() : 'Sabor y Experiencia Única',
+          descripcion: `Restaurante ${nombre} en ${ciudad || 'Colombia'} - Pide en línea a domicilio o desde tu mesa.`,
+          plantilla: plantilla || 'urbana-gourmet',
+          colorPrimario: colorPrimario || '#F10F1A',
+          colorSecundario: colorSecundario || '#FA9B23',
+          colorAcento: colorPrimario || '#F10F1A',
+          colorBoton: colorPrimario || '#F10F1A',
+          colorFondo: '#080808',
+          colorSuperficie: '#121212',
+          tituloHero: `BIENVENIDO A ${String(nombre).trim().toUpperCase()}`,
+          subtituloHero: eslogan || 'Especialidades preparadas al instante',
+          descripcionHero: 'Haz tu pedido en línea con entrega rápida a domicilio o directo a tu mesa sin esperas.',
+          textoBotonHero: 'Ver Nuestra Carta',
+          telefonoWhatsapp: telefonoWhatsapp ? String(telefonoWhatsapp).trim() : '3000000000',
+          direccionCentral: direccionCentral ? String(direccionCentral).trim() : 'Sede Principal',
+          ciudad: ciudad ? String(ciudad).trim() : 'Cali',
+          plan: plan || 'Pro',
+          estadoLicencia: 'PRUEBA',
+          fechaVencimiento: trialEnds,
+          mostrarEnLanding: true,
+          activo: true,
+        },
+      });
+    } catch {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO \`restaurants\` (\`nombre\`, \`slug\`, \`subdominio\`, \`eslogan\`, \`descripcion\`, \`colorPrimario\`, \`colorSecundario\`, \`colorFondo\`, \`telefonoWhatsapp\`, \`direccionCentral\`, \`ciudad\`, \`costoDomicilioBase\`, \`propinaSugeridaPct\`, \`plan\`, \`activo\`, \`createdAt\`, \`updatedAt\`)
+         VALUES (?, ?, ?, ?, ?, ?, ?, '#080808', ?, ?, ?, 5000, 10, ?, 1, NOW(), NOW());`,
+        String(nombre).trim(),
+        cleanSlug,
+        cleanSubdomain,
+        eslogan ? String(eslogan).trim() : 'Sabor y Experiencia Única',
+        `Restaurante ${nombre} en ${ciudad || 'Colombia'}`,
+        colorPrimario || '#F10F1A',
+        colorSecundario || '#FA9B23',
+        telefonoWhatsapp ? String(telefonoWhatsapp).trim() : '3000000000',
+        direccionCentral ? String(direccionCentral).trim() : 'Sede Principal',
+        ciudad ? String(ciudad).trim() : 'Cali',
+        plan || 'Pro'
+      );
+      const rows: any[] = await prisma.$queryRawUnsafe(
+        "SELECT * FROM `restaurants` WHERE `slug` = ? LIMIT 1;",
+        cleanSlug
+      );
+      restaurant = rows[0];
+    }
+
+    const rId = Number(restaurant.id);
+
+    // 4. Crear siempre la Sede Principal por defecto
+    const branches = await getOrCreateBranchesForRestaurant(rId);
+    const branch = branches[0];
+
+    // 5. Crear Usuario Administrador vinculado a la Sede Principal
+    let adminUser: any = null;
+    try {
+      adminUser = await prisma.user.create({
+        data: {
+          nombre: adminNombre ? String(adminNombre).trim() : `Admin ${nombre}`,
+          email: cleanEmail,
+          password: String(adminPassword).trim(),
+          rol: 'Administrador',
+          estado: 'Activo',
+          restaurantId: rId,
+          branchId: branch?.id || null,
+        },
+      });
+    } catch {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO \`users\` (\`nombre\`, \`email\`, \`password\`, \`rol\`, \`estado\`, \`restaurantId\`, \`branchId\`, \`createdAt\`, \`updatedAt\`)
+         VALUES (?, ?, ?, 'Administrador', 'Activo', ?, ?, NOW(), NOW());`,
+        adminNombre ? String(adminNombre).trim() : `Admin ${nombre}`,
+        cleanEmail,
+        String(adminPassword).trim(),
+        rId,
+        branch?.id || null
+      );
+      const uRows: any[] = await prisma.$queryRawUnsafe(
+        "SELECT * FROM `users` WHERE LOWER(`email`) = ? LIMIT 1;",
+        cleanEmail
+      );
+      adminUser = uRows[0];
+    }
+
+    // 6. Crear 6 Mesas iniciales en la Sede Principal
+    for (let i = 1; i <= 6; i++) {
+      await prisma.restaurantTable.create({
+        data: {
+          numero: `Mesa ${i}`,
+          capacidad: 4,
+          estado: 'Libre',
+          ubicacion: 'Salón Principal',
+          branchId: branch?.id || null,
+          restaurantId: rId,
+        },
+      }).catch(() => {});
+    }
+
+    // 7. Crear Categorías y Productos de bienvenida para que el restaurante arranque listo
+    try {
+      const catPrincipal = await prisma.category.create({
+        data: {
+          nombre: 'Especialidades de la Casa',
+          slug: `especialidades-${cleanSlug}`,
+          descripcion: 'Nuestros platos estrella preparados al instante',
+          icono: 'Flame',
+          orden: 1,
+          activo: true,
+          restaurantId: rId,
+        },
+      });
+
+      const catBebidas = await prisma.category.create({
+        data: {
+          nombre: 'Bebidas y Refrescos',
+          slug: `bebidas-${cleanSlug}`,
+          descripcion: 'Bebidas frías y acompañamientos',
+          icono: 'CupSoda',
+          orden: 2,
+          activo: true,
+          restaurantId: rId,
+        },
+      });
+
+      await prisma.product.createMany({
+        data: [
+          {
+            nombre: `Especial ${nombre}`,
+            slug: `especial-${cleanSlug}-1`,
+            descripcion: 'Nuestro plato insignia de la casa con ingredientes frescos seleccionados y acompañamiento.',
+            precio: 28000,
+            costo: 12000,
+            imagen: '/images/menu/burgers/burger-1.jpg',
+            etiqueta: 'Más Vendido',
+            disponibilidad: true,
+            categoriaId: catPrincipal.id,
+            restaurantId: rId,
+          },
+          {
+            nombre: 'Combo Clásico Artesanal',
+            slug: `combo-clasico-${cleanSlug}-2`,
+            descripcion: 'Preparación artesanal acompañada de papas crocantes y salsa de la casa.',
+            precio: 24000,
+            costo: 10000,
+            imagen: '/images/menu/burgers/burger-2.jpg',
+            etiqueta: 'Recomendado',
+            disponibilidad: true,
+            categoriaId: catPrincipal.id,
+            restaurantId: rId,
+          },
+          {
+            nombre: 'Limonada Natural Frappé',
+            slug: `limonada-frappe-${cleanSlug}-3`,
+            descripcion: 'Refrescante limonada natural recién preparada.',
+            precio: 8000,
+            costo: 2500,
+            imagen: '/images/menu/bebidas/bebida-1.jpg',
+            disponibilidad: true,
+            categoriaId: catBebidas.id,
+            restaurantId: rId,
+          },
+        ],
+      });
+    } catch {
+      // Ignore demo seed errors
+    }
+
+    const fullRestaurant = {
+      ...restaurant,
+      id: rId,
+      activo: true,
+      branches,
+    };
+
+    return NextResponse.json(
+      {
+        success: true,
+        restaurant: fullRestaurant,
+        branch,
+        user: {
+          id: adminUser?.id,
+          nombre: adminUser?.nombre,
+          email: adminUser?.email,
+          rol: adminUser?.rol || 'Administrador',
+          restaurantId: rId,
+          branchId: branch?.id || null,
+          branch: branch ? { id: branch.id, nombre: branch.nombre, slug: branch.slug } : null,
+          restaurant: {
+            id: rId,
+            nombre: restaurant.nombre,
+            slug: restaurant.slug,
+            logo: restaurant.logo,
+            subdominio: restaurant.subdominio,
+            branches,
+          },
         },
       },
-      redirectUrl: `/r/${restaurant.slug}/admin`,
-    });
-  } catch (error) {
-    console.error('Error registrando restaurante:', error);
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('Error registering restaurant:', error);
     return NextResponse.json(
-      { error: 'Ocurrió un error al registrar el restaurante. Por favor intenta de nuevo.' },
+      { error: error?.message || 'Error al registrar el restaurante' },
       { status: 500 }
     );
   }

@@ -17,9 +17,11 @@ import {
   Edit3, 
   Eye, 
   X, 
-  RefreshCw 
+  RefreshCw,
+  Power
 } from 'lucide-react';
 import { exportToExcel, exportToPdf } from '@/lib/export-utils';
+import { showSuccess, showError } from '@/lib/swal';
 
 interface ClientesTabProps {
   restaurantId: string;
@@ -146,6 +148,32 @@ export const ClientesTab: React.FC<ClientesTabProps> = ({ restaurantId, restaura
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleToggleCustomerActive = async (cust: any) => {
+    const currentActive = cust.activo !== false;
+    const newState = !currentActive;
+    try {
+      const res = await fetch(`/api/customers/${cust.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: newState }),
+      });
+      if (res.ok) {
+        setCustomers((prev) =>
+          prev.map((item) => (item.id === cust.id ? { ...item, activo: newState } : item))
+        );
+        showSuccess(
+          newState ? 'Cliente Activado' : 'Cliente Suspendido',
+          `El cliente ${cust.nombre} ha sido ${newState ? 'reactivado' : 'suspendido'} exitosamente.`
+        );
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showError('Error', err.error || 'No se pudo cambiar el estado del cliente');
+      }
+    } catch {
+      showError('Error de conexión', 'No se pudo actualizar el estado del cliente');
     }
   };
 
@@ -283,7 +311,18 @@ export const ClientesTab: React.FC<ClientesTabProps> = ({ restaurantId, restaura
                 filteredCustomers.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-4">
-                      <div className="font-bold text-white">{c.nombre}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">{c.nombre}</span>
+                        {c.activo === false ? (
+                          <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold">
+                            Suspendido
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                            Activo
+                          </span>
+                        )}
+                      </div>
                       {c.direccion && (
                         <div className="text-[11px] text-slate-400 flex items-center space-x-1">
                           <MapPin className="w-3 h-3 text-slate-500" />
@@ -334,6 +373,18 @@ export const ClientesTab: React.FC<ClientesTabProps> = ({ restaurantId, restaura
                           title="Editar Cliente"
                         >
                           <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCustomerActive(c)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            c.activo === false
+                              ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400'
+                              : 'bg-red-500/15 hover:bg-red-500/25 text-red-400'
+                          }`}
+                          title={c.activo === false ? 'Activar Cliente' : 'Suspender Cliente'}
+                        >
+                          <Power className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

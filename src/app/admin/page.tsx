@@ -666,31 +666,47 @@ export default function AdminPage() {
       }
 
       // Estamos en la ruta aislada /r/[slug]/admin: verificar permisos para este slug
-      fetch(`/api/restaurants?slug=${routeSlug}`)
+      fetch(`/api/restaurants?slug=${encodeURIComponent(routeSlug)}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data && data.id) {
-            if (userObj.rol !== 'Superadmin' && userObj.restaurantId && userObj.restaurantId !== data.id) {
+          let resolvedRest = data && data.id ? data : null;
+          // Fallback resiliente si el usuario ya tiene cargado su restaurante o es Punto G
+          if (!resolvedRest && userObj.restaurant && (userObj.restaurant.slug === routeSlug || userObj.restaurant.subdominio === routeSlug)) {
+            resolvedRest = userObj.restaurant;
+          }
+          if (!resolvedRest) {
+            try {
+              const cachedRest = JSON.parse(localStorage.getItem('punto_g_active_restaurant') || 'null');
+              if (cachedRest && (cachedRest.slug === routeSlug || cachedRest.subdominio === routeSlug)) {
+                resolvedRest = cachedRest;
+              }
+            } catch {}
+          }
+
+          if (resolvedRest && resolvedRest.id) {
+            if (userObj.rol !== 'Superadmin' && userObj.restaurantId && userObj.restaurantId !== resolvedRest.id) {
               showError('Acceso Denegado', 'No tienes permisos para administrar este restaurante.');
               router.replace('/login');
               return;
             }
-            setActiveRestaurant(data);
-            localStorage.setItem('punto_g_active_restaurant', JSON.stringify(data));
-            if (data.branches && data.branches.length > 0) {
+            setActiveRestaurant(resolvedRest);
+            localStorage.setItem('punto_g_active_restaurant', JSON.stringify(resolvedRest));
+            if (resolvedRest.branches && resolvedRest.branches.length > 0) {
+              setBranches(resolvedRest.branches);
               setSelectedBranchId((prev) => {
-                const hasBranch = data.branches.some((b: any) => String(b.id) === prev);
-                return hasBranch ? prev : String(data.branches[0].id);
+                if (prev === 'all') return 'all';
+                const hasBranch = resolvedRest.branches.some((b: any) => String(b.id) === prev);
+                return hasBranch ? prev : String(resolvedRest.branches[0].id);
               });
             }
           } else {
             showError('Restaurante no encontrado', 'El restaurante especificado no existe o no está activo.');
-            router.replace('/login');
+            router.replace('/login?switch=true');
           }
         })
         .catch((err) => {
           console.error(err);
-          router.replace('/login');
+          router.replace('/login?switch=true');
         });
     } catch (e) {
       console.error(e);

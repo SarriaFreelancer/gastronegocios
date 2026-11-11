@@ -553,11 +553,17 @@ export default function SuperadminPage() {
         body: JSON.stringify({ mostrarEnLanding: newState }),
       });
       if (res.ok) {
+        setRestaurants((prev) =>
+          prev.map((r) => (r.id === rest.id ? { ...r, mostrarEnLanding: newState } : r))
+        );
         showSuccess(
           newState ? 'Visible en Landing' : 'Oculto en Landing',
           `El negocio ${rest.nombre} ahora ${newState ? 'aparece' : 'no aparece'} en la vitrina de la landing page.`
         );
         loadRestaurants();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showError('Error al cambiar visibilidad', err.error || 'No se pudo actualizar en el servidor');
       }
     } catch (e) {
       showError('Error', 'Fallo al cambiar visibilidad en landing');
@@ -574,11 +580,19 @@ export default function SuperadminPage() {
         body: JSON.stringify({ activo: newState, estadoLicencia: newState ? 'ACTIVA' : 'SUSPENDIDA' }),
       });
       if (res.ok) {
+        setRestaurants((prev) =>
+          prev.map((r) =>
+            r.id === rest.id ? { ...r, activo: newState, estadoLicencia: newState ? 'ACTIVA' : 'SUSPENDIDA' } : r
+          )
+        );
         showSuccess(
           newState ? 'Restaurante Activado' : 'Restaurante Suspendido',
           `El negocio ${rest.nombre} ahora está ${newState ? 'en línea' : 'suspendido'}.`
         );
         loadRestaurants();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showError('Error al cambiar estado', err.error || 'No se pudo actualizar el estado del restaurante');
       }
     } catch (e) {
       showError('Error', 'Fallo al cambiar estado');
@@ -640,6 +654,25 @@ export default function SuperadminPage() {
         }),
       });
       if (res.ok) {
+        const createdBranch = await res.json();
+        setRestaurants((prev) =>
+          prev.map((r) => {
+            if (r.id !== branchRestaurant.id) return r;
+            const updatedBranches = [...(r.branches || []), createdBranch];
+            return {
+              ...r,
+              branches: updatedBranches,
+              _count: {
+                orders: r._count?.orders || 0,
+                products: r._count?.products || 0,
+                categories: r._count?.categories || 0,
+                tables: r._count?.tables || 0,
+                users: r._count?.users || 0,
+                branches: updatedBranches.length,
+              },
+            };
+          })
+        );
         showSuccess(
           'Sede Registrada Exitosamente',
           `La nueva sede "${branchFormData.nombre}" ha sido creada para ${branchRestaurant.nombre}.`
@@ -1063,22 +1096,28 @@ export default function SuperadminPage() {
                             nombre: rest.nombre,
                             slug: rest.slug,
                             colorPrimario: rest.colorPrimario,
+                            branches: rest.branches || [],
                           })
                         );
-                        const adminUser = rest.users?.find((u) => u.rol === 'Administrador' || u.rol === 'Superadmin');
-                        if (adminUser) {
+                        // Mantener el rol Superadmin para poder administrar cualquier restaurante sin perder acceso a /superadmin
+                        const existingAuth = localStorage.getItem('punto_g_admin_logged_in');
+                        if (!existingAuth) {
+                          const adminUser = rest.users?.find((u) => u.rol === 'Administrador' || u.rol === 'Superadmin');
                           const authUser = {
-                            id: adminUser.id,
-                            nombre: adminUser.nombre,
-                            email: adminUser.email,
-                            rol: adminUser.rol,
+                            id: adminUser?.id || currentUser?.id || 1,
+                            nombre: currentUser?.nombre || adminUser?.nombre || `Admin ${rest.nombre}`,
+                            email: currentUser?.email || adminUser?.email || `admin@${rest.slug}.com`,
+                            rol: 'Superadmin',
                             restaurantId: rest.id,
-                            restaurant: { id: rest.id, nombre: rest.nombre, slug: rest.slug },
+                            branchId: rest.branches?.[0]?.id || null,
+                            restaurant: {
+                              id: rest.id,
+                              nombre: rest.nombre,
+                              slug: rest.slug,
+                              branches: rest.branches || [],
+                            },
                           };
                           localStorage.setItem('punto_g_admin_logged_in', JSON.stringify(authUser));
-                          localStorage.setItem('puntog_auth', JSON.stringify(authUser));
-                          localStorage.setItem('puntog_user', JSON.stringify(authUser));
-                          localStorage.setItem('punto_g_user', JSON.stringify(authUser));
                         }
                       }
                     }}

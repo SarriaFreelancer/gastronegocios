@@ -19,6 +19,8 @@ export const Header: React.FC = () => {
 
   if (
     pathname === '/' ||
+    pathname.startsWith('/registro') ||
+    pathname.includes('/registro') ||
     pathname.startsWith('/admin') ||
     pathname.includes('/admin') ||
     pathname.startsWith('/superadmin') ||
