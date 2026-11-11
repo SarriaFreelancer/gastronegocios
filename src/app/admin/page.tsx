@@ -19,6 +19,7 @@ import { DashboardEjecutivoTab } from '@/components/admin/DashboardEjecutivoTab'
 import { AdminSidebar, AdminTabItem } from '@/components/admin/AdminSidebar';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 import { MesasQrGeneratorModal } from '@/components/admin/MesasQrGeneratorModal';
+import { DatabaseResetPanel } from '@/components/admin/DatabaseResetPanel';
 import { Boxes, BookOpenCheck, Truck } from 'lucide-react';
 import { 
   ShoppingBag, 
@@ -4848,7 +4849,17 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('configuracion')}
+                  className="px-3.5 py-2.5 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition"
+                  title="Limpiar base de datos a cero o cargar información de pruebas con clave Superadmin"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>🧹 Limpiar BD / Datos Demo</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setActiveTab('subcategorias')}
@@ -6613,6 +6624,13 @@ export default function AdminPage() {
                 </p>
               </div>
             </div>
+
+            {/* Mantenimiento de Base de Datos, Limpieza desde Cero y Datos de Prueba (Con Clave Superadmin) */}
+            <DatabaseResetPanel
+              restaurantId={activeRestaurant?.id || currentUser?.restaurantId}
+              restaurantSlug={activeRestaurant?.slug || ''}
+              restaurantName={activeRestaurant?.nombre || 'Restaurante'}
+            />
           </div>
         )}
 

@@ -427,14 +427,34 @@ export async function DELETE(
 
     if (restaurantId === 1) {
       return NextResponse.json(
-        { error: 'No se puede eliminar el restaurante matriz principal (ID 1).' },
+        { error: 'No se puede eliminar el restaurante matriz principal (ID 1). Usa Limpiar / Reset desde cero si deseas vaciar sus datos.' },
         { status: 400 }
       );
     }
 
-    await prisma.restaurant.delete({
-      where: { id: restaurantId },
-    });
+    // Limpiar todas las tablas hijas antes de borrar el restaurante
+    await prisma.$executeRawUnsafe(
+      'DELETE FROM `order_items` WHERE `orderId` IN (SELECT `id` FROM `orders` WHERE `restaurantId` = ?);',
+      restaurantId
+    ).catch(() => {});
+    const childTables = [
+      'invoices',
+      'orders',
+      'cash_shifts',
+      'reviews',
+      'products',
+      'subcategories',
+      'categories',
+      'addons',
+      'restaurant_tables',
+      'users',
+      'branches',
+    ];
+    for (const tbl of childTables) {
+      await prisma.$executeRawUnsafe(`DELETE FROM \`${tbl}\` WHERE \`restaurantId\` = ?;`, restaurantId).catch(() => {});
+    }
+
+    await prisma.$executeRawUnsafe('DELETE FROM `restaurants` WHERE `id` = ?;', restaurantId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

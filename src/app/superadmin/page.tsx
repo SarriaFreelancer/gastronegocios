@@ -195,6 +195,14 @@ export default function SuperadminPage() {
   });
   const [creatingBranch, setCreatingBranch] = useState(false);
 
+  // Modal de Limpieza / Reset de Base de Datos y Datos de Prueba (Con Clave Superadmin)
+  const [isDbCleanupModalOpen, setIsDbCleanupModalOpen] = useState(false);
+  const [dbCleanupTargetRestaurant, setDbCleanupTargetRestaurant] = useState<RestaurantItem | null>(null);
+  const [dbCleanupSlugInput, setDbCleanupSlugInput] = useState('');
+  const [dbCleanupSuperadminPassword, setDbCleanupSuperadminPassword] = useState('');
+  const [showDbCleanupPass, setShowDbCleanupPass] = useState(false);
+  const [dbCleanupProcessing, setDbCleanupProcessing] = useState(false);
+
   // Formulario de creación
   const [formData, setFormData] = useState({
     nombre: '',
@@ -221,11 +229,21 @@ export default function SuperadminPage() {
   const loadRestaurants = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/restaurants');
+      const res = await fetch(`/api/restaurants?_t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setRestaurants(data.restaurants || []);
-        if (data.metrics) setMetrics(data.metrics);
+        const list = Array.isArray(data) ? data : data.restaurants || [];
+        setRestaurants(list);
+        if (data.metrics) {
+          setMetrics(data.metrics);
+        } else {
+          setMetrics({
+            totalRestaurantes: list.length,
+            activos: list.filter((r: any) => r.activo).length,
+            totalVentasPlataforma: 0,
+            totalPedidosPlataforma: list.reduce((acc: number, r: any) => acc + (r._count?.orders || 0), 0),
+          });
+        }
       }
     } catch (e) {
       console.error(e);
@@ -307,7 +325,34 @@ export default function SuperadminPage() {
         loadRestaurants();
       } else {
         const err = await res.json();
-        showError('Error al crear', err.error || 'No se pudo registrar');
+        if (err.existingSlug) {
+          const result = await swalCustom.fire({
+            title: 'Identificador (slug) ya ocupado',
+            html: `
+              <div class="text-left text-xs space-y-2.5">
+                <p class="text-gray-300">${err.error}</p>
+                <div class="p-3 rounded-xl bg-black/50 border border-amber-500/30 text-amber-300">
+                  Slug existente en base de datos: <strong class="font-mono">${err.existingSlug}</strong>
+                  ${err.existingRestaurant?.nombre ? ` (${err.existingRestaurant.nombre})` : ''}
+                </div>
+                <p class="text-gray-400">¿Deseas abrir el panel de <strong>Limpieza / Eliminación con Clave Superadmin</strong> para reiniciar desde cero o eliminar ese registro y liberar el slug?</p>
+              </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '🧹 Limpiar / Eliminar ese Registro',
+            cancelButtonText: 'Cambiar Nombre/Slug',
+          });
+          if (result.isConfirmed) {
+            setIsCreateModalOpen(false);
+            setDbCleanupTargetRestaurant(err.existingRestaurant || null);
+            setDbCleanupSlugInput(err.existingSlug);
+            setIsDbCleanupModalOpen(true);
+            loadRestaurants();
+          }
+        } else {
+          showError('Error al crear', err.error || 'No se pudo registrar');
+        }
       }
     } catch (e) {
       showError('Error de conexión', 'Fallo al comunicarse con el servidor');
@@ -690,12 +735,73 @@ export default function SuperadminPage() {
     }
   };
 
+  // Abrir modal de Limpieza / Reset de Base de Datos y Datos de Prueba
+  const handleOpenDbCleanupModal = (rest?: RestaurantItem | null, slugOverride?: string) => {
+    setDbCleanupTargetRestaurant(rest || null);
+    setDbCleanupSlugInput(slugOverride || rest?.slug || '');
+    setIsDbCleanupModalOpen(true);
+  };
+
+  // Ejecutar acción de Limpieza / Reset / Eliminación / Carga de Pruebas con Clave Superadmin
+  const handleExecuteDbAction = async (
+    action: 'reset_restaurant_zero' | 'delete_restaurant' | 'seed_restaurant_demo' | 'reset_all_zero' | 'seed_all_demo',
+    options?: { deleteSecondaryRestaurants?: boolean }
+  ) => {
+    if (!dbCleanupSuperadminPassword.trim()) {
+      showError('Clave requerida', 'Por favor ingresa la clave del Superadmin para autorizar esta operación en la base de datos.');
+      return;
+    }
+
+    const targetId = dbCleanupTargetRestaurant?.id || null;
+    const targetSlug = dbCleanupSlugInput.trim().toLowerCase() || dbCleanupTargetRestaurant?.slug || '';
+
+    if (
+      (action === 'reset_restaurant_zero' || action === 'delete_restaurant' || action === 'seed_restaurant_demo') &&
+      !targetId &&
+      !targetSlug
+    ) {
+      showError('Selecciona un restaurante o escribe su slug', 'Debes seleccionar un restaurante o escribir su identificador (slug) para ejecutar esta acción.');
+      return;
+    }
+
+    setDbCleanupProcessing(true);
+    try {
+      const res = await fetch('/api/admin/db-management', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          superadminPassword: dbCleanupSuperadminPassword.trim(),
+          restaurantId: targetId,
+          slug: targetSlug,
+          deleteSecondaryRestaurants: Boolean(options?.deleteSecondaryRestaurants),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await showSuccess('Operación Completada', data.message || 'La operación sobre la base de datos se ejecutó con éxito.');
+        if (action === 'delete_restaurant') {
+          setDbCleanupTargetRestaurant(null);
+          setDbCleanupSlugInput('');
+        }
+        await loadRestaurants();
+      } else {
+        showError('No se pudo ejecutar', data.error || 'Verifica la clave del Superadmin e inténtalo de nuevo.');
+      }
+    } catch (e) {
+      showError('Error de conexión', 'No se pudo comunicar con el servidor para gestionar la base de datos.');
+    } finally {
+      setDbCleanupProcessing(false);
+    }
+  };
+
   // Filtrar restaurantes
   const filtered = restaurants.filter(
     (r) =>
-      r.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      r.slug.toLowerCase().includes(search.toLowerCase()) ||
-      r.ciudad.toLowerCase().includes(search.toLowerCase())
+      (r.nombre || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.slug || '').toLowerCase().includes(search.toLowerCase()) ||
+      (r.ciudad || '').toLowerCase().includes(search.toLowerCase())
   );
 
   // Protección de acceso al Superadmin
@@ -803,6 +909,16 @@ export default function SuperadminPage() {
             title="Recargar datos de la plataforma"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-brand-yellow' : ''}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOpenDbCleanupModal(null, '')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-600/15 hover:bg-red-600/25 text-red-300 border border-red-500/40 font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
+            title="Limpiar base de datos, eliminar restaurantes por slug o cargar datos de prueba (Con Clave Superadmin)"
+          >
+            <Database className="w-4 h-4 text-red-400" />
+            <span>🧹 Limpiar / Reset BD</span>
           </button>
 
           <button
@@ -1233,6 +1349,16 @@ export default function SuperadminPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {/* Botón de Limpieza desde Cero / Datos Demo / Eliminar con Clave Superadmin */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDbCleanupModal(rest, rest.slug)}
+                      className="p-2 bg-red-500/10 hover:bg-red-500/25 text-red-400 rounded-xl border border-red-500/30 transition cursor-pointer"
+                      title="Limpiar desde cero, cargar datos de prueba o eliminar restaurante (Con Clave Superadmin)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+
                     {/* Botón de Servidor de Base de Datos y Migración */}
                     <button
                       type="button"
@@ -2370,6 +2496,228 @@ export default function SuperadminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: LIMPIEZA / RESET DE BASE DE DATOS Y DATOS DE PRUEBA (PROTEGIDO CON CLAVE SUPERADMIN) */}
+      {/* ======================================================== */}
+      {isDbCleanupModalOpen && (
+        <div
+          onClick={() => setIsDbCleanupModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#121212] border-2 border-red-500/50 rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative max-h-[92vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#252525]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase text-white font-display">
+                    CONTROL Y RESET DE BASE DE DATOS (CON CLAVE SUPERADMIN)
+                  </h3>
+                  <p className="text-[11px] text-gray-400">
+                    Limpia tablas para iniciar desde cero, libera slugs ocupados o llena con información de pruebas
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDbCleanupModalOpen(false)}
+                className="p-1.5 rounded-full bg-[#202020] text-gray-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 1. Clave de Autorización Superadmin */}
+            <div className="bg-[#181818] border border-amber-500/40 rounded-2xl p-4 space-y-2">
+              <label className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                <Key className="w-4 h-4" />
+                <span>1. Clave del Superadmin (Obligatoria para autorizar) *</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showDbCleanupPass ? 'text' : 'password'}
+                  placeholder="Ingresa la contraseña del Superadmin (ej. superadmin123)..."
+                  value={dbCleanupSuperadminPassword}
+                  onChange={(e) => setDbCleanupSuperadminPassword(e.target.value)}
+                  className="w-full bg-[#111] border border-[#333] focus:border-amber-400 rounded-xl px-3.5 py-2.5 pr-10 text-xs text-white font-mono outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowDbCleanupPass(!showDbCleanupPass)}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-white cursor-pointer"
+                >
+                  {showDbCleanupPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Por seguridad, ninguna operación de limpieza, borrado o llenado se ejecutará sin validar la clave del Superadmin.
+              </p>
+            </div>
+
+            {/* 2. Acciones por Restaurante Individual (Seleccionar o escribir Slug) */}
+            <div className="bg-[#161616] border border-[#282828] rounded-2xl p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-white flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-brand-yellow" />
+                  <span>2. Gestionar un Restaurante Específico (o por Slug oculto)</span>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-gray-400 font-bold uppercase text-[10px] mb-1">
+                    Seleccionar Restaurante de la lista:
+                  </label>
+                  <select
+                    value={dbCleanupTargetRestaurant?.id || ''}
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      const found = restaurants.find((r) => r.id === id) || null;
+                      setDbCleanupTargetRestaurant(found);
+                      if (found) setDbCleanupSlugInput(found.slug);
+                    }}
+                    className="w-full bg-[#111] border border-[#333] focus:border-brand-yellow rounded-xl px-3 py-2.5 text-white outline-none"
+                  >
+                    <option value="">-- Seleccionar por lista --</option>
+                    {restaurants.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nombre} (/r/{r.slug}) - ID #{r.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 font-bold uppercase text-[10px] mb-1">
+                    O escribir Identificador (Slug) exacto:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: mi-restaurante, salchi-ricuras..."
+                    value={dbCleanupSlugInput}
+                    onChange={(e) => {
+                      const val = e.target.value.toLowerCase().trim();
+                      setDbCleanupSlugInput(val);
+                      const match = restaurants.find((r) => r.slug.toLowerCase() === val) || null;
+                      setDbCleanupTargetRestaurant(match);
+                    }}
+                    className="w-full bg-[#111] border border-[#333] focus:border-brand-yellow rounded-xl px-3 py-2.5 text-white font-mono outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  disabled={dbCleanupProcessing}
+                  onClick={() => handleExecuteDbAction('reset_restaurant_zero')}
+                  className="p-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-left space-y-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <div className="font-black text-xs uppercase flex items-center gap-1.5">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Iniciar desde Cero</span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 leading-snug">
+                    Vacía categorías, platos, pedidos, inventario y turnos de este restaurante. Mantiene su Sede Principal, usuario Admin y 4 mesas limpias.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={dbCleanupProcessing}
+                  onClick={() => handleExecuteDbAction('seed_restaurant_demo')}
+                  className="p-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-left space-y-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <div className="font-black text-xs uppercase flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Llenar Datos Demo</span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 leading-snug">
+                    Carga categorías de prueba (Hamburguesas, Perros, Salchipapas, Bebidas), 5 productos demo, adicionales y 6 mesas.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={dbCleanupProcessing}
+                  onClick={() => handleExecuteDbAction('delete_restaurant')}
+                  className="p-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 text-left space-y-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <div className="font-black text-xs uppercase flex items-center gap-1.5">
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar Restaurante</span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 leading-snug">
+                    Elimina por completo el restaurante y todas sus tablas asociadas de la BD, liberando su slug y subdominio inmediatamente.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Reset Global de Toda la Base de Datos */}
+            <div className="bg-red-950/20 border border-red-500/30 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-red-300 flex items-center gap-1.5">
+                  <HardDrive className="w-4 h-4 text-red-400" />
+                  <span>3. Reset Global de Todas las Tablas de la Base de Datos</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-300 leading-relaxed">
+                Usa estas opciones si deseas limpiar todas las tablas del sistema para que todos los restaurantes inicien desde cero (sin productos, sin categorías, sin pedidos) o llenar toda la plataforma con datos de prueba.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  disabled={dbCleanupProcessing}
+                  onClick={() => handleExecuteDbAction('reset_all_zero', { deleteSecondaryRestaurants: false })}
+                  className="p-3 rounded-xl bg-[#1c1c1c] hover:bg-red-950/50 border border-red-500/40 text-white text-left space-y-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <div className="font-black text-xs uppercase text-amber-300">
+                    🧹 Limpiar Tablas (Dejar Restaurantes en Cero)
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-snug">
+                    Vacía categorías, platos, pedidos, clientes e inventario de todos los restaurantes, conservando sus cuentas y sedes.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={dbCleanupProcessing}
+                  onClick={() => handleExecuteDbAction('reset_all_zero', { deleteSecondaryRestaurants: true })}
+                  className="p-3 rounded-xl bg-red-600/20 hover:bg-red-600/35 border border-red-500 text-white text-left space-y-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <div className="font-black text-xs uppercase text-red-300">
+                    🧨 Reset Total BD (Solo dejar Matriz en Cero)
+                  </div>
+                  <p className="text-[10px] text-gray-300 leading-snug">
+                    Elimina todos los restaurantes secundarios y deja únicamente el restaurante principal limpio desde cero.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={dbCleanupProcessing}
+                  onClick={() => handleExecuteDbAction('seed_all_demo')}
+                  className="p-3 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/40 text-emerald-300 text-left space-y-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <div className="font-black text-xs uppercase text-emerald-300">
+                    🧪 Poblar Todos con Datos Demo
+                  </div>
+                  <p className="text-[10px] text-gray-300 leading-snug">
+                    Inyecta categorías, productos, adicionales y mesas de demostración en todos los restaurantes activos.
+                  </p>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

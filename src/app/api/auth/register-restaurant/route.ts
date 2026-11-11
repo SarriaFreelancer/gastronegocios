@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant } from '@/lib/db-autoheal';
+import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant, serializeSafe } from '@/lib/db-autoheal';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,21 +49,34 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(adminEmail).trim().toLowerCase();
-    const cleanSubdomain = cleanSlug.replace(/[^a-z0-9]/g, '');
+    const cleanSubdomainBase = cleanSlug.replace(/[^a-z0-9]/g, '');
 
-    // 1. Verificar que el slug y email no estén en uso
+    // 1. Verificar que el slug no esté en uso
     const existingRests: any[] = await prisma.$queryRawUnsafe(
-      "SELECT `id` FROM `restaurants` WHERE `slug` = ? OR `subdominio` = ? LIMIT 1;",
-      cleanSlug,
-      cleanSubdomain
+      "SELECT `id`, `nombre`, `slug` FROM `restaurants` WHERE LOWER(`slug`) = ? LIMIT 1;",
+      cleanSlug
     );
 
     if (existingRests.length > 0) {
       return NextResponse.json(
-        { error: `El enlace /r/${cleanSlug} ya está registrado. Elige otro nombre o identificador.` },
+        {
+          error: `El enlace /r/${cleanSlug} ya está registrado (${existingRests[0].nombre}). Elige otro identificador o límpialo desde el panel con la clave de Superadmin.`,
+          existingSlug: cleanSlug,
+        },
         { status: 400 }
       );
     }
+
+    let cleanSubdomain = cleanSubdomainBase || cleanSlug;
+    try {
+      const subRows: any[] = await prisma.$queryRawUnsafe(
+        "SELECT `id` FROM `restaurants` WHERE LOWER(`subdominio`) = ? LIMIT 1;",
+        cleanSubdomain
+      );
+      if (subRows.length > 0) {
+        cleanSubdomain = `${cleanSubdomain}${Date.now().toString().slice(-3)}`;
+      }
+    } catch {}
 
     const existingUsers: any[] = await prisma.$queryRawUnsafe(
       "SELECT `id` FROM `users` WHERE LOWER(`email`) = ? LIMIT 1;",
@@ -172,11 +185,11 @@ export async function POST(request: Request) {
       adminUser = uRows[0];
     }
 
-    // 6. Crear 6 Mesas iniciales en la Sede Principal
-    for (let i = 1; i <= 6; i++) {
+    // 6. Crear 4 Mesas iniciales en la Sede Principal (el restaurante inicia desde cero sin categorías ni productos pre-cargados)
+    for (let i = 1; i <= 4; i++) {
       await prisma.restaurantTable.create({
         data: {
-          numero: `Mesa ${i}`,
+          numero: `Mesa ${i} (${cleanSlug})`,
           capacidad: 4,
           estado: 'Libre',
           ubicacion: 'Salón Principal',
@@ -184,75 +197,6 @@ export async function POST(request: Request) {
           restaurantId: rId,
         },
       }).catch(() => {});
-    }
-
-    // 7. Crear Categorías y Productos de bienvenida para que el restaurante arranque listo
-    try {
-      const catPrincipal = await prisma.category.create({
-        data: {
-          nombre: 'Especialidades de la Casa',
-          slug: `especialidades-${cleanSlug}`,
-          descripcion: 'Nuestros platos estrella preparados al instante',
-          icono: 'Flame',
-          orden: 1,
-          activo: true,
-          restaurantId: rId,
-        },
-      });
-
-      const catBebidas = await prisma.category.create({
-        data: {
-          nombre: 'Bebidas y Refrescos',
-          slug: `bebidas-${cleanSlug}`,
-          descripcion: 'Bebidas frías y acompañamientos',
-          icono: 'CupSoda',
-          orden: 2,
-          activo: true,
-          restaurantId: rId,
-        },
-      });
-
-      await prisma.product.createMany({
-        data: [
-          {
-            nombre: `Especial ${nombre}`,
-            slug: `especial-${cleanSlug}-1`,
-            descripcion: 'Nuestro plato insignia de la casa con ingredientes frescos seleccionados y acompañamiento.',
-            precio: 28000,
-            costo: 12000,
-            imagen: '/images/menu/burgers/burger-1.jpg',
-            etiqueta: 'Más Vendido',
-            disponibilidad: true,
-            categoriaId: catPrincipal.id,
-            restaurantId: rId,
-          },
-          {
-            nombre: 'Combo Clásico Artesanal',
-            slug: `combo-clasico-${cleanSlug}-2`,
-            descripcion: 'Preparación artesanal acompañada de papas crocantes y salsa de la casa.',
-            precio: 24000,
-            costo: 10000,
-            imagen: '/images/menu/burgers/burger-2.jpg',
-            etiqueta: 'Recomendado',
-            disponibilidad: true,
-            categoriaId: catPrincipal.id,
-            restaurantId: rId,
-          },
-          {
-            nombre: 'Limonada Natural Frappé',
-            slug: `limonada-frappe-${cleanSlug}-3`,
-            descripcion: 'Refrescante limonada natural recién preparada.',
-            precio: 8000,
-            costo: 2500,
-            imagen: '/images/menu/bebidas/bebida-1.jpg',
-            disponibilidad: true,
-            categoriaId: catBebidas.id,
-            restaurantId: rId,
-          },
-        ],
-      });
-    } catch {
-      // Ignore demo seed errors
     }
 
     const fullRestaurant = {
@@ -263,7 +207,7 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(
-      {
+      serializeSafe({
         success: true,
         restaurant: fullRestaurant,
         branch,
@@ -284,7 +228,7 @@ export async function POST(request: Request) {
             branches,
           },
         },
-      },
+      }),
       { status: 201 }
     );
   } catch (error: any) {

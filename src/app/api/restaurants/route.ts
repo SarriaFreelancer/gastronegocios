@@ -153,11 +153,12 @@ export async function GET(request: Request) {
               categories: true,
               branches: true,
               tables: true,
+              users: true,
             },
           },
         },
       });
-    } catch (listErr) {
+    } catch {
       // Raw SQL fallback for SuperAdmin restaurant list
       const rawRests: any[] = await prisma.$queryRawUnsafe(
         "SELECT * FROM `restaurants` ORDER BY `id` ASC;"
@@ -232,16 +233,22 @@ export async function GET(request: Request) {
             categories: catMap.get(rId) || 0,
             branches: rBranches.length,
             tables: tblMap.get(rId) || 0,
+            users: rUsers.length,
           },
         };
       });
     }
 
-    // Ensure every restaurant in the list has at least 1 branch in `branches` and accurate `_count.branches`
+    // Ensure every restaurant in the list has at least 1 branch in `branches` and accurate `_count`
     for (const rest of restaurants) {
       if (!rest.branches || rest.branches.length === 0) {
         rest.branches = await getOrCreateBranchesForRestaurant(Number(rest.id));
       }
+      rest.ciudad = rest.ciudad || 'Cali';
+      rest.direccionCentral = rest.direccionCentral || 'Sede Principal';
+      rest.colorPrimario = rest.colorPrimario || '#ffc928';
+      rest.colorSecundario = rest.colorSecundario || '#E94B24';
+      rest.colorFondo = rest.colorFondo || '#080808';
       rest.activo = rest.activo !== undefined ? Boolean(rest.activo) : true;
       rest.estadoLicencia = rest.estadoLicencia || (rest.activo ? 'ACTIVA' : 'SUSPENDIDA');
       rest._count = {
@@ -249,17 +256,40 @@ export async function GET(request: Request) {
         products: Number(rest._count?.products || 0),
         categories: Number(rest._count?.categories || 0),
         tables: Number(rest._count?.tables || 0),
+        users: Number(rest._count?.users || (rest.users ? rest.users.length : 0)),
         branches: rest.branches.length,
       };
     }
 
-    return NextResponse.json(serializeSafe(restaurants), {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
+    let totalVentasPlataforma = 0;
+    let totalPedidosPlataforma = 0;
+    try {
+      const aggRows: any[] = await prisma.$queryRawUnsafe(
+        "SELECT COALESCE(SUM(`total`), 0) as totalSum, COUNT(*) as totalCnt FROM `orders`;"
+      );
+      totalVentasPlataforma = Number(aggRows[0]?.totalSum || 0);
+      totalPedidosPlataforma = Number(aggRows[0]?.totalCnt || 0);
+    } catch {}
+
+    const safeList = serializeSafe(restaurants);
+    return NextResponse.json(
+      {
+        restaurants: safeList,
+        metrics: {
+          totalRestaurantes: safeList.length,
+          activos: safeList.filter((r: any) => r.activo).length,
+          totalVentasPlataforma,
+          totalPedidosPlataforma,
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching restaurants:', error);
     const { searchParams } = new URL(request.url);
@@ -305,7 +335,7 @@ export async function GET(request: Request) {
         ],
       });
     }
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json({ restaurants: [], metrics: { totalRestaurantes: 0, activos: 0, totalVentasPlataforma: 0, totalPedidosPlataforma: 0 } }, { status: 200 });
   }
 }
 
@@ -369,23 +399,38 @@ export async function POST(request: Request) {
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
 
-    const cleanSubdomain = (subdominio || cleanSlug)
+    const cleanSubdomainBase = (subdominio || cleanSlug)
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9-]/g, '');
 
-    const existingRows: any[] = await prisma.$queryRawUnsafe(
-      "SELECT `id` FROM `restaurants` WHERE `slug` = ? OR `subdominio` = ? LIMIT 1;",
-      cleanSlug,
-      cleanSubdomain
+    const existingSlugRows: any[] = await prisma.$queryRawUnsafe(
+      "SELECT `id`, `nombre`, `slug` FROM `restaurants` WHERE LOWER(`slug`) = ? LIMIT 1;",
+      cleanSlug
     );
 
-    if (existingRows.length > 0) {
+    if (existingSlugRows.length > 0) {
       return NextResponse.json(
-        { error: 'Ya existe un restaurante con ese identificador (slug) o subdominio.' },
+        {
+          error: `Ya existe un restaurante con el identificador "/r/${cleanSlug}" (${existingSlugRows[0].nombre}, ID #${existingSlugRows[0].id}). Puedes limpiarlo desde cero o eliminarlo con la clave de Superadmin.`,
+          existingSlug: cleanSlug,
+          existingRestaurant: serializeSafe(existingSlugRows[0]),
+        },
         { status: 400 }
       );
     }
+
+    // Ensure cleanSubdomain never collides if only subdomain matched another restaurant
+    let cleanSubdomain = cleanSubdomainBase || cleanSlug;
+    try {
+      const subRows: any[] = await prisma.$queryRawUnsafe(
+        "SELECT `id` FROM `restaurants` WHERE LOWER(`subdominio`) = ? LIMIT 1;",
+        cleanSubdomain
+      );
+      if (subRows.length > 0) {
+        cleanSubdomain = `${cleanSubdomain}${Date.now().toString().slice(-3)}`;
+      }
+    } catch {}
 
     let createdRest: any = null;
     try {
@@ -430,7 +475,6 @@ export async function POST(request: Request) {
         },
       });
     } catch {
-      // Minimal fallback if extended columns aren't present
       await prisma.$executeRawUnsafe(
         `INSERT INTO \`restaurants\` (\`nombre\`, \`slug\`, \`subdominio\`, \`eslogan\`, \`descripcion\`, \`colorPrimario\`, \`colorSecundario\`, \`colorFondo\`, \`telefonoWhatsapp\`, \`direccionCentral\`, \`ciudad\`, \`costoDomicilioBase\`, \`propinaSugeridaPct\`, \`plan\`, \`activo\`, \`createdAt\`, \`updatedAt\`)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW());`,
@@ -471,9 +515,19 @@ export async function POST(request: Request) {
       : 'admin123';
     const finalAdminName = adminNombre || `Admin ${nombre}`;
 
+    let adminUser: any = null;
     try {
-      await prisma.user.create({
-        data: {
+      adminUser = await prisma.user.upsert({
+        where: { email: finalAdminEmail },
+        update: {
+          nombre: finalAdminName,
+          password: finalAdminPass,
+          rol: 'Administrador',
+          estado: 'Activo',
+          restaurantId: rId,
+          branchId: mainBranch?.id || null,
+        },
+        create: {
           nombre: finalAdminName,
           email: finalAdminEmail,
           password: finalAdminPass,
@@ -495,11 +549,11 @@ export async function POST(request: Request) {
       ).catch(() => {});
     }
 
-    // 3. Create 4 initial tables linked to Sede Principal
+    // 3. Create 4 initial tables linked to Sede Principal (restaurant starts with 0 categories and 0 products from scratch)
     for (let i = 1; i <= 4; i++) {
       await prisma.restaurantTable.create({
         data: {
-          numero: `Mesa ${i}`,
+          numero: `Mesa ${i} (${cleanSlug})`,
           capacidad: 4,
           estado: 'Libre',
           ubicacion: 'Salón Principal',
@@ -510,11 +564,18 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      {
+      serializeSafe({
         ...createdRest,
         id: rId,
         branches,
-      },
+        adminUser: {
+          id: adminUser?.id || 0,
+          nombre: finalAdminName,
+          email: finalAdminEmail,
+          password: finalAdminPass,
+          rol: 'Administrador',
+        },
+      }),
       { status: 201 }
     );
   } catch (error: any) {
