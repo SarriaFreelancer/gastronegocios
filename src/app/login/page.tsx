@@ -15,9 +15,107 @@ import {
   ArrowLeft,
   ShieldCheck,
   ChefHat,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 
 const LOCAL_STORAGE_AUTH = 'punto_g_admin_logged_in';
+
+/** Official GastroNegocios SaaS Emblem & Wordmark for global /login */
+function GastroNegociosBrand({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const iconDim = size === 'lg' ? 'w-14 h-14' : size === 'sm' ? 'w-10 h-10' : 'w-12 h-12';
+  const textDim =
+    size === 'lg'
+      ? 'text-2xl sm:text-3xl'
+      : size === 'sm'
+      ? 'text-lg'
+      : 'text-xl sm:text-2xl';
+
+  return (
+    <Link href="/" className="inline-flex items-center gap-3 group">
+      <div className={`relative ${iconDim} flex items-center justify-center shrink-0`}>
+        <svg
+          viewBox="0 0 72 72"
+          className="w-full h-full drop-shadow-[0_4px_12px_rgba(250,155,35,0.45)] group-hover:scale-105 transition-transform"
+        >
+          <defs>
+            <linearGradient id="loginGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FFF099" />
+              <stop offset="45%" stopColor="#FA9B23" />
+              <stop offset="100%" stopColor="#D96B00" />
+            </linearGradient>
+            <linearGradient id="loginHatGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="100%" stopColor="#E5E7EB" />
+            </linearGradient>
+          </defs>
+          <circle cx="36" cy="36" r="30" fill="rgba(250,155,35,0.12)" />
+          <g stroke="url(#loginGoldGrad)" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M54 58 L22 26" strokeWidth="4.8" />
+            <path d="M15 21 L22 28 M18 17 L25 24 M22 15 L29 22" strokeWidth="2.8" />
+          </g>
+          <g>
+            <path
+              d="M18 58 L50 26"
+              stroke="url(#loginGoldGrad)"
+              strokeWidth="4.8"
+              strokeLinecap="round"
+            />
+            <ellipse
+              cx="53"
+              cy="23"
+              rx="6.5"
+              ry="4.4"
+              transform="rotate(-45 53 23)"
+              fill="url(#loginGoldGrad)"
+            />
+          </g>
+          <path
+            d="M23 28 C16 27 14 19 20 15 C19 9 27 6 32 10 C35 5 43 6 45 11 C52 9 56 16 51 22 C54 25 51 28 47 28 Z"
+            fill="#120705"
+            stroke="url(#loginHatGrad)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <rect
+            x="24"
+            y="28"
+            width="24"
+            height="5.5"
+            rx="2"
+            fill="#120705"
+            stroke="url(#loginHatGrad)"
+            strokeWidth="2.8"
+          />
+          <path d="M29 28 V33 M36 28 V33 M43 28 V33" stroke="#FA9B23" strokeWidth="1.6" />
+        </svg>
+      </div>
+
+      <div className="flex flex-col text-left">
+        <div className="relative flex items-center">
+          <span
+            className={`${textDim} font-black tracking-tight uppercase leading-none text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]`}
+          >
+            GASTRO<span className="text-[#FA9B23]">NEGOCIOS</span>
+          </span>
+          <span
+            className="ml-1.5 -mt-2.5 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-white shadow-md"
+            style={{
+              background: 'linear-gradient(180deg, #FF2A2A 0%, #D90712 100%)',
+              border: '1px solid rgba(255,255,255,0.28)',
+            }}
+          >
+            PLATAFORMA
+          </span>
+        </div>
+        <span className="text-[10.5px] text-stone-300 font-medium tracking-wide mt-0.5">
+          Software &amp; POS Gastronómico Multi-Restaurante
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -31,12 +129,23 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [currentSession, setCurrentSession] = useState<{ id: number; nombre: string; email: string; rol: string; restaurant?: any } | null>(null);
+  const [currentSession, setCurrentSession] = useState<{
+    id: number;
+    nombre: string;
+    email: string;
+    rol: string;
+    restaurant?: any;
+  } | null>(null);
+
+  const isTenantScoped = Boolean(tenant && tenant.slug);
+  const brandName = isTenantScoped ? tenant!.nombre : 'GastroNegocios';
+  const primaryColor = isTenantScoped ? tenant!.colorPrimario || '#FA9B23' : '#FA9B23';
 
   // Check if user has an active session or requested logout
   useEffect(() => {
     try {
-      const isLogout = searchParams.get('logout') === 'true' || searchParams.get('switch') === 'true';
+      const isLogout =
+        searchParams.get('logout') === 'true' || searchParams.get('switch') === 'true';
       if (isLogout) {
         localStorage.removeItem(LOCAL_STORAGE_AUTH);
         localStorage.removeItem('puntog_user');
@@ -47,19 +156,20 @@ function LoginForm() {
         return;
       }
 
-      const savedAuth = localStorage.getItem(LOCAL_STORAGE_AUTH) || localStorage.getItem('puntog_user');
+      const savedAuth =
+        localStorage.getItem(LOCAL_STORAGE_AUTH) || localStorage.getItem('puntog_user');
       if (savedAuth) {
         const user = JSON.parse(savedAuth);
         if (user && user.id) {
           setCurrentSession(user);
-          // If a redirect was explicitly requested by an auth guard and not directly visiting /login, redirect
           if (redirectPath) {
             const role = (user.rol || user.role || '').toLowerCase();
-            // If redirected to /superadmin but current user is not superadmin, do NOT auto-redirect back into restriction!
             if (redirectPath.startsWith('/superadmin') && role !== 'superadmin') {
               // Stay on login page so user can log in with their superadmin account
             } else if (redirectPath === '/admin' && role !== 'superadmin') {
-              router.replace(user.restaurant?.slug ? `/r/${user.restaurant.slug}/admin` : '/r/punto-g/admin');
+              router.replace(
+                user.restaurant?.slug ? `/r/${user.restaurant.slug}/admin` : '/superadmin'
+              );
               return;
             } else {
               router.replace(redirectPath);
@@ -94,11 +204,11 @@ function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: email.trim(), 
+        body: JSON.stringify({
+          email: email.trim(),
           password,
           restaurantSlug: tenant?.slug || undefined,
-          restaurantId: tenant?.id || undefined
+          restaurantId: tenant?.id || undefined,
         }),
       });
 
@@ -114,18 +224,15 @@ function LoginForm() {
           localStorage.removeItem('punto_g_active_restaurant');
         }
 
-        // Smart redirect based on role and tenant
         let target = redirectPath;
         const userRole = (data.user.rol || data.user.role || '').toLowerCase();
         const restSlug = data.user.restaurant?.slug || 'punto-g';
 
         if (userRole === 'superadmin') {
-          // El Superadmin SIEMPRE va a /superadmin a menos que explícitamente haya solicitado un restaurante específico
           if (!target || target === '/admin' || target === '/' || !target.includes('/r/')) {
             target = '/superadmin';
           }
         } else {
-          // Para usuarios NO superadmin: NUNCA permitir acceso o redirección a /superadmin
           if (target && target.startsWith('/superadmin')) {
             target = '';
           }
@@ -153,9 +260,9 @@ function LoginForm() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#080405] flex items-center justify-center text-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-2 border-[#FA9B23] border-t-transparent rounded-full animate-spin" />
           <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">
             Verificando sesión...
           </span>
@@ -165,169 +272,159 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070707] text-white flex flex-col justify-center items-center py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden select-none">
+    <div className="min-h-screen bg-[#070405] text-white flex flex-col justify-center items-center py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden select-none">
       {/* Ambient background glowing orbs */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-brand-yellow/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/2 -right-32 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-80 h-80 bg-brand-orange/10 rounded-full blur-[130px] pointer-events-none" />
-
-      {/* Floating subtle grid background */}
-      <div 
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
-          backgroundSize: '32px 32px'
-        }}
-      />
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#FA9B23]/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/2 -right-32 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute -bottom-32 left-1/3 w-80 h-80 bg-amber-500/10 rounded-full blur-[130px] pointer-events-none" />
 
       {/* Top Navigation Bar: Back & Live Status */}
       <div className="w-full max-w-5xl flex items-center justify-between mb-6 sm:mb-8 relative z-20">
         <Link
-          href={tenant?.slug && tenant.slug !== 'punto-g' ? `/r/${tenant.slug}` : '/'}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#141414]/90 hover:bg-[#1f1f1f] border border-[#2b2b2b] text-gray-300 hover:text-white text-xs font-bold transition shadow-lg backdrop-blur-md group hover:border-brand-yellow/50"
+          href={isTenantScoped ? `/r/${tenant!.slug}` : '/'}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#140A08]/90 hover:bg-[#1E100C] border border-[#FA9B23]/30 text-gray-200 hover:text-white text-xs font-bold transition shadow-lg backdrop-blur-md group hover:border-[#FA9B23]"
         >
-          <ArrowLeft className="w-4 h-4 text-brand-yellow group-hover:-translate-x-1 transition-transform" />
-          <span>Volver a la Carta</span>
+          <ArrowLeft className="w-4 h-4 text-[#FA9B23] group-hover:-translate-x-1 transition-transform" />
+          <span>{isTenantScoped ? `Volver a ${brandName}` : 'Volver a GastroNegocios'}</span>
         </Link>
 
-        <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141414]/80 border border-[#262626] text-[11px] font-bold text-gray-400 backdrop-blur-md">
+        <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#140A08]/80 border border-[#FA9B23]/25 text-[11px] font-bold text-gray-300 backdrop-blur-md">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-gray-300">{tenant?.nombre || 'Punto G'} • Sistema Operativo</span>
+          <span>{brandName} • Plataforma SaaS &amp; POS</span>
         </div>
       </div>
 
-      {/* Main Glassmorphic Card Container (Split layout on desktop) */}
-      <div className="w-full max-w-5xl bg-[#111111]/80 backdrop-blur-2xl border border-[#242424] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 relative z-10">
-        
-        {/* Left Side: Branded Visual Showcase (Desktop & Tablets) */}
-        <div className="lg:col-span-5 relative hidden lg:flex flex-col justify-between p-8 xl:p-10 overflow-hidden bg-gradient-to-br from-[#161616] via-[#101010] to-[#0a0a0a] border-r border-[#202020]">
-          {/* Background culinary image with dark gradient */}
+      {/* Main Glassmorphic Card Container */}
+      <div className="w-full max-w-5xl bg-[#110908]/90 backdrop-blur-2xl border border-[#FA9B23]/25 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 relative z-10">
+        {/* Left Side: Branded Visual Showcase */}
+        <div className="lg:col-span-5 relative hidden lg:flex flex-col justify-between p-8 xl:p-10 overflow-hidden bg-gradient-to-br from-[#1A0C09] via-[#110806] to-[#080404] border-r border-white/10">
           <div className="absolute inset-0 z-0">
             <img
-              src={tenant?.bannerHero || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"}
-              alt={tenant?.nombre || "Restaurante"}
-              className="w-full h-full object-cover opacity-25 scale-105 filter contrast-125"
+              src={
+                tenant?.bannerHero ||
+                '/images/saas/hero-burger-3d.png'
+              }
+              alt={brandName}
+              className="w-full h-full object-cover opacity-20 scale-105 filter contrast-125"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/80 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#111111]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0D0605] via-[#0D0605]/85 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#110908]" />
           </div>
 
           {/* Top Branding */}
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2">
-              <Logo size="md" />
+              {isTenantScoped ? <Logo size="md" restaurant={tenant} /> : <GastroNegociosBrand size="md" />}
             </div>
 
-            <div className="space-y-1.5 pt-4">
+            <div className="space-y-2 pt-4">
               <span
                 className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border inline-block"
                 style={{
-                  color: tenant?.colorPrimario || '#ffc928',
-                  backgroundColor: `${tenant?.colorPrimario || '#ffc928'}15`,
-                  borderColor: `${tenant?.colorPrimario || '#ffc928'}40`,
+                  color: primaryColor,
+                  backgroundColor: `${primaryColor}15`,
+                  borderColor: `${primaryColor}40`,
                 }}
               >
-                GASTRONOMÍA & SISTEMA POS
+                ECOSISTEMA GASTRONÓMICO SAAS
               </span>
               <h2 className="text-2xl xl:text-3xl font-black uppercase text-white font-display tracking-tight leading-tight">
-                {tenant?.eslogan ? (
-                  <>
-                    {tenant.eslogan.split(' ')[0]}{' '}
-                    <span className="italic" style={{ color: tenant?.colorPrimario || '#ffc928' }}>
-                      {tenant.eslogan.split(' ').slice(1).join(' ')}
-                    </span>
-                  </>
+                {isTenantScoped && tenant?.eslogan ? (
+                  tenant.eslogan
                 ) : (
                   <>
-                    ANTOJOS QUE <span className="italic" style={{ color: tenant?.colorPrimario || '#ffc928' }}>CONECTAN</span>
+                    TU NEGOCIO GASTRONÓMICO{' '}
+                    <span className="text-[#FA9B23] block">BAJO CONTROL.</span>
                   </>
                 )}
               </h2>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
-                {tenant?.descripcion || 'Plataforma integral para cocina KDS, mesas QR, domicilios, reportes contables y gestión de menú en tiempo real.'}
+              <p className="text-xs text-stone-300 leading-relaxed max-w-xs">
+                {tenant?.descripcion ||
+                  'Accede a tu consola de administración, punto de venta POS, comandas KDS en vivo, inventario inteligente y multi-sede.'}
               </p>
             </div>
           </div>
 
           {/* Feature Highlights Badges */}
           <div className="relative z-10 space-y-2.5 pt-6">
-            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm">
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center font-bold"
                 style={{
-                  backgroundColor: `${tenant?.colorPrimario || '#ffc928'}20`,
-                  color: tenant?.colorPrimario || '#ffc928',
+                  backgroundColor: `${primaryColor}20`,
+                  color: primaryColor,
                 }}
               >
                 <ChefHat className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-xs font-bold text-white leading-none">Cocina en Vivo (KDS)</p>
-                <span className="text-[10px] text-gray-400">Comandas en tiempo real sin recargar</span>
+                <p className="text-xs font-bold text-white leading-none">Cocina KDS &amp; Mesas QR</p>
+                <span className="text-[10px] text-stone-400">Comandas en tiempo real sin comisiones</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm">
               <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-xs font-bold text-white leading-none">Caja & Reportes Oficiales</p>
-                <span className="text-[10px] text-gray-400">Exportación a Excel (.xlsx) y PDF</span>
+                <p className="text-xs font-bold text-white leading-none">Multi-Restaurante &amp; Multi-Sede</p>
+                <span className="text-[10px] text-stone-400">Cada negocio con su marca, carta y caja aislada</span>
               </div>
             </div>
           </div>
 
           {/* Bottom copyright / version */}
-          <div className="relative z-10 pt-4 border-t border-white/[0.08] flex items-center justify-between text-[10px] text-gray-500">
-            <span>Versión 2.0 • Dokploy Production</span>
-            <span className="font-bold" style={{ color: tenant?.colorPrimario || '#ffc928' }}>
-              {tenant?.ciudad || 'Cali, Colombia'}
-            </span>
+          <div className="relative z-10 pt-4 border-t border-white/[0.08] flex items-center justify-between text-[10px] text-stone-400">
+            <span>GastroNegocios Cloud</span>
+            <span className="font-bold text-[#FA9B23]">SarriaTech Solutions</span>
           </div>
         </div>
 
         {/* Right Side: Interactive Login Form */}
         <div className="lg:col-span-7 p-6 sm:p-10 xl:p-12 flex flex-col justify-between space-y-6">
-          
           {/* Header Mobile Logo & Welcome */}
           <div className="space-y-3 text-center sm:text-left">
-            <div className="lg:hidden flex justify-center mb-2">
-              <Logo size="md" />
+            <div className="lg:hidden flex justify-center mb-3">
+              {isTenantScoped ? <Logo size="md" restaurant={tenant} /> : <GastroNegociosBrand size="sm" />}
             </div>
 
             <div
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider"
               style={{
-                backgroundColor: `${tenant?.colorPrimario || '#ffc928'}15`,
-                borderColor: `${tenant?.colorPrimario || '#ffc928'}40`,
-                color: tenant?.colorPrimario || '#ffc928',
+                backgroundColor: `${primaryColor}15`,
+                borderColor: `${primaryColor}40`,
+                color: primaryColor,
               }}
             >
               <Lock className="w-3.5 h-3.5" />
-              <span>TERMINAL DE ACCESO SEGURO</span>
+              <span>ACCESO STAFF &amp; ADMINISTRACIÓN</span>
             </div>
 
             <div>
               <h1 className="text-2xl sm:text-3xl font-black uppercase text-white font-display tracking-tight">
-                INICIAR SESIÓN
+                INICIAR SESIÓN EN <span className="text-[#FA9B23]">{brandName.toUpperCase()}</span>
               </h1>
-              <p className="text-xs text-gray-400 mt-1">
-                Ingresa con tus credenciales para administrar {tenant?.nombre || 'Punto G'}.
+              <p className="text-xs text-stone-300 mt-1">
+                {isTenantScoped
+                  ? `Ingresa con tus credenciales para administrar ${brandName}.`
+                  : 'Ingresa con tu cuenta de Superadmin, Administrador de Restaurante, Cajero, Mesero o Cocina.'}
               </p>
             </div>
           </div>
 
           {/* Active Session Notification if logged in */}
           {currentSession && (
-            <div className="bg-brand-yellow/10 border border-brand-yellow/30 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
+            <div className="bg-[#FA9B23]/10 border border-[#FA9B23]/30 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-brand-yellow/20 text-brand-yellow flex items-center justify-center font-black text-xs">
+                <div className="w-8 h-8 rounded-xl bg-[#FA9B23]/20 text-[#FA9B23] flex items-center justify-center font-black text-xs">
                   {currentSession.nombre ? currentSession.nombre[0].toUpperCase() : 'U'}
                 </div>
                 <div>
                   <p className="text-xs font-bold text-white">
-                    Sesión activa: <span className="text-brand-yellow">{currentSession.nombre}</span> ({currentSession.rol})
+                    Sesión activa:{' '}
+                    <span className="text-[#FA9B23]">{currentSession.nombre}</span> (
+                    {currentSession.rol})
                   </p>
                   <p className="text-[10px] text-gray-400">{currentSession.email}</p>
                 </div>
@@ -335,20 +432,20 @@ function LoginForm() {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Link
                   href={
-                    currentSession.rol === 'Superadmin'
+                    (currentSession.rol || '').toLowerCase() === 'superadmin'
                       ? '/superadmin'
                       : currentSession.restaurant?.slug
                       ? `/r/${currentSession.restaurant.slug}/admin`
                       : '/admin'
                   }
-                  className="px-3 py-1.5 bg-brand-yellow text-black font-black text-[11px] rounded-xl uppercase hover:bg-yellow-400 transition"
+                  className="px-3 py-1.5 bg-[#FA9B23] text-black font-black text-[11px] rounded-xl uppercase hover:bg-amber-400 transition"
                 >
                   Ir al Panel
                 </Link>
                 <button
                   type="button"
                   onClick={handleClearSession}
-                  className="px-3 py-1.5 bg-[#252525] text-gray-300 font-bold text-[11px] rounded-xl hover:text-white hover:bg-red-500/20 hover:text-red-400 transition"
+                  className="px-3 py-1.5 bg-[#252525] text-gray-300 font-bold text-[11px] rounded-xl hover:bg-red-500/20 hover:text-red-400 transition cursor-pointer"
                 >
                   Cambiar cuenta
                 </button>
@@ -366,7 +463,6 @@ function LoginForm() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-            {/* Email Field */}
             <div className="space-y-1.5">
               <label className="block text-gray-300 font-extrabold uppercase text-[11px] tracking-wider">
                 Correo Electrónico
@@ -376,18 +472,17 @@ function LoginForm() {
                   type="email"
                   required
                   autoComplete="username email"
-                  placeholder="admin@puntog.com"
+                  placeholder="admin@turestaurante.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#171717] hover:bg-[#1a1a1a] focus:bg-[#1c1c1c] border border-[#2b2b2b] focus:border-brand-yellow rounded-2xl pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30 text-xs sm:text-sm font-medium transition-all shadow-inner"
+                  className="w-full bg-[#171110] hover:bg-[#1c1412] focus:bg-[#1f1614] border border-[#332420] focus:border-[#FA9B23] rounded-2xl pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#FA9B23]/30 text-xs sm:text-sm font-medium transition-all shadow-inner"
                 />
-                <div className="w-8 h-8 rounded-xl bg-[#222] text-gray-400 group-focus-within:text-brand-yellow group-focus-within:bg-brand-yellow/10 flex items-center justify-center absolute left-2 top-2 transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-[#241916] text-gray-400 group-focus-within:text-[#FA9B23] group-focus-within:bg-[#FA9B23]/10 flex items-center justify-center absolute left-2 top-2 transition-colors">
                   <Mail className="w-4 h-4" />
                 </div>
               </div>
             </div>
 
-            {/* Password Field with Toggle */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="block text-gray-300 font-extrabold uppercase text-[11px] tracking-wider">
@@ -403,19 +498,19 @@ function LoginForm() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#171717] hover:bg-[#1a1a1a] focus:bg-[#1c1c1c] border border-[#2b2b2b] focus:border-brand-yellow rounded-2xl pl-11 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30 text-xs sm:text-sm font-medium transition-all shadow-inner"
+                  className="w-full bg-[#171110] hover:bg-[#1c1412] focus:bg-[#1f1614] border border-[#332420] focus:border-[#FA9B23] rounded-2xl pl-11 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#FA9B23]/30 text-xs sm:text-sm font-medium transition-all shadow-inner"
                 />
-                <div className="w-8 h-8 rounded-xl bg-[#222] text-gray-400 group-focus-within:text-brand-yellow group-focus-within:bg-brand-yellow/10 flex items-center justify-center absolute left-2 top-2 transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-[#241916] text-gray-400 group-focus-within:text-[#FA9B23] group-focus-within:bg-[#FA9B23]/10 flex items-center justify-center absolute left-2 top-2 transition-colors">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="w-8 h-8 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center absolute right-2.5 top-2 transition"
+                  className="w-8 h-8 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center absolute right-2.5 top-2 transition cursor-pointer"
                   title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                 >
                   {showPassword ? (
-                    <EyeOff className="w-4 h-4 text-brand-yellow" />
+                    <EyeOff className="w-4 h-4 text-[#FA9B23]" />
                   ) : (
                     <Eye className="w-4 h-4" />
                   )}
@@ -424,12 +519,12 @@ function LoginForm() {
             </div>
 
             {/* Quick Autofill Access Chips */}
-            <div className="bg-[#161616] border border-[#242424] rounded-2xl p-3 space-y-2">
+            <div className="bg-[#160E0C] border border-[#2c1d19] rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                  Acceso Rápido (1 Clic):
+                  Acceso Rápido Demo (1 Clic):
                 </span>
-                <span className="text-[10px] text-brand-yellow font-bold">Auto-completar</span>
+                <span className="text-[10px] text-[#FA9B23] font-bold">Auto-completar</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
@@ -438,7 +533,7 @@ function LoginForm() {
                     setEmail('superadmin@gastronegocios.com');
                     setPassword('admin123');
                   }}
-                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
+                  className="py-1.5 px-2 rounded-xl bg-[#221614] hover:bg-[#FA9B23] hover:text-black text-gray-200 text-[10px] sm:text-[11px] font-bold border border-[#362420] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                 >
                   <span>👑 Superadmin</span>
                 </button>
@@ -448,9 +543,9 @@ function LoginForm() {
                     setEmail('admin@puntog.com');
                     setPassword('admin123');
                   }}
-                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
+                  className="py-1.5 px-2 rounded-xl bg-[#221614] hover:bg-[#FA9B23] hover:text-black text-gray-200 text-[10px] sm:text-[11px] font-bold border border-[#362420] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                 >
-                  <span>🛡️ Admin PG</span>
+                  <span>🍔 Demo Punto G</span>
                 </button>
                 <button
                   type="button"
@@ -458,9 +553,9 @@ function LoginForm() {
                     setEmail('admin@salchiricuras.com');
                     setPassword('admin123');
                   }}
-                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
+                  className="py-1.5 px-2 rounded-xl bg-[#221614] hover:bg-[#FA9B23] hover:text-black text-gray-200 text-[10px] sm:text-[11px] font-bold border border-[#362420] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                 >
-                  <span>🍟 Admin Salchi</span>
+                  <span>🍟 Demo Salchi</span>
                 </button>
                 <button
                   type="button"
@@ -468,9 +563,9 @@ function LoginForm() {
                     setEmail('cocina@puntog.com');
                     setPassword('cocina123');
                   }}
-                  className="py-1.5 px-2 rounded-xl bg-[#202020] hover:bg-brand-yellow hover:text-black text-gray-300 text-[10px] sm:text-[11px] font-bold border border-[#2e2e2e] transition-all flex items-center justify-center gap-1 active:scale-95"
+                  className="py-1.5 px-2 rounded-xl bg-[#221614] hover:bg-[#FA9B23] hover:text-black text-gray-200 text-[10px] sm:text-[11px] font-bold border border-[#362420] transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                 >
-                  <span>👨‍🍳 Cocina</span>
+                  <span>👨‍🍳 Demo KDS</span>
                 </button>
               </div>
             </div>
@@ -479,55 +574,59 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-brand-yellow via-yellow-400 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl shadow-[0_10px_30px_rgba(255,201,40,0.35)] hover:shadow-[0_12px_40px_rgba(255,201,40,0.5)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+              style={{
+                background: 'linear-gradient(180deg, #FF2E2E 0%, #D90812 100%)',
+                boxShadow: '0 10px 30px rgba(241, 15, 26, 0.45), inset 0 1px 1px rgba(255,255,255,0.35)',
+                border: '1px solid rgba(255,110,110,0.45)',
+              }}
             >
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Validando credenciales...</span>
                 </>
               ) : (
                 <>
                   <Lock className="w-4 h-4 stroke-[2.5]" />
-                  <span>INGRESAR AL PANEL</span>
+                  <span>INGRESAR A LA PLATAFORMA</span>
                 </>
               )}
             </button>
           </form>
 
           {/* Footer Quick Links */}
-          <div className="pt-4 border-t border-[#1f1f1f] flex flex-wrap items-center justify-between gap-3 text-xs text-gray-400">
+          <div className="pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-400">
             <Link
-              href="/cocina"
-              target="_blank"
-              className="hover:text-brand-yellow transition flex items-center gap-1.5 font-bold"
+              href="/registro"
+              className="hover:text-[#FA9B23] transition flex items-center gap-1.5 font-bold text-stone-200"
             >
-              <ChefHat className="w-4 h-4 text-brand-yellow" />
-              <span>Pantalla Cocina</span>
+              <Sparkles className="w-4 h-4 text-[#FA9B23]" />
+              <span>¿No tienes cuenta? Crear Restaurante Gratis</span>
             </Link>
 
             <Link
-              href="/rastreo"
-              className="hover:text-brand-yellow transition font-semibold"
+              href="/superadmin"
+              className="hover:text-[#FA9B23] transition font-semibold"
             >
-              Rastreo en Vivo
-            </Link>
-
-            <Link
-              href="/calificar"
-              className="hover:text-brand-yellow transition text-gray-500"
-            >
-              Calificaciones QR
+              Portal Superadmin
             </Link>
           </div>
-
         </div>
-
       </div>
 
-      {/* Bottom Legal / Restaurant Slogan */}
-      <p className="text-center text-[11px] text-gray-500 mt-6 relative z-10">
-        {tenant?.nombre || 'Punto G'} {tenant?.ciudad || 'Cali'} &copy; {new Date().getFullYear()} — Sistema Gastronómico y Punto de Venta
+      {/* Bottom Legal / Credits */}
+      <p className="text-center text-[11px] text-stone-400 mt-6 relative z-10">
+        <strong>GastroNegocios Plataforma SaaS</strong> — Desarrollado por{' '}
+        <a
+          href="https://www.sarriatech.tech"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#FA9B23] hover:underline font-bold inline-flex items-center gap-1"
+        >
+          <span>SarriaTech Solutions S.A.S (www.sarriatech.tech)</span>
+          <ExternalLink className="w-3 h-3" />
+        </a>
       </p>
     </div>
   );
@@ -537,8 +636,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white">
-          <div className="w-8 h-8 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen bg-[#070405] flex items-center justify-center text-white">
+          <div className="w-8 h-8 border-2 border-[#FA9B23] border-t-transparent rounded-full animate-spin" />
         </div>
       }
     >
