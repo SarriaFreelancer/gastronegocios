@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant } from '@/lib/db-autoheal';
+import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant, serializeSafe } from '@/lib/db-autoheal';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
         restaurantId: r.restaurantId ? Number(r.restaurantId) : targetRestId,
         _count: { orders: 0, tables: 0, users: 0 },
       }));
-      return NextResponse.json(formatted);
+      return NextResponse.json(serializeSafe(formatted));
     }
   } catch (error) {
     console.error('Error fetching branches:', error);

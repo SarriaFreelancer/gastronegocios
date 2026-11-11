@@ -3,6 +3,25 @@ import { prisma } from '@/lib/prisma';
 let lastSchemaHealAt = 0;
 const HEAL_COOLDOWN_MS = 60_000;
 
+/**
+ * Recursively converts any BigInt values returned by Prisma raw queries into standard Numbers
+ * so NextResponse.json() never throws "Do not know how to serialize a BigInt".
+ */
+export function serializeSafe<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return Number(obj) as unknown as T;
+  if (obj instanceof Date) return obj.toISOString() as unknown as T;
+  if (Array.isArray(obj)) return obj.map((item) => serializeSafe(item)) as unknown as T;
+  if (typeof obj === 'object') {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(obj as Record<string, any>)) {
+      out[k] = serializeSafe(v);
+    }
+    return out as T;
+  }
+  return obj;
+}
+
 async function safeExec(sql: string) {
   try {
     await prisma.$executeRawUnsafe(sql);

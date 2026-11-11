@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant } from '@/lib/db-autoheal';
+import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant, serializeSafe } from '@/lib/db-autoheal';
 
 export const dynamic = 'force-dynamic';
 
@@ -399,15 +399,17 @@ export async function PUT(
     const r = rawRestRows[0] || { id: restaurantId, ...data };
     const isActivo = r.activo !== undefined ? Boolean(r.activo) : true;
 
-    return NextResponse.json({
-      ...r,
-      id: restaurantId,
-      activo: isActivo,
-      mostrarEnLanding: r.mostrarEnLanding !== undefined ? Boolean(r.mostrarEnLanding) : true,
-      estadoLicencia: r.estadoLicencia || (isActivo ? 'ACTIVA' : 'SUSPENDIDA'),
-      branches,
-      users: rawUsers,
-    });
+    return NextResponse.json(
+      serializeSafe({
+        ...r,
+        id: restaurantId,
+        activo: isActivo,
+        mostrarEnLanding: r.mostrarEnLanding !== undefined ? Boolean(r.mostrarEnLanding) : true,
+        estadoLicencia: r.estadoLicencia || (isActivo ? 'ACTIVA' : 'SUSPENDIDA'),
+        branches,
+        users: rawUsers,
+      })
+    );
   } catch (error) {
     console.error('Error updating restaurant:', error);
     return NextResponse.json({ error: 'Error al actualizar el restaurante' }, { status: 500 });

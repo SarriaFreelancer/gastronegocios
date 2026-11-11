@@ -3,8 +3,8 @@
  * Garantiza que la aplicación funcione en restaurantes sin conexión a internet.
  */
 
-const CACHE_NAME = 'gastropos-core-v1';
-const RUNTIME_CACHE = 'gastropos-runtime-v1';
+const CACHE_NAME = 'gastropos-core-v2';
+const RUNTIME_CACHE = 'gastropos-runtime-v2';
 
 // Recursos críticos para arranque inmediato sin internet (App Shell)
 const PRECACHE_URLS = [
@@ -123,7 +123,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Recursos estáticos (JS, CSS, Imágenes, Fuentes, Sonidos): Stale-While-Revalidate
+  // No cachear solicitudes RSC internas de Next.js ni chunks dinámicos de compilación
+  if (url.searchParams.has('_rsc') || url.pathname.startsWith('/_next/')) {
+    return;
+  }
+
+  // 3. Recursos estáticos (Imágenes, Fuentes, Sonidos): Stale-While-Revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)

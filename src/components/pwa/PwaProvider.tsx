@@ -111,9 +111,7 @@ export const PwaProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
       setInstallPrompt(e);
-      // Banner flotante deshabilitado a petición del usuario. La instalación se realiza desde la sección de Configuración en el panel Admin.
       setShowInstallBanner(false);
     };
 
