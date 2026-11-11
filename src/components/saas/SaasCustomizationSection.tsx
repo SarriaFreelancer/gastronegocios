@@ -32,7 +32,7 @@ const MINI_TEMPLATES = [
     bg: 'from-[#180A06] via-[#0E0604] to-[#080302]',
     accent: '#FA9B23',
     badgeBg: '#E50914',
-    foodImg: '/images/menu/burgers/burger-1.jpg',
+    foodImg: '/images/saas/hero-burger-3d.png',
     darkText: false,
   },
   {
@@ -43,7 +43,7 @@ const MINI_TEMPLATES = [
     bg: 'from-[#9E0810] via-[#680409] to-[#2B0204]',
     accent: '#FFE169',
     badgeBg: '#FA9B23',
-    foodImg: '/images/menu/burgers/burger-2.jpg',
+    foodImg: '/images/saas/demo-salchi-3d.png',
     darkText: false,
   },
   {
@@ -54,7 +54,7 @@ const MINI_TEMPLATES = [
     bg: 'from-[#141414] via-[#0B0B0B] to-[#050505]',
     accent: '#F97316',
     badgeBg: '#F97316',
-    foodImg: '/images/menu/parrilla/parrilla-1.jpg',
+    foodImg: '/images/saas/demo-doncarbon-3d.png',
     darkText: false,
   },
   {
@@ -65,7 +65,7 @@ const MINI_TEMPLATES = [
     bg: 'from-[#FFFFFF] via-[#F8FAFC] to-[#F1F5F9]',
     accent: '#E50914',
     badgeBg: '#2563EB',
-    foodImg: '/images/menu/burgers/burger-3.jpg',
+    foodImg: '/images/assets/burger-hero-transparent.png',
     darkText: true,
   },
 ];
@@ -440,11 +440,15 @@ export const SaasCustomizationSection: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Crisp Circular Food Thumbnail */}
-                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/20 shrink-0 shadow-md">
+                    {/* Crisp High-Res 3D Food Thumbnail */}
+                    <div
+                      className={`w-20 h-14 sm:w-24 sm:h-16 rounded-xl overflow-hidden border shrink-0 shadow-md ${
+                        tpl.darkText ? 'border-slate-300 bg-slate-900' : 'border-white/20 bg-black/50'
+                      }`}
+                    >
                       <img
                         src={tpl.foodImg}
-                        alt={tpl.title}
+                        alt={`Vista previa ${tpl.title}`}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                     </div>

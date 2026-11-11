@@ -32,28 +32,28 @@ export const SaasHero: React.FC = () => {
             >
               <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] shadow-[0_0_10px_#22C55E]" />
               <span className="text-xs sm:text-[13px] font-bold text-white tracking-wide">
-                Sistema Gastronómico Multi-Restaurante • 0% Comisiones
+                GastroNegocios • Software Integral para Restaurantes • 0% Comisiones
               </span>
             </div>
 
             {/* Main Headline */}
             <div className="space-y-1">
-              <h1 className="text-[34px] sm:text-[46px] lg:text-[50px] font-extrabold tracking-tight leading-[1.06] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)]">
-                Tu negocio gastronómico,
+              <h1 className="text-[32px] sm:text-[44px] lg:text-[48px] font-extrabold tracking-tight leading-[1.08] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)]">
+                Digitaliza y escala tu restaurante,
               </h1>
               <div
-                className="text-[44px] sm:text-[60px] lg:text-[66px] font-black tracking-tight leading-[1.02] text-transparent bg-clip-text drop-shadow-[0_6px_24px_rgba(250,155,35,0.32)]"
+                className="text-[42px] sm:text-[56px] lg:text-[62px] font-black tracking-tight leading-[1.02] text-transparent bg-clip-text drop-shadow-[0_6px_24px_rgba(250,155,35,0.32)]"
                 style={{
                   backgroundImage: 'linear-gradient(180deg, #FFE169 0%, #FA9B23 55%, #E87A00 100%)',
                 }}
               >
-                bajo control.
+                todo en un solo lugar.
               </div>
             </div>
 
             {/* Subtitle */}
             <p className="text-stone-200 text-sm sm:text-[15.5px] leading-relaxed max-w-xl font-medium">
-              Gestiona tu restaurante, acepta pedidos, controla inventario y haz crecer tu negocio con la mejor plataforma SaaS.
+              Con <strong className="text-[#FFE169]">GastroNegocios</strong> creas tu carta digital QR, recibes pedidos directos por WhatsApp, gestionas comandas en cocina (KDS), meseros y facturación POS multi-sede en minutos.
             </p>
 
             {/* 3 Gold Checkmarks */}
@@ -160,20 +160,21 @@ export const SaasHero: React.FC = () => {
               </div>
             </div>
 
-            {/* Freshly Generated High-Res 3D Gourmet Burger Scene */}
-            <div className="relative w-full max-w-[540px] pr-12 sm:pr-28">
-              <div className="relative rounded-3xl overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.9)] border border-[#FA9B23]/25">
+            {/* Seamless High-Res 3D Gourmet Burger + Fries Scene (No square frame or border — blended directly into background) */}
+            <div className="relative w-full max-w-[650px] lg:-ml-8 pr-6 sm:pr-20 pointer-events-none select-none">
+              <div
+                className="relative w-full"
+                style={{
+                  WebkitMaskImage:
+                    'radial-gradient(ellipse 84% 80% at 50% 52%, rgba(0,0,0,1) 50%, rgba(0,0,0,0.88) 65%, rgba(0,0,0,0.38) 82%, rgba(0,0,0,0) 98%)',
+                  maskImage:
+                    'radial-gradient(ellipse 84% 80% at 50% 52%, rgba(0,0,0,1) 50%, rgba(0,0,0,0.88) 65%, rgba(0,0,0,0.38) 82%, rgba(0,0,0,0) 98%)',
+                }}
+              >
                 <img
                   src="/images/saas/hero-burger-3d.png"
-                  alt="Hamburguesa Gourmet al Carbón"
-                  className="w-full h-[310px] sm:h-[380px] object-cover object-center scale-105"
-                />
-                <div
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    background:
-                      'linear-gradient(90deg, rgba(8,3,3,0.55) 0%, transparent 30%, transparent 75%, rgba(8,3,3,0.45) 100%), linear-gradient(180deg, rgba(8,3,3,0.2) 0%, transparent 25%, rgba(8,3,3,0.65) 100%)',
-                  }}
+                  alt="Hamburguesa Gourmet 3D con Papas y Escenario"
+                  className="w-full h-[350px] sm:h-[440px] object-cover object-center scale-[1.03] drop-shadow-[0_28px_45px_rgba(0,0,0,0.95)]"
                 />
               </div>
             </div>

@@ -13,19 +13,18 @@ export function TableServiceBar() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [tempTableInput, setTempTableInput] = useState('');
 
-  if (
-    pathname === '/' ||
-    pathname.startsWith('/registro') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/superadmin') ||
-    pathname.startsWith('/login') ||
-    pathname.includes('/admin') ||
-    pathname.includes('/cocina') ||
-    pathname.includes('/mesero') ||
-    pathname.includes('/entregas') ||
-    pathname.includes('/pedidos-listos') ||
-    pathname.includes('/turnero')
-  ) {
+  const isLegacyClientRoute = /^\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/|$)/.test(pathname);
+  const isTenantClientRoute =
+    /^\/r\/[^\/]+(\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/.*)?)?$/.test(pathname) &&
+    !pathname.includes('/admin') &&
+    !pathname.includes('/login') &&
+    !pathname.includes('/cocina') &&
+    !pathname.includes('/mesero') &&
+    !pathname.includes('/entregas') &&
+    !pathname.includes('/pedidos-listos') &&
+    !pathname.includes('/turnero');
+
+  if (!isTenantClientRoute && !isLegacyClientRoute) {
     return null;
   }
 

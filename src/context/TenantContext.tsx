@@ -281,24 +281,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    const isLegacyClientRoute = /^\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/|$)/.test(pathname);
     if (detectedSlug) {
       fetchTenant(detectedSlug);
-    } else if (
-      pathname === '/' ||
-      pathname.startsWith('/registro') ||
-      pathname.startsWith('/superadmin') ||
-      pathname.startsWith('/login')
-    ) {
-      // Global GastroNegocios SaaS routes: do not inject Punto G tenant branding
-      setTenant(null);
-      applyThemeTokens(null);
-    } else {
+    } else if (isLegacyClientRoute) {
       // Legacy root client routes (/menu, /checkout, etc.)
       if (!tenant) {
         setTenant(defaultTenantPuntoG);
         applyThemeTokens(defaultTenantPuntoG);
       }
       fetchTenant('punto-g');
+    } else {
+      // Global GastroNegocios SaaS routes, auth routes, or unknown/404 routes: never inject Punto G branding
+      setTenant(null);
+      applyThemeTokens(null);
     }
   }, [detectedSlug, pathname]);
 

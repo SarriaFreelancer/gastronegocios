@@ -194,6 +194,17 @@ function DynamicClientLanding({
     }
   }, [restaurant?.nombre]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (dataLoading) {
+      document.title = 'Cargando restaurante... | GastroNegocios';
+    } else if (loadError || !restaurant || !restaurant.activo) {
+      document.title = 'Restaurante no encontrado | GastroNegocios';
+    } else {
+      document.title = `${restaurant.nombre} | ${restaurant.eslogan || 'Carta Digital & Pedidos'}`;
+    }
+  }, [dataLoading, loadError, restaurant]);
+
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -236,21 +247,52 @@ function DynamicClientLanding({
 
   if (loadError || !restaurant || !restaurant.activo) {
     return (
-      <div className="min-h-screen bg-[#080808] flex items-center justify-center text-white p-6">
-        <div className="bg-[#141414] border border-[#2a2a2a] p-8 rounded-3xl text-center max-w-md w-full space-y-4">
-          <UtensilsCrossed className="w-12 h-12 text-gray-600 mx-auto" />
-          <h2 className="text-xl font-black uppercase text-white font-display">
-            Restaurante no disponible
-          </h2>
-          <p className="text-xs text-gray-400">
-            El restaurante solicitado no se encuentra activo o el enlace no es válido.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-5 py-2.5 bg-brand-yellow text-black font-black text-xs uppercase rounded-xl"
+      <div className="min-h-screen bg-[#080303] flex flex-col justify-between text-white p-6 relative overflow-hidden">
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 70% 50% at 50% 25%, rgba(229, 9, 20, 0.16) 0%, transparent 70%), linear-gradient(180deg, #0D0404 0%, #070202 100%)',
+          }}
+        />
+        <div className="relative z-10 flex-1 flex items-center justify-center">
+          <div className="bg-gradient-to-b from-[#170907]/95 to-[#0D0504]/95 border border-[#FA9B23]/30 p-8 sm:p-10 rounded-3xl text-center max-w-lg w-full space-y-5 shadow-[0_25px_70px_rgba(0,0,0,0.9)]">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#E50914]/15 border border-[#E50914]/40 text-[#FFE169] text-[11px] font-extrabold uppercase tracking-wider">
+              <span>GastroNegocios Plataforma</span>
+            </div>
+            <UtensilsCrossed className="w-12 h-12 text-[#FA9B23] mx-auto" />
+            <h2 className="text-2xl font-black uppercase text-white font-display tracking-tight">
+              Restaurante no encontrado o inactivo
+            </h2>
+            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              El restaurante <strong className="text-[#FFE169]">/{slug}</strong> no existe en la base de datos o se encuentra temporalmente suspendido.
+            </p>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/"
+                className="w-full sm:w-auto inline-block px-6 py-3 bg-gradient-to-b from-[#FF2A2A] to-[#D80812] text-white font-extrabold text-xs uppercase rounded-full shadow-lg hover:scale-105 transition-transform"
+              >
+                Ir a GastroNegocios
+              </Link>
+              <Link
+                href="/registro"
+                className="w-full sm:w-auto inline-block px-6 py-3 bg-[#1C0D09] border border-[#FA9B23]/45 text-[#FFE169] font-extrabold text-xs uppercase rounded-full hover:bg-[#27120C] transition-colors"
+              >
+                Crear Este Restaurante
+              </Link>
+            </div>
+          </div>
+        </div>
+        <div className="relative z-10 text-center text-xs text-stone-400 pt-4">
+          Desarrollado por{' '}
+          <a
+            href="https://www.sarriatech.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#FFE169] font-extrabold underline"
           >
-            Ir a la Página Principal
-          </Link>
+            SarriaTech Solutions S.A.S
+          </a>
         </div>
       </div>
     );

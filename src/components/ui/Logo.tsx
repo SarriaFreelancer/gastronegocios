@@ -48,7 +48,7 @@ export const Logo: React.FC<LogoProps> = ({
     activeTenant?.nombre ||
     (activeTenant?.slug
       ? activeTenant.slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-      : 'Punto G')
+      : 'GastroNegocios')
   ).trim();
   const isPuntoG =
     targetName.toLowerCase() === 'punto g' ||
@@ -56,7 +56,7 @@ export const Logo: React.FC<LogoProps> = ({
     activeTenant?.slug === 'punto-g' ||
     activeTenant?.slug === 'puntog';
 
-  const defaultSlogan = isPuntoG ? 'Tu Máximo Placer' : 'Antojos Que Conectan';
+  const defaultSlogan = isPuntoG ? 'Tu Máximo Placer' : 'Plataforma Gastronómica';
   const targetSlogan = (eslogan || (isPuntoG ? 'Tu Máximo Placer' : activeTenant?.eslogan) || defaultSlogan).trim();
   const targetLogo = logoUrl !== undefined ? logoUrl : activeTenant?.logo;
   const primaryColor = colorPrimario || activeTenant?.colorPrimario || '#ffc928';

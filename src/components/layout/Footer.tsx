@@ -31,25 +31,24 @@ import { restaurantInfo } from '@/data/restaurant-info';
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();
-  const { tenant } = useTenant();
+  const { tenant, isLoading } = useTenant();
 
-  // Excluir de páginas operativas o que tienen su propio layout de pantalla completa
-  if (
-    pathname === '/' ||
-    pathname.startsWith('/registro') ||
-    pathname.includes('/registro') ||
-    pathname.startsWith('/admin') ||
-    pathname.includes('/admin') ||
-    pathname.startsWith('/superadmin') ||
-    pathname.includes('/superadmin') ||
-    pathname.startsWith('/login') ||
-    pathname.includes('/login') ||
-    pathname.includes('/cocina') ||
-    pathname.includes('/mesero') ||
-    pathname.includes('/entregas') ||
-    pathname.includes('/pedidos-listos') ||
-    pathname.includes('/turnero')
-  ) {
+  const isLegacyClientRoute = /^\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/|$)/.test(pathname);
+  const isTenantClientRoute =
+    /^\/r\/[^\/]+(\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/.*)?)?$/.test(pathname) &&
+    !pathname.includes('/admin') &&
+    !pathname.includes('/login') &&
+    !pathname.includes('/cocina') &&
+    !pathname.includes('/mesero') &&
+    !pathname.includes('/entregas') &&
+    !pathname.includes('/pedidos-listos') &&
+    !pathname.includes('/turnero');
+
+  if (!isTenantClientRoute && !isLegacyClientRoute) {
+    return null;
+  }
+
+  if (isTenantClientRoute && !isLoading && (!tenant || tenant.activo === false)) {
     return null;
   }
 
@@ -430,7 +429,7 @@ export const Footer: React.FC = () => {
           </p>
 
           <p className="text-[11px] text-gray-500">
-            Punto G SaaS Gastronómico • Cali, Colombia 🇨🇴
+            GastroNegocios Plataforma Gastronómica • Colombia 🇨🇴
           </p>
         </div>
 

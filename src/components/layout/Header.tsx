@@ -13,26 +13,27 @@ import { CustomerPortalModal } from '@/components/cart/CustomerPortalModal';
 export const Header: React.FC = () => {
   const pathname = usePathname();
   const { totalItems, setIsCartOpen, currentCustomer } = useCart();
-  const { tenant } = useTenant();
+  const { tenant, isLoading } = useTenant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [customerPortalOpen, setCustomerPortalOpen] = useState(false);
 
-  if (
-    pathname === '/' ||
-    pathname.startsWith('/registro') ||
-    pathname.includes('/registro') ||
-    pathname.startsWith('/admin') ||
-    pathname.includes('/admin') ||
-    pathname.startsWith('/superadmin') ||
-    pathname.includes('/superadmin') ||
-    pathname.startsWith('/login') ||
-    pathname.includes('/login') ||
-    pathname.includes('/cocina') ||
-    pathname.includes('/mesero') ||
-    pathname.includes('/entregas') ||
-    pathname.includes('/pedidos-listos') ||
-    pathname.includes('/turnero')
-  ) {
+  const isLegacyClientRoute = /^\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/|$)/.test(pathname);
+  const isTenantClientRoute =
+    /^\/r\/[^\/]+(\/(menu|promociones|rastreo|nosotros|contacto|checkout|calificar|pedido)(\/.*)?)?$/.test(pathname) &&
+    !pathname.includes('/admin') &&
+    !pathname.includes('/login') &&
+    !pathname.includes('/cocina') &&
+    !pathname.includes('/mesero') &&
+    !pathname.includes('/entregas') &&
+    !pathname.includes('/pedidos-listos') &&
+    !pathname.includes('/turnero');
+
+  if (!isTenantClientRoute && !isLegacyClientRoute) {
+    return null;
+  }
+
+  // If on a /r/[slug] route and the tenant finished loading but does not exist or is suspended, hide header so the 404/unavailable card displays cleanly
+  if (isTenantClientRoute && !isLoading && (!tenant || tenant.activo === false)) {
     return null;
   }
 
