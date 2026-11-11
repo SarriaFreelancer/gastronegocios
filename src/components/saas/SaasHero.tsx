@@ -2,139 +2,264 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   Check,
   ArrowRight,
-  MessageCircle
+  MessageCircle,
+  Rocket,
+  Home,
+  UtensilsCrossed,
+  ShoppingCart,
+  ClipboardList,
+  User,
 } from 'lucide-react';
 
-export function SaasHero() {
-  const whatsappUrl = `https://wa.me/573229088736?text=${encodeURIComponent(
-    '¡Hola! Me interesa conocer más sobre la plataforma GastroNegocios para mi restaurante.'
-  )}`;
-
+export const SaasHero: React.FC = () => {
   return (
-    <section className="relative pt-20 sm:pt-24 pb-6 sm:pb-10 px-4 sm:px-6 overflow-hidden">
-      {/* Intense warm golden-amber & crimson restaurant bokeh lighting */}
-      <div className="absolute inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 right-[8%] w-[640px] h-[520px] bg-radial from-[#FF8C00]/30 via-[#D9460F]/15 to-transparent rounded-full blur-[95px]" />
-        <div className="absolute top-12 left-[5%] w-[420px] h-[340px] bg-radial from-[#E11D48]/15 via-[#7F1D1D]/10 to-transparent rounded-full blur-[110px]" />
-        {/* Warm polished wooden bar counter reflection glow across bottom of hero */}
-        <div className="absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-[#3B1906]/55 via-[#6B2D0B]/25 to-transparent" />
-      </div>
-
-      <div className="max-w-7xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-2 items-center">
-        {/* LEFT COLUMN: HEADLINE & ACTIONS */}
-        <div className="lg:col-span-6 space-y-4 sm:space-y-5 text-left relative z-20 pt-2">
-          {/* TOP GLOSSY CRIMSON PILL BADGE */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#880B10] via-[#C81018] to-[#7A090E] border border-[#FF5A5F]/55 shadow-[0_0_25px_rgba(241,15,26,0.55)]">
-            <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-b from-[#8BF19B] via-[#22C55E] to-[#15803D] shadow-[0_0_12px_#4ADE80] shrink-0" />
-            <span className="text-xs sm:text-[13.5px] font-bold text-white tracking-wide drop-shadow">
-              Sistema Gastronómico Multi-Restaurante • <strong className="font-black text-white">0% Comisiones</strong>
-            </span>
-          </div>
-
-          {/* MAIN H1 TITLE (Intense white + vibrant golden-amber 'bajo control.') */}
-          <h1 className="font-display tracking-tight">
-            <span className="block text-3xl sm:text-5xl lg:text-[46px] font-extrabold text-white leading-[1.08] drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
-              Tu negocio gastronómico,
-            </span>
-            <span
-              className="block text-5xl sm:text-6xl lg:text-[74px] font-black leading-[1.0] mt-1 bg-gradient-to-b from-[#FFD859] via-[#FBB024] to-[#E8880B] bg-clip-text text-transparent"
+    <section className="relative pt-24 pb-8 sm:pt-28 sm:pb-12 overflow-hidden">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-4 items-center">
+          {/* LEFT COLUMN: Copy, Gold Gradient Headline, Checklist, CTAs */}
+          <div className="lg:col-span-6 space-y-5 text-left z-20">
+            {/* Red Pill Badge with Glowing Green Dot */}
+            <div
+              className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full shadow-lg"
               style={{
-                filter: 'drop-shadow(0 6px 22px rgba(250, 155, 35, 0.42)) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.9))',
+                background: 'linear-gradient(90deg, rgba(220,16,24,0.92) 0%, rgba(165,12,20,0.85) 100%)',
+                border: '1px solid rgba(255,120,90,0.45)',
+                boxShadow: '0 4px 20px rgba(229,9,20,0.4)',
               }}
             >
-              bajo control.
-            </span>
-          </h1>
-
-          {/* DESCRIPTION */}
-          <p className="text-sm sm:text-[16px] text-gray-100 leading-relaxed max-w-xl font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-            Gestiona tu restaurante, acepta pedidos, controla inventario y haz crecer tu negocio con la mejor plataforma SaaS.
-          </p>
-
-          {/* 3 BULLET CHECKPOINTS (Bright golden circles with dark check) */}
-          <div className="space-y-2.5 pt-0.5">
-            <div className="flex items-center gap-3 text-sm sm:text-[15.5px] text-white font-semibold drop-shadow">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-b from-[#FFD65A] to-[#F09819] text-[#1C0F02] flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(250,155,35,0.65)]">
-                <Check className="w-3.5 h-3.5 stroke-[3.5]" />
-              </div>
-              <span>Menú QR y comandas KDS</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] shadow-[0_0_10px_#22C55E]" />
+              <span className="text-xs sm:text-[13px] font-bold text-white tracking-wide">
+                Sistema Gastronómico Multi-Restaurante • 0% Comisiones
+              </span>
             </div>
 
-            <div className="flex items-center gap-3 text-sm sm:text-[15.5px] text-white font-semibold drop-shadow">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-b from-[#FFD65A] to-[#F09819] text-[#1C0F02] flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(250,155,35,0.65)]">
-                <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+            {/* Main Headline */}
+            <div className="space-y-1">
+              <h1 className="text-[34px] sm:text-[46px] lg:text-[50px] font-extrabold tracking-tight leading-[1.06] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)]">
+                Tu negocio gastronómico,
+              </h1>
+              <div
+                className="text-[44px] sm:text-[60px] lg:text-[66px] font-black tracking-tight leading-[1.02] text-transparent bg-clip-text drop-shadow-[0_6px_24px_rgba(250,155,35,0.32)]"
+                style={{
+                  backgroundImage: 'linear-gradient(180deg, #FFE169 0%, #FA9B23 55%, #E87A00 100%)',
+                }}
+              >
+                bajo control.
               </div>
-              <span>Inventario inteligente</span>
             </div>
 
-            <div className="flex items-center gap-3 text-sm sm:text-[15.5px] text-white font-semibold drop-shadow">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-b from-[#FFD65A] to-[#F09819] text-[#1C0F02] flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(250,155,35,0.65)]">
-                <Check className="w-3.5 h-3.5 stroke-[3.5]" />
-              </div>
-              <span>Reportes en tiempo real</span>
-            </div>
-          </div>
+            {/* Subtitle */}
+            <p className="text-stone-200 text-sm sm:text-[15.5px] leading-relaxed max-w-xl font-medium">
+              Gestiona tu restaurante, acepta pedidos, controla inventario y haz crecer tu negocio con la mejor plataforma SaaS.
+            </p>
 
-          {/* CTAs */}
-          <div className="pt-2">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3.5">
-              {/* Primary Intense Red Pill + Subtitle centered underneath */}
-              <div className="flex flex-col items-center">
+            {/* 3 Gold Checkmarks */}
+            <ul className="space-y-2.5 pt-1">
+              {[
+                'Menú QR y comandas KDS',
+                'Inventario inteligente',
+                'Reportes en tiempo real',
+              ].map((item, idx) => (
+                <li key={idx} className="flex items-center gap-3 text-white font-semibold text-sm sm:text-[15px]">
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-black shrink-0 shadow-[0_0_12px_rgba(250,155,35,0.6)]"
+                    style={{
+                      background: 'linear-gradient(180deg, #FFE066 0%, #FA9B23 100%)',
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3.5]" />
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* CTA Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+              <div className="flex flex-col items-center sm:items-start">
                 <Link
                   href="/registro"
-                  className="w-full sm:w-auto py-3.5 px-7 rounded-full bg-gradient-to-b from-[#FF2E36] via-[#F10F1A] to-[#B5050D] hover:brightness-110 text-white font-extrabold text-sm sm:text-[15px] shadow-[0_8px_32px_rgba(241,15,26,0.75)] border border-red-300/45 flex items-center justify-center gap-2.5 transition-all hover:scale-[1.03]"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full text-white font-extrabold text-sm tracking-wide transition-all hover:scale-[1.03] active:scale-95"
+                  style={{
+                    background: 'linear-gradient(180deg, #FF2A2A 0%, #D80812 100%)',
+                    boxShadow: '0 10px 30px rgba(241, 15, 26, 0.6), inset 0 1px 1px rgba(255,255,255,0.4)',
+                    border: '1px solid rgba(255,120,120,0.5)',
+                  }}
                 >
-                  <span className="text-lg leading-none drop-shadow">🚀</span>
+                  <Rocket className="w-4 h-4 text-[#FFE169]" />
                   <span>Crear Mi Restaurante Gratis</span>
-                  <ArrowRight className="w-4 h-4 stroke-[2.8]" />
+                  <ArrowRight className="w-4 h-4" />
                 </Link>
-                <span className="text-[11.5px] text-gray-200 font-medium mt-1.5 drop-shadow">
+                <span className="text-[11px] text-stone-300 mt-1.5 sm:pl-6 font-medium">
                   14 días sin tarjeta de crédito
                 </span>
               </div>
 
-              {/* Secondary Dark Glossy Pill with Neon WhatsApp Icon */}
               <a
-                href={whatsappUrl}
+                href="https://wa.me/573229088736?text=Hola,%20quiero%20informaci%C3%B3n%20sobre%20la%20plataforma%20GastroNegocios%20para%20mi%20restaurante"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-3.5 px-6 rounded-full bg-black/70 hover:bg-white/10 border border-white/45 text-white font-bold text-sm sm:text-[15px] flex items-center justify-center gap-2.5 transition hover:scale-[1.02] backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.8)]"
+                className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full bg-[#120A07]/90 hover:bg-[#1E110C] border border-[#D4AF37]/50 text-white font-bold text-sm transition-all self-start shadow-[0_6px_20px_rgba(0,0,0,0.6)]"
               >
-                <span className="w-5 h-5 rounded-full bg-[#22C55E]/25 border border-[#4ADE80] flex items-center justify-center text-[#4ADE80] shadow-[0_0_10px_rgba(34,197,94,0.5)]">
+                <span className="w-5 h-5 rounded-full bg-[#25D366] flex items-center justify-center text-black shrink-0 shadow-[0_0_10px_rgba(37,211,102,0.5)]">
                   <MessageCircle className="w-3.5 h-3.5 fill-current" />
                 </span>
                 <span>Hablar con un Asesor</span>
               </a>
             </div>
           </div>
-        </div>
 
-        {/* RIGHT COLUMN: GOURMET TRIPLE BURGER + FRIES ON WOODEN TABLE + 3D IPHONE MOCKUP + "0% COMISIONES" SEAL */}
-        <div className="lg:col-span-6 relative flex items-center justify-center lg:-ml-8 z-10">
-          <Link
-            href="/r/punto-g"
-            className="relative w-full max-w-[660px] group block select-none"
-            title="Explorar Demo Interactivo"
-          >
-            {/* Warm golden-orange aura behind the burger and phone */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[360px] bg-radial from-[#FA9B23]/35 via-[#E90712]/15 to-transparent blur-2xl rounded-full pointer-events-none" />
-
-            <Image
-              src="/images/saas/hero-right-scene.png"
-              alt="Hamburguesa Gourmet y App Móvil GastroNegocios 0% Comisiones"
-              width={774}
-              height={576}
-              priority
-              unoptimized
-              className="w-full h-auto object-contain drop-shadow-[0_20px_45px_rgba(0,0,0,0.95)] group-hover:scale-[1.015] transition-transform duration-500"
+          {/* RIGHT COLUMN: Newly Generated 3D Burger Scene + Custom 3D iPhone Mockup + 3D Wax Seal */}
+          <div className="lg:col-span-6 relative flex items-center justify-center lg:justify-end min-h-[380px] sm:min-h-[460px]">
+            {/* Warm Golden & Crimson Ambient Backlight */}
+            <div
+              className="absolute inset-0 rounded-full blur-3xl opacity-75 pointer-events-none"
+              style={{
+                background:
+                  'radial-gradient(circle at 50% 55%, rgba(250,155,35,0.35) 0%, rgba(229,9,20,0.25) 45%, transparent 75%)',
+              }}
             />
-          </Link>
+
+            {/* 3D Scalloped Crimson Wax Seal "0% Comisiones" (Built from scratch in SVG) */}
+            <div className="absolute -top-3 right-2 sm:right-4 z-40 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center select-none drop-shadow-[0_12px_24px_rgba(0,0,0,0.85)] animate-pulse">
+              <svg viewBox="0 0 120 120" className="w-full h-full">
+                <defs>
+                  <radialGradient id="sealRedGrad" cx="35%" cy="30%" r="70%">
+                    <stop offset="0%" stopColor="#FF3B3B" />
+                    <stop offset="55%" stopColor="#D90712" />
+                    <stop offset="100%" stopColor="#7A0208" />
+                  </radialGradient>
+                </defs>
+                {/* 16-point scalloped rosette */}
+                <path
+                  d="M60 4 L69 12 L81 8 L86 19 L99 19 L99 32 L111 37 L107 49 L116 58 L108 68 L113 80 L102 86 L102 99 L89 100 L84 112 L72 108 L63 116 L53 108 L41 112 L36 100 L23 99 L23 86 L12 80 L17 68 L9 58 L18 49 L14 37 L26 32 L26 19 L39 19 L44 8 L56 12 Z"
+                  fill="url(#sealRedGrad)"
+                  stroke="#FF8A8A"
+                  strokeWidth="1.5"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="42"
+                  fill="none"
+                  stroke="rgba(255,225,105,0.45)"
+                  strokeWidth="1.2"
+                  strokeDasharray="3 2"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center leading-none rotate-3">
+                <span className="text-2xl sm:text-3xl font-black text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.7)]">
+                  0%
+                </span>
+                <span className="text-[10px] sm:text-[11px] font-extrabold text-[#FFE169] tracking-wide mt-0.5">
+                  Comisiones
+                </span>
+              </div>
+            </div>
+
+            {/* Freshly Generated High-Res 3D Gourmet Burger Scene */}
+            <div className="relative w-full max-w-[540px] pr-12 sm:pr-28">
+              <div className="relative rounded-3xl overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.9)] border border-[#FA9B23]/25">
+                <img
+                  src="/images/saas/hero-burger-3d.png"
+                  alt="Hamburguesa Gourmet al Carbón"
+                  className="w-full h-[310px] sm:h-[380px] object-cover object-center scale-105"
+                />
+                <div
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, rgba(8,3,3,0.55) 0%, transparent 30%, transparent 75%, rgba(8,3,3,0.45) 100%), linear-gradient(180deg, rgba(8,3,3,0.2) 0%, transparent 25%, rgba(8,3,3,0.65) 100%)',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 3D iPhone 15 Pro Mockup (Built 100% from scratch in Vector/CSS, overlapping right side) */}
+            <div className="absolute right-0 sm:right-2 bottom-0 sm:bottom-2 z-30 w-[195px] sm:w-[230px] rounded-[34px] p-[6px] bg-gradient-to-b from-stone-400 via-stone-700 to-stone-900 shadow-[-18px_25px_55px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.22)] -rotate-2 hover:rotate-0 transition-transform duration-300">
+              <div className="rounded-[29px] bg-[#0B0504] overflow-hidden border border-black flex flex-col">
+                {/* Dynamic Island Notch */}
+                <div className="pt-2 pb-1.5 px-3 bg-gradient-to-b from-black to-[#120705] flex flex-col items-center">
+                  <div className="w-16 h-3.5 rounded-full bg-black border border-white/10 mb-1.5 flex items-center justify-end pr-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-900/80" />
+                  </div>
+                  {/* App Header inside Phone */}
+                  <div className="flex items-center gap-1.5">
+                    <svg viewBox="0 0 32 32" className="w-4 h-4">
+                      <path d="M8 26 L24 10 M24 26 L8 10" stroke="#FA9B23" strokeWidth="3" strokeLinecap="round" />
+                      <circle cx="16" cy="10" r="5" fill="#FFFFFF" />
+                    </svg>
+                    <span className="text-[9.5px] font-black tracking-tight text-white uppercase">
+                      GASTRO<span className="text-[#FA9B23]">NEGOCIOS</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Burger Photo Inside Phone */}
+                <div className="relative h-28 sm:h-32 mx-2 rounded-2xl overflow-hidden border border-[#FA9B23]/30 shadow-inner">
+                  <img
+                    src="/images/saas/hero-burger-3d.png"
+                    alt="Hamburguesa Gourmet App"
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-black/75 text-[#FFE169] text-[7.5px] font-black border border-[#FA9B23]/40">
+                    ★ 4.9
+                  </span>
+                </div>
+
+                {/* White Product Order Sheet inside Phone */}
+                <div className="bg-white text-stone-900 mx-2 mt-2 mb-1.5 p-2.5 rounded-2xl shadow-lg">
+                  <div className="text-[11px] sm:text-[12px] font-black text-stone-900 leading-tight">
+                    Hamburguesa Gourmet
+                  </div>
+                  <div className="text-[8px] text-stone-500 font-semibold mt-0.5">
+                    Parrilla • Acompañamientos
+                  </div>
+                  <div className="text-[14px] sm:text-[16px] font-black text-stone-900 mt-1">
+                    $28.000
+                  </div>
+                  <Link
+                    href="/r/punto-g/menu"
+                    className="mt-1.5 w-full py-1.5 rounded-full text-white font-extrabold text-[9.5px] flex items-center justify-center shadow-md transition hover:brightness-110"
+                    style={{
+                      background: 'linear-gradient(180deg, #FF2A2A 0%, #D90712 100%)',
+                    }}
+                  >
+                    Agregar al carrito
+                  </Link>
+                </div>
+
+                {/* Phone Bottom Navigation Bar */}
+                <div className="bg-white px-2.5 py-1.5 flex items-center justify-between text-[7px] font-bold text-stone-500 border-t border-stone-200">
+                  <div className="flex flex-col items-center text-[#E50914]">
+                    <Home className="w-3 h-3" />
+                    <span>Inicio</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <UtensilsCrossed className="w-3 h-3" />
+                    <span>Menú</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <ShoppingCart className="w-3 h-3" />
+                    <span>Carrito</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <ClipboardList className="w-3 h-3" />
+                    <span>Pedidos</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <User className="w-3 h-3" />
+                    <span>Cuenta</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
-}
+};
