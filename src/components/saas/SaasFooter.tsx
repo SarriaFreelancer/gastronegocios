@@ -136,16 +136,26 @@ export function SaasFooter() {
         </div>
 
         {/* Bottom Credits & Legal */}
-        <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-center md:text-left text-gray-400">
+        <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-center md:text-left text-gray-300">
           <p className="leading-relaxed">
             Desarrollado por{' '}
             <a
-              href="https://sarriatech.tech"
+              href="https://www.sarriatech.tech"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white hover:text-amber-400 font-bold transition-colors underline decoration-amber-400/50 underline-offset-2"
+              className="text-[#FA9B23] hover:text-amber-300 font-black transition-colors underline decoration-[#FA9B23]/60 underline-offset-4"
             >
               SarriaTech Solutions S.A.S
+            </a>{' '}
+            —{' '}
+            <a
+              href="https://www.sarriatech.tech"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white hover:text-[#FA9B23] font-bold transition-colors inline-flex items-center gap-1"
+            >
+              <span>www.sarriatech.tech</span>
+              <ExternalLink className="w-3 h-3 text-[#FA9B23]" />
             </a>{' '}
             © {new Date().getFullYear()} Todos los derechos reservados.
           </p>

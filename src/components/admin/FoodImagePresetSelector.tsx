@@ -170,8 +170,8 @@ export function FoodImagePresetSelector({
 
       {/* Tab 1: 3D Gallery Grid */}
       {tab === 'presets' && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
             {FOOD_PRESETS_3D.map((preset) => {
               const isSelected = value === preset.url;
               return (
@@ -179,15 +179,15 @@ export function FoodImagePresetSelector({
                   key={preset.id}
                   type="button"
                   onClick={() => handleSelectPreset(preset.url)}
-                  className={`group relative p-2.5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer ${
+                  className={`group relative p-2 rounded-xl border text-left transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer ${
                     isSelected
-                      ? 'bg-brand-yellow/15 border-brand-yellow ring-2 ring-brand-yellow/40 shadow-[0_8px_20px_rgba(255,201,40,0.25)]'
+                      ? 'bg-brand-yellow/15 border-brand-yellow ring-1 ring-brand-yellow/40 shadow-md'
                       : 'bg-[#1b1b1b] border-[#2c2c2c] hover:border-gray-500 hover:bg-[#222]'
                   }`}
                 >
                   {/* Badge */}
                   <span
-                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block mb-1.5 w-fit ${
+                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full inline-block mb-1 w-fit ${
                       isSelected
                         ? 'bg-brand-yellow text-black'
                         : 'bg-[#292929] text-gray-300 group-hover:bg-[#333]'
@@ -197,20 +197,20 @@ export function FoodImagePresetSelector({
                   </span>
 
                   {/* 3D Asset Preview */}
-                  <div className="relative w-full h-24 my-1 flex items-center justify-center">
+                  <div className="relative w-full h-14 my-0.5 flex items-center justify-center">
                     <img
                       src={preset.url}
                       alt={preset.name}
-                      className="w-full h-full object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
 
                   {/* Caption */}
                   <div className="pt-1 border-t border-[#2a2a2a]/60">
-                    <p className={`font-bold text-[11px] leading-tight truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                    <p className={`font-bold text-[10px] leading-tight truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
                       {preset.name}
                     </p>
-                    <p className="text-[9px] text-gray-500 truncate">{preset.category}</p>
+                    <p className="text-[8.5px] text-gray-500 truncate">{preset.category}</p>
                   </div>
 
                   {/* Selected Tick */}

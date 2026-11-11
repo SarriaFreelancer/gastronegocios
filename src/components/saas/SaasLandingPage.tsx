@@ -8,6 +8,7 @@ import { SaasDemoRestaurants } from './SaasDemoRestaurants';
 import { SaasCustomizationSection } from './SaasCustomizationSection';
 import { SaasPricingSection } from './SaasPricingSection';
 import { SaasTrustBanner } from './SaasTrustBanner';
+import { SaasFooter } from './SaasFooter';
 
 /** Glossy 3D crimson-red ribbon wave matching the reference artwork */
 function RedWave({ flip = false }: { flip?: boolean }) {
@@ -90,6 +91,9 @@ export function SaasLandingPage() {
           {/* 6. Bottom Trust & CTA Banner */}
           <SaasTrustBanner />
         </main>
+
+        {/* 7. Footer Corporativo con Créditos de SarriaTech Solutions S.A.S */}
+        <SaasFooter />
       </div>
     </div>
   );

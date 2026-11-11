@@ -1226,24 +1226,43 @@ export default function AdminPage() {
   // Save / Update Table
   const handleSaveTable = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tableFormData.numero || !tableFormData.numero.trim()) {
+      showError('Campo obligatorio', 'Debes ingresar el nombre o número de la mesa.');
+      return;
+    }
     try {
       const targetRestId = activeRestaurant?.id || currentUser?.restaurantId || 1;
+      const targetBranchId =
+        selectedBranchId && selectedBranchId !== 'all'
+          ? Number(selectedBranchId)
+          : branches[0]?.id || currentUser?.branchId || null;
+
       const res = await fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...tableFormData,
+          numero: tableFormData.numero.trim(),
+          capacidad: Number(tableFormData.capacidad) || 4,
+          ubicacion: tableFormData.ubicacion || 'Salón Principal',
+          notas: tableFormData.notas || '',
           restaurantId: targetRestId,
-          branchId: selectedBranchId && selectedBranchId !== 'all' ? Number(selectedBranchId) : (branches[0]?.id || null),
+          restaurantSlug: activeRestaurant?.slug || '',
+          branchId: targetBranchId,
         }),
       });
+
       if (res.ok) {
         setIsTableModalOpen(false);
         setTableFormData({ id: '', numero: '', capacidad: 4, ubicacion: 'Salón Principal', notas: '' });
-        fetchTables();
+        await fetchTables();
+        showSuccess('Mesa Creada', `La mesa "${tableFormData.numero.trim()}" se creó y guardó correctamente.`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showError('No se pudo guardar la mesa', err.error || 'Verifica los datos e inténtalo de nuevo.');
       }
     } catch (e) {
       console.error(e);
+      showError('Error de conexión', 'No se pudo conectar con el servidor al guardar la mesa.');
     }
   };
 
@@ -6724,8 +6743,8 @@ export default function AdminPage() {
       {/* MODAL: QR CODES DE MESA (PEDIDO + RESEÑA)                */}
       {/* ======================================================== */}
       {selectedTableQr && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 relative">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center pb-3 border-b border-[#252525]">
               <div>
                 <span className="text-[10px] font-black uppercase text-brand-yellow tracking-wider">
@@ -6804,13 +6823,13 @@ export default function AdminPage() {
       {isTableModalOpen && (
         <div 
           onClick={() => setIsTableModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+            <div className="sticky top-0 z-10 bg-[#141414] flex justify-between items-center pb-2.5 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
                 CREAR NUEVA MESA
               </h3>
@@ -6871,17 +6890,17 @@ export default function AdminPage() {
                 </select>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="sticky bottom-0 z-10 bg-[#141414] flex gap-2 pt-3 border-t border-[#252525]">
                 <button
                   type="button"
                   onClick={() => setIsTableModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                  className="flex-1 py-2.5 bg-[#202020] hover:bg-[#282828] text-gray-300 font-bold rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                  className="flex-1 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black uppercase rounded-xl shadow-glow cursor-pointer"
                 >
                   Guardar Mesa
                 </button>
@@ -6897,13 +6916,13 @@ export default function AdminPage() {
       {isCatModalOpen && (
         <div 
           onClick={() => setIsCatModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-xl w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+            <div className="sticky top-0 z-10 bg-[#141414] flex justify-between items-center pb-2.5 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
                 {editingCat ? 'EDITAR CATEGORÍA' : 'NUEVA CATEGORÍA'}
               </h3>
@@ -7004,19 +7023,19 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="sticky bottom-0 z-10 bg-[#141414] flex gap-2 pt-3 border-t border-[#252525]">
                 <button
                   type="button"
                   onClick={() => setIsCatModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                  className="flex-1 py-2.5 bg-[#202020] hover:bg-[#282828] text-gray-300 font-bold rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                  className="flex-1 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black uppercase rounded-xl shadow-glow cursor-pointer"
                 >
-                  Guardar
+                  Guardar Categoría
                 </button>
               </div>
             </form>
@@ -7030,13 +7049,13 @@ export default function AdminPage() {
       {isSubcatModalOpen && (
         <div 
           onClick={() => setIsSubcatModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-xl w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+            <div className="sticky top-0 z-10 bg-[#141414] flex justify-between items-center pb-2.5 border-b border-[#252525]">
               <div className="flex items-center gap-2">
                 <FolderTree className="w-5 h-5 text-brand-yellow" />
                 <h3 className="text-lg font-black uppercase text-white font-display">
@@ -7181,17 +7200,17 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="sticky bottom-0 z-10 bg-[#141414] flex gap-2 pt-3 border-t border-[#252525]">
                 <button
                   type="button"
                   onClick={() => setIsSubcatModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                  className="flex-1 py-2.5 bg-[#202020] hover:bg-[#282828] text-gray-300 font-bold rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl shadow-glow"
+                  className="flex-1 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black uppercase rounded-xl shadow-glow cursor-pointer"
                 >
                   Guardar Subcategoría
                 </button>
@@ -7207,13 +7226,13 @@ export default function AdminPage() {
       {isProductModalOpen && (
         <div 
           onClick={() => setIsProductModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-xl w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
+            <div className="sticky top-0 z-10 bg-[#141414] flex justify-between items-center pb-2.5 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
                 {editingProduct ? 'EDITAR PRODUCTO' : 'AGREGAR PRODUCTO'}
               </h3>
@@ -7248,7 +7267,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-300 font-bold uppercase mb-1">Categoría Principal *</label>
                   <select
@@ -7263,6 +7282,9 @@ export default function AdminPage() {
                     }}
                     className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white text-xs"
                   >
+                    {categoryList.filter((c) => !c.parentId).length === 0 && (
+                      <option value="">-- Crea una categoría primero --</option>
+                    )}
                     {categoryList
                       .filter((c) => !c.parentId)
                       .map((c) => (
@@ -7387,7 +7409,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-300 font-bold uppercase mb-1">Etiqueta (Badge)</label>
                   <input
@@ -7427,19 +7449,19 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="sticky bottom-0 z-10 bg-[#141414] flex gap-2 pt-3 border-t border-[#252525]">
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#202020] text-gray-400 font-bold rounded-xl"
+                  className="flex-1 py-2.5 bg-[#202020] hover:bg-[#282828] text-gray-300 font-bold rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-brand-yellow text-black font-black uppercase rounded-xl"
+                  className="flex-1 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black font-black uppercase rounded-xl shadow-glow cursor-pointer"
                 >
-                  Guardar
+                  Guardar Producto
                 </button>
               </div>
             </form>
@@ -7453,11 +7475,11 @@ export default function AdminPage() {
       {isUserModalOpen && (
         <div 
           onClick={() => setIsUserModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
@@ -7607,11 +7629,11 @@ export default function AdminPage() {
       {isBranchModalOpen && (
         <div 
           onClick={() => setIsBranchModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative shadow-2xl"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
               <div className="flex items-center gap-2">
@@ -7739,11 +7761,11 @@ export default function AdminPage() {
       {isOpenShiftModalOpen && (
         <div 
           onClick={() => setIsOpenShiftModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
@@ -7831,11 +7853,11 @@ export default function AdminPage() {
       {isExpenseModalOpen && (
         <div 
           onClick={() => setIsExpenseModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
@@ -7925,11 +7947,11 @@ export default function AdminPage() {
       {isCloseShiftModalOpen && activeShift && (
         <div 
           onClick={() => setIsCloseShiftModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">
@@ -8045,11 +8067,11 @@ export default function AdminPage() {
       {isAddonModalOpen && (
         <div 
           onClick={() => setIsAddonModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-6 space-y-4 relative"
+            className="bg-[#141414] border border-[#2a2a2a] rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 relative my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             <div className="flex justify-between items-center pb-2 border-b border-[#252525]">
               <h3 className="text-lg font-black uppercase text-white font-display">

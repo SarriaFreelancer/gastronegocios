@@ -1,12 +1,110 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Menu, X, ChevronDown, ArrowRight, User } from 'lucide-react';
+import {
+  Menu,
+  X,
+  ChevronDown,
+  ArrowRight,
+  User,
+  QrCode,
+  ChefHat,
+  Receipt,
+  Boxes,
+  Smartphone,
+  Building2,
+  BookOpen,
+  ShieldCheck,
+  MessageCircle,
+  Sparkles,
+} from 'lucide-react';
+
+const SOLUTIONS_ITEMS = [
+  {
+    title: 'Carta Digital QR & Domicilios',
+    desc: 'Menú interactivo sin comisiones con pedidos directo a cocina y WhatsApp.',
+    href: '#demos',
+    icon: QrCode,
+    badge: '0% Comisión',
+  },
+  {
+    title: 'Pantalla de Cocina (KDS)',
+    desc: 'Comandas en tiempo real con alerta sonora, tiempos y estados por estación.',
+    href: '#funciones',
+    icon: ChefHat,
+    badge: 'Tiempo Real',
+  },
+  {
+    title: 'POS Facturación & Cuadre de Caja',
+    desc: 'Cobro rápido, división de cuentas por comensal e impresión térmica ESC/POS.',
+    href: '#funciones',
+    icon: Receipt,
+    badge: 'POS Pro',
+  },
+  {
+    title: 'Inventario, Recetas y Escandallos',
+    desc: 'Descuento automático de insumos por cada plato vendido y control de costos.',
+    href: '#personalizacion',
+    icon: Boxes,
+    badge: 'ERP',
+  },
+  {
+    title: 'Comandera Móvil para Meseros',
+    desc: 'Toma de pedidos en mesa desde celular o tablet con llamado de mesero.',
+    href: '#demos',
+    icon: Smartphone,
+    badge: 'Móvil',
+  },
+  {
+    title: 'Multi-Sede & Marca Blanca',
+    desc: 'Administra varias sucursales, colores, plantillas y dominios desde un solo lugar.',
+    href: '#personalizacion',
+    icon: Building2,
+    badge: 'Multi-Tenant',
+  },
+];
+
+const RESOURCES_ITEMS = [
+  {
+    title: 'Crear Mi Restaurante Gratis',
+    desc: 'Registra tu negocio y activa tu carta digital en menos de 5 minutos.',
+    href: '/registro',
+    icon: Sparkles,
+  },
+  {
+    title: 'Explorar Restaurantes Demo',
+    desc: 'Prueba cómo ven tus clientes el menú de Punto G, Salchi Ricurras y Don Carbón.',
+    href: '#demos',
+    icon: BookOpen,
+  },
+  {
+    title: 'Acceso Personal / Staff',
+    desc: 'Ingresa al panel de Administrador, Cajero, Mesero o Cocina.',
+    href: '/login',
+    icon: User,
+  },
+  {
+    title: 'Consola Central Superadmin',
+    desc: 'Gestión global de restaurantes, licencias y bases de datos SaaS.',
+    href: '/superadmin',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'Hablar con Soporte Comercial',
+    desc: 'Asesoría personalizada por WhatsApp para implementar en tu negocio.',
+    href: 'https://wa.me/573215894178?text=Hola%20GastroNegocios,%20quiero%20informaci%C3%B3n%20sobre%20la%20plataforma.',
+    icon: MessageCircle,
+    external: true,
+  },
+];
 
 export const SaasNavbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileSolutionsOpen, setMobileSolutionsOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<'soluciones' | 'recursos' | null>(null);
+  const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 16);
@@ -14,8 +112,19 @@ export const SaasNavbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <header
+      ref={navRef}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
           ? 'bg-[#080303]/95 backdrop-blur-xl border-b border-[#FA9B23]/25 py-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.9)]'
@@ -41,14 +150,11 @@ export const SaasNavbar: React.FC = () => {
                   <stop offset="100%" stopColor="#E5E7EB" />
                 </linearGradient>
               </defs>
-              {/* Ambient warm glow */}
               <circle cx="36" cy="36" r="30" fill="rgba(250,155,35,0.10)" />
-              {/* Crossed Fork (Bottom-Right to Top-Left) */}
               <g stroke="url(#gnGoldGrad)" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M54 58 L22 26" strokeWidth="4.8" />
                 <path d="M15 21 L22 28 M18 17 L25 24 M22 15 L29 22" strokeWidth="2.8" />
               </g>
-              {/* Crossed Spoon (Bottom-Left to Top-Right) */}
               <g>
                 <path
                   d="M18 58 L50 26"
@@ -65,7 +171,6 @@ export const SaasNavbar: React.FC = () => {
                   fill="url(#gnGoldGrad)"
                 />
               </g>
-              {/* 3D Chef Hat */}
               <path
                 d="M23 28 C16 27 14 19 20 15 C19 9 27 6 32 10 C35 5 43 6 45 11 C52 9 56 16 51 22 C54 25 51 28 47 28 Z"
                 fill="#120705"
@@ -109,15 +214,81 @@ export const SaasNavbar: React.FC = () => {
           </div>
         </Link>
 
-        {/* Desktop Nav Links */}
+        {/* Desktop Nav Links with Interactive Dropdowns */}
         <nav className="hidden lg:flex items-center gap-6 text-[13.5px] font-semibold text-stone-100">
-          <a
-            href="#funciones"
-            className="flex items-center gap-1 hover:text-[#FA9B23] transition-colors"
+          {/* Soluciones Dropdown */}
+          <div
+            className="relative"
+            onMouseEnter={() => setOpenDropdown('soluciones')}
+            onMouseLeave={() => setOpenDropdown(null)}
           >
-            <span>Soluciones</span>
-            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-          </a>
+            <button
+              type="button"
+              onClick={() => setOpenDropdown(openDropdown === 'soluciones' ? null : 'soluciones')}
+              className={`flex items-center gap-1.5 py-2 transition-colors cursor-pointer ${
+                openDropdown === 'soluciones' ? 'text-[#FA9B23]' : 'hover:text-[#FA9B23]'
+              }`}
+            >
+              <span>Soluciones</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  openDropdown === 'soluciones' ? 'rotate-180 text-[#FA9B23]' : 'text-stone-400'
+                }`}
+              />
+            </button>
+
+            {openDropdown === 'soluciones' && (
+              <div className="absolute left-0 top-full pt-2 w-[560px] z-50">
+                <div className="bg-[#110806]/98 backdrop-blur-2xl border border-[#FA9B23]/35 rounded-3xl p-4 shadow-[0_25px_70px_rgba(0,0,0,0.95)]">
+                  <div className="flex items-center justify-between px-2 pb-3 mb-2 border-b border-white/10">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-[#FA9B23]">
+                      Ecosistema Todo-en-Uno para Restaurantes
+                    </span>
+                    <Link
+                      href="/registro"
+                      onClick={() => setOpenDropdown(null)}
+                      className="text-[11px] font-bold text-red-400 hover:text-red-300 flex items-center gap-1"
+                    >
+                      <span>Probar 14 días gratis</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {SOLUTIONS_ITEMS.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <a
+                          key={item.title}
+                          href={item.href}
+                          onClick={() => setOpenDropdown(null)}
+                          className="group flex items-start gap-3 p-3 rounded-2xl hover:bg-white/[0.06] border border-transparent hover:border-[#FA9B23]/25 transition-all"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FA9B23]/20 to-[#E53E3E]/20 border border-[#FA9B23]/30 flex items-center justify-center shrink-0 text-[#FA9B23] group-hover:scale-105 transition-transform">
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-extrabold text-white group-hover:text-[#FA9B23] transition-colors">
+                                {item.title}
+                              </span>
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#FA9B23]/15 text-[#FA9B23]">
+                                {item.badge}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-stone-400 leading-snug font-normal">
+                              {item.desc}
+                            </p>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <a href="#personalizacion" className="hover:text-[#FA9B23] transition-colors">
             Plantillas
           </a>
@@ -127,13 +298,60 @@ export const SaasNavbar: React.FC = () => {
           <a href="#precios" className="hover:text-[#FA9B23] transition-colors">
             Planes
           </a>
-          <a
-            href="#funciones"
-            className="flex items-center gap-1 hover:text-[#FA9B23] transition-colors"
+
+          {/* Recursos Dropdown */}
+          <div
+            className="relative"
+            onMouseEnter={() => setOpenDropdown('recursos')}
+            onMouseLeave={() => setOpenDropdown(null)}
           >
-            <span>Recursos</span>
-            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-          </a>
+            <button
+              type="button"
+              onClick={() => setOpenDropdown(openDropdown === 'recursos' ? null : 'recursos')}
+              className={`flex items-center gap-1.5 py-2 transition-colors cursor-pointer ${
+                openDropdown === 'recursos' ? 'text-[#FA9B23]' : 'hover:text-[#FA9B23]'
+              }`}
+            >
+              <span>Recursos</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  openDropdown === 'recursos' ? 'rotate-180 text-[#FA9B23]' : 'text-stone-400'
+                }`}
+              />
+            </button>
+
+            {openDropdown === 'recursos' && (
+              <div className="absolute right-0 top-full pt-2 w-80 z-50">
+                <div className="bg-[#110806]/98 backdrop-blur-2xl border border-[#FA9B23]/35 rounded-3xl p-3 shadow-[0_25px_70px_rgba(0,0,0,0.95)] space-y-1">
+                  {RESOURCES_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <a
+                        key={item.title}
+                        href={item.href}
+                        target={item.external ? '_blank' : undefined}
+                        rel={item.external ? 'noopener noreferrer' : undefined}
+                        onClick={() => setOpenDropdown(null)}
+                        className="group flex items-start gap-3 p-2.5 rounded-2xl hover:bg-white/[0.06] border border-transparent hover:border-[#FA9B23]/25 transition-all"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-[#FA9B23]">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-extrabold text-white group-hover:text-[#FA9B23] transition-colors">
+                            {item.title}
+                          </div>
+                          <p className="text-[10.5px] text-stone-400 leading-snug font-normal">
+                            {item.desc}
+                          </p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Action Buttons */}
@@ -173,15 +391,43 @@ export const SaasNavbar: React.FC = () => {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="lg:hidden bg-[#0D0504]/98 backdrop-blur-2xl border-b border-[#FA9B23]/25 px-4 pt-4 pb-6 space-y-3">
+        <div className="lg:hidden bg-[#0D0504]/98 backdrop-blur-2xl border-b border-[#FA9B23]/25 px-4 pt-4 pb-6 space-y-3 max-h-[85vh] overflow-y-auto">
           <div className="flex flex-col space-y-1 text-sm font-semibold text-stone-200">
-            <a
-              href="#funciones"
-              onClick={() => setMobileOpen(false)}
-              className="py-2.5 px-3 rounded-xl hover:bg-white/5"
+            <button
+              type="button"
+              onClick={() => setMobileSolutionsOpen(!mobileSolutionsOpen)}
+              className="py-2.5 px-3 rounded-xl hover:bg-white/5 flex items-center justify-between text-left"
             >
-              Soluciones
-            </a>
+              <span>Soluciones</span>
+              <ChevronDown
+                className={`w-4 h-4 text-[#FA9B23] transition-transform ${
+                  mobileSolutionsOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {mobileSolutionsOpen && (
+              <div className="pl-3 pr-1 py-1.5 space-y-1.5 border-l-2 border-[#FA9B23]/40 ml-3">
+                {SOLUTIONS_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <a
+                      key={item.title}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.07]"
+                    >
+                      <Icon className="w-4 h-4 text-[#FA9B23] shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs font-bold text-white">{item.title}</div>
+                        <div className="text-[10px] text-stone-400 font-normal">{item.desc}</div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
             <a
               href="#personalizacion"
               onClick={() => setMobileOpen(false)}

@@ -106,23 +106,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Nombre y precio son obligatorios' }, { status: 400 });
     }
 
+    const targetRestId = restaurantId ? Number(restaurantId) : 1;
+
     let finalCategoriaId: number | null = categoriaId ? Number(categoriaId) : null;
     if (!finalCategoriaId && categoriaSlug) {
-      const cat = await prisma.category.findUnique({
-        where: { slug: categoriaSlug },
-      });
+      const cat =
+        (await prisma.category.findFirst({
+          where: { slug: categoriaSlug, restaurantId: targetRestId },
+        })) ||
+        (await prisma.category.findFirst({
+          where: { slug: categoriaSlug },
+        })) ||
+        (!isNaN(Number(categoriaSlug))
+          ? await prisma.category.findFirst({ where: { id: Number(categoriaSlug) } })
+          : null);
       if (cat) finalCategoriaId = cat.id;
     }
 
+    // Si aún no hay categoría seleccionada, usar la primera categoría principal de este restaurante
     if (!finalCategoriaId) {
-      return NextResponse.json({ error: 'Categoría no válida' }, { status: 400 });
+      const firstRestCat = await prisma.category.findFirst({
+        where: { restaurantId: targetRestId, parentId: null },
+        orderBy: { id: 'asc' },
+      });
+      if (firstRestCat) finalCategoriaId = firstRestCat.id;
+    }
+
+    if (!finalCategoriaId) {
+      return NextResponse.json(
+        { error: 'Debes crear al menos una Categoría Principal antes de agregar productos.' },
+        { status: 400 }
+      );
     }
 
     let finalSubcategoriaId: number | null = subcategoriaId ? Number(subcategoriaId) : null;
     if (!finalSubcategoriaId && subcategoriaSlug) {
-      const sub = await prisma.category.findUnique({
-        where: { slug: subcategoriaSlug },
-      });
+      const sub =
+        (await prisma.category.findFirst({
+          where: { slug: subcategoriaSlug, restaurantId: targetRestId },
+        })) ||
+        (await prisma.category.findFirst({
+          where: { slug: subcategoriaSlug },
+        }));
       if (sub) finalSubcategoriaId = sub.id;
     }
 

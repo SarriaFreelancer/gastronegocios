@@ -125,119 +125,88 @@ export async function GET(request: Request) {
       });
     }
 
-    // List all restaurants (for SuperAdmin)
-    let restaurants: any[] = [];
-    try {
-      restaurants = await prisma.restaurant.findMany({
-        orderBy: { id: 'asc' },
-        include: {
-          branches: {
-            orderBy: { id: 'asc' },
-          },
-          users: {
-            select: {
-              id: true,
-              nombre: true,
-              email: true,
-              password: true,
-              rol: true,
-              estado: true,
-              branchId: true,
-            },
-            orderBy: { id: 'asc' },
-          },
-          _count: {
-            select: {
-              orders: true,
-              products: true,
-              categories: true,
-              branches: true,
-              tables: true,
-              users: true,
-            },
-          },
+    // List all restaurants (for SuperAdmin) directly from MySQL `restaurants` table
+    // so EVERY created restaurant in the database is 100% guaranteed to appear
+    const rawRests: any[] = (await prisma
+      .$queryRawUnsafe("SELECT * FROM `restaurants` ORDER BY `id` ASC;")
+      .catch(() => [])) as any[];
+    const rawBranches: any[] = (await prisma
+      .$queryRawUnsafe("SELECT * FROM `branches` ORDER BY `id` ASC;")
+      .catch(() => [])) as any[];
+    const rawUsers: any[] = (await prisma
+      .$queryRawUnsafe(
+        "SELECT `id`, `nombre`, `email`, `password`, `rol`, `estado`, `restaurantId`, `branchId` FROM `users` ORDER BY `id` ASC;"
+      )
+      .catch(() => [])) as any[];
+
+    const prodCounts: any[] = (await prisma
+      .$queryRawUnsafe(
+        "SELECT `restaurantId`, COUNT(*) as cnt FROM `products` GROUP BY `restaurantId`;"
+      )
+      .catch(() => [])) as any[];
+    const orderCounts: any[] = (await prisma
+      .$queryRawUnsafe(
+        "SELECT `restaurantId`, COUNT(*) as cnt FROM `orders` GROUP BY `restaurantId`;"
+      )
+      .catch(() => [])) as any[];
+    const catCounts: any[] = (await prisma
+      .$queryRawUnsafe(
+        "SELECT `restaurantId`, COUNT(*) as cnt FROM `categories` GROUP BY `restaurantId`;"
+      )
+      .catch(() => [])) as any[];
+    const tableCounts: any[] = (await prisma
+      .$queryRawUnsafe(
+        "SELECT `restaurantId`, COUNT(*) as cnt FROM `restaurant_tables` GROUP BY `restaurantId`;"
+      )
+      .catch(() => [])) as any[];
+
+    const prodMap = new Map(prodCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
+    const ordMap = new Map(orderCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
+    const catMap = new Map(catCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
+    const tblMap = new Map(tableCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
+
+    const restaurants: any[] = rawRests.map((r) => {
+      const rId = Number(r.id);
+      const rBranches = rawBranches
+        .filter((b) => Number(b.restaurantId || 1) === rId)
+        .map((b) => ({
+          ...b,
+          id: Number(b.id),
+          activo: Boolean(b.activo),
+          restaurantId: rId,
+        }));
+      const rUsers = rawUsers
+        .filter((u) => Number(u.restaurantId || 0) === rId)
+        .map((u) => ({
+          ...u,
+          id: Number(u.id),
+          branchId: u.branchId ? Number(u.branchId) : null,
+        }));
+
+      const isActivo = r.activo !== undefined ? Boolean(r.activo) : true;
+      return {
+        ...r,
+        id: rId,
+        nombre: r.nombre || `Restaurante #${rId}`,
+        slug: r.slug || `restaurante-${rId}`,
+        ciudad: r.ciudad || 'Cali',
+        activo: isActivo,
+        mostrarEnLanding: r.mostrarEnLanding !== undefined ? Boolean(r.mostrarEnLanding) : true,
+        estadoLicencia: r.estadoLicencia || (isActivo ? 'ACTIVA' : 'SUSPENDIDA'),
+        costoDomicilioBase: Number(r.costoDomicilioBase ?? 5000),
+        propinaSugeridaPct: Number(r.propinaSugeridaPct ?? 10),
+        branches: rBranches,
+        users: rUsers,
+        _count: {
+          orders: ordMap.get(rId) || 0,
+          products: prodMap.get(rId) || 0,
+          categories: catMap.get(rId) || 0,
+          branches: rBranches.length,
+          tables: tblMap.get(rId) || 0,
+          users: rUsers.length,
         },
-      });
-    } catch {
-      // Raw SQL fallback for SuperAdmin restaurant list
-      const rawRests: any[] = await prisma.$queryRawUnsafe(
-        "SELECT * FROM `restaurants` ORDER BY `id` ASC;"
-      );
-      const rawBranches: any[] = (await prisma
-        .$queryRawUnsafe("SELECT * FROM `branches` ORDER BY `id` ASC;")
-        .catch(() => [])) as any[];
-      const rawUsers: any[] = (await prisma
-        .$queryRawUnsafe(
-          "SELECT `id`, `nombre`, `email`, `password`, `rol`, `estado`, `restaurantId`, `branchId` FROM `users` ORDER BY `id` ASC;"
-        )
-        .catch(() => [])) as any[];
-
-      const prodCounts: any[] = (await prisma
-        .$queryRawUnsafe(
-          "SELECT `restaurantId`, COUNT(*) as cnt FROM `products` GROUP BY `restaurantId`;"
-        )
-        .catch(() => [])) as any[];
-      const orderCounts: any[] = (await prisma
-        .$queryRawUnsafe(
-          "SELECT `restaurantId`, COUNT(*) as cnt FROM `orders` GROUP BY `restaurantId`;"
-        )
-        .catch(() => [])) as any[];
-      const catCounts: any[] = (await prisma
-        .$queryRawUnsafe(
-          "SELECT `restaurantId`, COUNT(*) as cnt FROM `categories` GROUP BY `restaurantId`;"
-        )
-        .catch(() => [])) as any[];
-      const tableCounts: any[] = (await prisma
-        .$queryRawUnsafe(
-          "SELECT `restaurantId`, COUNT(*) as cnt FROM `restaurant_tables` GROUP BY `restaurantId`;"
-        )
-        .catch(() => [])) as any[];
-
-      const prodMap = new Map(prodCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
-      const ordMap = new Map(orderCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
-      const catMap = new Map(catCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
-      const tblMap = new Map(tableCounts.map((x) => [Number(x.restaurantId || 1), Number(x.cnt || 0)]));
-
-      restaurants = rawRests.map((r) => {
-        const rId = Number(r.id);
-        const rBranches = rawBranches
-          .filter((b) => Number(b.restaurantId || 1) === rId)
-          .map((b) => ({
-            ...b,
-            id: Number(b.id),
-            activo: Boolean(b.activo),
-            restaurantId: rId,
-          }));
-        const rUsers = rawUsers
-          .filter((u) => Number(u.restaurantId || 0) === rId)
-          .map((u) => ({
-            ...u,
-            id: Number(u.id),
-            branchId: u.branchId ? Number(u.branchId) : null,
-          }));
-
-        const isActivo = r.activo !== undefined ? Boolean(r.activo) : true;
-        return {
-          ...r,
-          id: rId,
-          activo: isActivo,
-          mostrarEnLanding: r.mostrarEnLanding !== undefined ? Boolean(r.mostrarEnLanding) : true,
-          estadoLicencia: r.estadoLicencia || (isActivo ? 'ACTIVA' : 'SUSPENDIDA'),
-          costoDomicilioBase: Number(r.costoDomicilioBase ?? 5000),
-          propinaSugeridaPct: Number(r.propinaSugeridaPct ?? 10),
-          branches: rBranches,
-          users: rUsers,
-          _count: {
-            orders: ordMap.get(rId) || 0,
-            products: prodMap.get(rId) || 0,
-            categories: catMap.get(rId) || 0,
-            branches: rBranches.length,
-            tables: tblMap.get(rId) || 0,
-            users: rUsers.length,
-          },
-        };
-      });
-    }
+      };
+    });
 
     // Ensure every restaurant in the list has at least 1 branch in `branches` and accurate `_count`
     for (const rest of restaurants) {

@@ -59,6 +59,9 @@ export async function ensureRestaurantBranchesAndSchema(force = false): Promise<
       safeExec("ALTER TABLE `users` ADD COLUMN `branchId` INT NULL;"),
       safeExec("ALTER TABLE `users` ADD COLUMN `estado` VARCHAR(191) NOT NULL DEFAULT 'Activo';"),
       safeExec("ALTER TABLE `customers` ADD COLUMN `activo` TINYINT(1) NOT NULL DEFAULT 1;"),
+      safeExec("ALTER TABLE `restaurant_tables` DROP INDEX `restaurant_tables_numero_key`;"),
+      safeExec("ALTER TABLE `restaurant_tables` ADD COLUMN `ubicacion` VARCHAR(191) NOT NULL DEFAULT 'Salón Principal';"),
+      safeExec("ALTER TABLE `restaurant_tables` ADD COLUMN `notas` TEXT NULL;"),
     ]);
 
     // 2. Link any orphan branches (restaurantId IS NULL) to restaurant id = 1 (Punto G)
