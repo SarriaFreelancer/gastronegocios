@@ -697,3 +697,29 @@ model SaasPlan {
 
   @@map("saas_plans")
 }
+
+// ==========================================
+// CUPONES DE DESCUENTO POR RESTAURANTE
+// ==========================================
+model Coupon {
+  id               Int       @id @default(autoincrement())
+  codigo           String
+  descripcion      String    @default("")
+  tipoDescuento    String    @default("porcentaje") // "porcentaje", "fijo", "envio"
+  valor            Float     @default(10)
+  montoMinimo      Float     @default(0)
+  usoMaximo        Int       @default(0) // 0 = ilimitado
+  usosActuales     Int       @default(0)
+  fechaInicio      DateTime?
+  fechaFin         DateTime?
+  activo           Boolean   @default(true)
+  mostrarEnCarrito Boolean   @default(true)
+  soloDomicilio    Boolean   @default(false)
+  restaurantId     Int       @default(1)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([restaurantId, codigo])
+  @@index([restaurantId])
+  @@map("coupons")
+}

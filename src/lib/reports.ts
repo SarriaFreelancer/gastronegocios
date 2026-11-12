@@ -18,6 +18,21 @@ export interface ReportFilterInfo {
   search?: string;
 }
 
+export type SalesReportType =
+  | 'completo'
+  | 'propinas'
+  | 'pagos'
+  | 'productos'
+  | 'pedidos';
+
+export const REPORT_TYPE_LABELS: Record<SalesReportType, string> = {
+  completo: 'INFORME GENERAL DE VENTAS Y PROPINAS',
+  propinas: 'INFORME DE PROPINAS Y VENTAS NETAS',
+  pagos: 'RESUMEN POR MÉTODO DE PAGO Y PROPINAS',
+  productos: 'INFORME DE TOP PRODUCTOS VENDIDOS',
+  pedidos: 'LISTADO DETALLADO DE PEDIDOS CON PROPINAS',
+};
+
 export interface ExportReportData {
   restaurantName?: string;
   orders: any[];
@@ -30,6 +45,7 @@ export interface ExportReportData {
   };
   productSalesSummary: ReportItem[];
   userName?: string;
+  reportType?: SalesReportType;
 }
 
 // Formatter for Colombian Pesos
@@ -67,35 +83,40 @@ export const exportSalesReportToExcel = ({
   productSalesSummary,
   userName = 'Administrador',
   restaurantName = 'Restaurante',
+  reportType = 'completo',
 }: ExportReportData) => {
   const wb = XLSX.utils.book_new();
   const today = new Date();
   const dateFormatted = today.toLocaleDateString('es-CO');
   const timeFormatted = today.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
-  // 1. Calculate Breakdown by Payment Method
-  const paymentBreakdown: Record<string, { count: number; total: number }> = {};
+  // 1. Calculate Breakdown by Payment Method (including propinas)
+  const paymentBreakdown: Record<string, { count: number; total: number; propina: number }> = {};
   orders.forEach((o) => {
     const method = o.metodoPago || 'Efectivo';
     if (!paymentBreakdown[method]) {
-      paymentBreakdown[method] = { count: 0, total: 0 };
+      paymentBreakdown[method] = { count: 0, total: 0, propina: 0 };
     }
     paymentBreakdown[method].count += 1;
     paymentBreakdown[method].total += Number(o.total || 0);
+    paymentBreakdown[method].propina += Number(o.propina || 0);
   });
 
   // 2. Calculate Breakdown by Delivery Type
-  const typeBreakdown: Record<string, { count: number; total: number }> = {};
+  const typeBreakdown: Record<string, { count: number; total: number; propina: number }> = {};
   orders.forEach((o) => {
     const t = o.tipo === 'mesa' ? 'En Mesa / Sitio' : o.tipo === 'domicilio' ? 'Domicilio' : 'Para Llevar / Retiro';
     if (!typeBreakdown[t]) {
-      typeBreakdown[t] = { count: 0, total: 0 };
+      typeBreakdown[t] = { count: 0, total: 0, propina: 0 };
     }
     typeBreakdown[t].count += 1;
     typeBreakdown[t].total += Number(o.total || 0);
+    typeBreakdown[t].propina += Number(o.propina || 0);
   });
 
   const totalItemsSold = productSalesSummary.reduce((sum, p) => sum + p.cantidad, 0);
+  const totalEnvios = orders.reduce((sum, o) => sum + Number(o.costoEnvio || 0), 0);
+  const ventasNetas = Math.max(0, (metrics.totalVentas || 0) - (metrics.totalPropinas || 0));
 
   // Black border for tables and data cells
   const blackBorder = {
@@ -195,21 +216,24 @@ export const exportSalesReportToExcel = ({
     [], // Blank line
 
     // TABLA 1: KPIs
-    [{ v: 'INDICADORES CLAVE DE RENDIMIENTO (KPIs)', s: sectionTitleStyle }],
+    [{ v: `INDICADORES CLAVE (${REPORT_TYPE_LABELS[reportType]})`, s: sectionTitleStyle }],
     [headerCell('Métrica'), headerCell('Valor')],
-    [dataCell('Ventas Totales Facturadas', 'left', false, true), dataCell(formatMoney(metrics.totalVentas), 'right', false, true)],
-    [dataCell('Total Propinas Recaudadas', 'left', true), dataCell(formatMoney(metrics.totalPropinas), 'right', true)],
+    [dataCell('Ventas Totales Facturadas (Incl. Propinas)', 'left', false, true), dataCell(formatMoney(metrics.totalVentas), 'right', false, true)],
+    [dataCell('Ventas Netas de Productos/Envíos (Sin Propinas)', 'left', true), dataCell(formatMoney(ventasNetas), 'right', true)],
+    [dataCell('Total Propinas Voluntarias Recaudadas', 'left', false, true), dataCell(formatMoney(metrics.totalPropinas), 'right', false, true)],
+    [dataCell('Total Costos de Domicilio / Envío', 'left', true), dataCell(formatMoney(totalEnvios), 'right', true)],
     [dataCell('Total Pedidos Registrados', 'left'), dataCell(metrics.totalPedidos, 'right')],
     [dataCell('Ticket Promedio por Pedido', 'left', true), dataCell(formatMoney(metrics.ticketPromedio), 'right', true)],
     [dataCell('Total Platos / Ítems Despachados', 'left'), dataCell(totalItemsSold, 'right')],
     [], // Blank line
 
     // TABLA 2: DESGLOSE POR MÉTODO DE PAGO
-    [{ v: 'DESGLOSE POR MÉTODO DE PAGO', s: sectionTitleStyle }],
+    [{ v: 'DESGLOSE POR MÉTODO DE PAGO (CON PROPINAS)', s: sectionTitleStyle }],
     [
       headerCell('Método de Pago'),
       headerCell('N° Pedidos'),
-      headerCell('Monto Facturado'),
+      headerCell('Propinas ($)'),
+      headerCell('Total Facturado ($)'),
       headerCell('% Participación'),
     ],
     ...Object.entries(paymentBreakdown).map(([method, data], idx) => {
@@ -218,6 +242,7 @@ export const exportSalesReportToExcel = ({
       return [
         dataCell(method, 'left', isAlt, true),
         dataCell(data.count, 'center', isAlt),
+        dataCell(formatMoney(data.propina), 'right', isAlt),
         dataCell(formatMoney(data.total), 'right', isAlt, true),
         dataCell(pct, 'center', isAlt),
       ];
@@ -229,6 +254,7 @@ export const exportSalesReportToExcel = ({
     [
       headerCell('Tipo de Servicio'),
       headerCell('N° Pedidos'),
+      headerCell('Propinas ($)'),
       headerCell('Monto Facturado'),
     ],
     ...Object.entries(typeBreakdown).map(([type, data], idx) => {
@@ -236,6 +262,7 @@ export const exportSalesReportToExcel = ({
       return [
         dataCell(type, 'left', isAlt, true),
         dataCell(data.count, 'center', isAlt),
+        dataCell(formatMoney(data.propina), 'right', isAlt),
         dataCell(formatMoney(data.total), 'right', isAlt, true),
       ];
     }),
@@ -362,6 +389,7 @@ export const exportSalesReportToPDF = ({
   productSalesSummary,
   userName = 'Administrador',
   restaurantName = 'Restaurante',
+  reportType = 'completo',
 }: ExportReportData) => {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -373,11 +401,12 @@ export const exportSalesReportToPDF = ({
   const dateFormatted = today.toLocaleDateString('es-CO');
   const timeFormatted = today.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   const totalItemsSold = productSalesSummary.reduce((sum, p) => sum + p.cantidad, 0);
+  const totalSubtotal = orders.reduce((sum, o) => sum + Number(o.subtotal || 0), 0);
+  const ventasNetas = Math.max(0, (metrics.totalVentas || 0) - (metrics.totalPropinas || 0));
 
   // Colors
   const primaryColor: [number, number, number] = [234, 179, 8]; // Amber/Yellow
   const darkBg: [number, number, number] = [18, 18, 18];
-  const textGray: [number, number, number] = [120, 120, 120];
 
   // 1. Header Banner
   doc.setFillColor(...darkBg);
@@ -400,7 +429,7 @@ export const exportSalesReportToPDF = ({
   doc.setTextColor(180, 180, 180);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text('INFORME OFICIAL DE VENTAS E INVENTARIO', 14, 29);
+  doc.text(REPORT_TYPE_LABELS[reportType] || 'INFORME OFICIAL DE VENTAS Y PROPINAS', 14, 29);
 
   // Right-aligned report metadata in header
   doc.setFontSize(8);
@@ -426,11 +455,11 @@ export const exportSalesReportToPDF = ({
   const cardHeight = 18;
   const cardGap = 3;
   const kpis = [
-    { label: 'VENTAS TOTALES', val: formatMoney(metrics.totalVentas), color: [16, 185, 129] }, // green
-    { label: 'PROPINAS', val: formatMoney(metrics.totalPropinas), color: [249, 115, 22] }, // orange
-    { label: 'N° PEDIDOS', val: String(metrics.totalPedidos), color: [59, 130, 246] }, // blue
-    { label: 'TICKET PROMEDIO', val: formatMoney(metrics.ticketPromedio), color: [217, 119, 6] }, // amber
-    { label: 'PLATOS VENDIDOS', val: `${totalItemsSold} und`, color: [139, 92, 246] }, // purple
+    { label: 'VENTAS TOTALES', val: formatMoney(metrics.totalVentas), color: [16, 185, 129] },
+    { label: 'PROPINAS', val: formatMoney(metrics.totalPropinas), color: [249, 115, 22] },
+    { label: 'VENTAS NETAS', val: formatMoney(ventasNetas), color: [59, 130, 246] },
+    { label: 'N° PEDIDOS', val: String(metrics.totalPedidos), color: [217, 119, 6] },
+    { label: 'PLATOS / TICKET', val: `${totalItemsSold}u`, color: [139, 92, 246] },
   ];
 
   kpis.forEach((kpi, i) => {
@@ -452,47 +481,57 @@ export const exportSalesReportToPDF = ({
 
   currentY += cardHeight + 8;
 
-  // 4. Payment & Delivery Breakdown Table
-  const paymentBreakdown: Record<string, { count: number; total: number }> = {};
+  // 4. Payment & Delivery Breakdown Table (including Propinas)
+  const paymentBreakdown: Record<string, { count: number; total: number; propina: number }> = {};
   orders.forEach((o) => {
     const method = o.metodoPago || 'Efectivo';
-    if (!paymentBreakdown[method]) paymentBreakdown[method] = { count: 0, total: 0 };
+    if (!paymentBreakdown[method]) paymentBreakdown[method] = { count: 0, total: 0, propina: 0 };
     paymentBreakdown[method].count += 1;
     paymentBreakdown[method].total += Number(o.total || 0);
+    paymentBreakdown[method].propina += Number(o.propina || 0);
   });
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(20, 20, 20);
-  doc.text('Resumen por Método de Pago', 14, currentY);
+  if (reportType === 'completo' || reportType === 'pagos' || reportType === 'propinas') {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(20, 20, 20);
+    doc.text('Resumen por Método de Pago y Propinas', 14, currentY);
 
-  currentY += 3;
+    currentY += 3;
 
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Método de Pago', 'N° Pedidos', 'Total Facturado', '% Participación']],
-    body: Object.entries(paymentBreakdown).map(([method, data]) => {
-      const pct = metrics.totalVentas > 0 ? ((data.total / metrics.totalVentas) * 100).toFixed(1) + '%' : '0%';
-      return [method, data.count, formatMoney(data.total), pct];
-    }),
-    theme: 'grid',
-    headStyles: {
-      fillColor: [30, 30, 30],
-      textColor: [255, 255, 255],
-      fontSize: 8,
-      fontStyle: 'bold',
-    },
-    bodyStyles: {
-      fontSize: 8,
-      textColor: [40, 40, 40],
-    },
-    margin: { left: 14, right: 14 },
-  });
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Método de Pago', 'N° Pedidos', 'Propinas', 'Total Facturado', '% Part.']],
+      body: Object.entries(paymentBreakdown).map(([method, data]) => {
+        const pct = metrics.totalVentas > 0 ? ((data.total / metrics.totalVentas) * 100).toFixed(1) + '%' : '0%';
+        return [method, data.count, formatMoney(data.propina), formatMoney(data.total), pct];
+      }),
+      foot: [['TOTAL', metrics.totalPedidos, formatMoney(metrics.totalPropinas), formatMoney(metrics.totalVentas), '100%']],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 30, 30],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+      },
+      footStyles: {
+        fillColor: [234, 179, 8],
+        textColor: [0, 0, 0],
+        fontSize: 8,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [40, 40, 40],
+      },
+      margin: { left: 14, right: 14 },
+    });
 
-  currentY = (doc as any).lastAutoTable.finalY + 8;
+    currentY = (doc as any).lastAutoTable.finalY + 8;
+  }
 
   // 5. Top Platos / Inventario Vendido Table
-  if (productSalesSummary.length > 0) {
+  if ((reportType === 'completo' || reportType === 'productos') && productSalesSummary.length > 0) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(20, 20, 20);
@@ -500,10 +539,11 @@ export const exportSalesReportToPDF = ({
 
     currentY += 3;
 
+    const topRows = reportType === 'productos' ? productSalesSummary : productSalesSummary.slice(0, 10);
     autoTable(doc, {
       startY: currentY,
       head: [['#', 'Producto / Plato', 'Cantidad Vendida', 'Total Facturado', 'Precio Promedio']],
-      body: productSalesSummary.slice(0, 10).map((p, idx) => {
+      body: topRows.map((p, idx) => {
         const avg = p.cantidad > 0 ? Math.round(p.total / p.cantidad) : 0;
         return [idx + 1, p.nombre, `${p.cantidad} unidades`, formatMoney(p.total), formatMoney(avg)];
       }),
@@ -524,64 +564,325 @@ export const exportSalesReportToPDF = ({
     currentY = (doc as any).lastAutoTable.finalY + 8;
   }
 
-  // 6. Detalle de Pedidos Table (can paginate across pages automatically)
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(20, 20, 20);
-  doc.text(`Listado Detallado de Órdenes (${orders.length} pedidos)`, 14, currentY);
+  // 6. Detalle de Pedidos Table (including Subtotal & Propina)
+  if (reportType === 'completo' || reportType === 'pedidos' || reportType === 'propinas') {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(20, 20, 20);
+    doc.text(`Detalle de Órdenes y Propinas (${orders.length} pedidos)`, 14, currentY);
 
-  currentY += 3;
+    currentY += 3;
 
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Código', 'Fecha/Hora', 'Cliente', 'Tipo', 'Pago', 'Estado', 'Total']],
-    body: orders.map((o) => {
-      const d = new Date(o.createdAt);
-      const dt = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`;
-      return [
-        o.codigo,
-        dt,
-        o.cliente,
-        o.tipo === 'mesa' ? `Mesa ${o.numeroMesa || ''}` : o.tipo === 'domicilio' ? 'Domicilio' : 'Retiro',
-        o.metodoPago || 'Efectivo',
-        o.estado,
-        formatMoney(o.total || 0),
-      ];
-    }),
-    theme: 'striped',
-    headStyles: {
-      fillColor: [30, 30, 30],
-      textColor: [255, 255, 255],
-      fontSize: 7.5,
-      fontStyle: 'bold',
-    },
-    bodyStyles: {
-      fontSize: 7.5,
-      textColor: [40, 40, 40],
-    },
-    margin: { left: 14, right: 14 },
-    didDrawPage: (pageHookData) => {
-      // Footer page numbering
-      const pageCount = (doc.internal as any).getNumberOfPages();
-      doc.setFontSize(7.5);
-      doc.setTextColor(150, 150, 150);
-      doc.text(
-        `${restaurantName} - Informe de Ventas | Página ${pageHookData.pageNumber} de ${pageCount}`,
-        14,
-        290
-      );
-      doc.text(
-        `Generado el ${dateFormatted} ${timeFormatted}`,
-        196,
-        290,
-        { align: 'right' }
-      );
-    },
-  });
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Código', 'Fecha/Hora', 'Cliente', 'Tipo', 'Pago', 'Subtotal', 'Propina', 'Total']],
+      body: orders.map((o) => {
+        const d = new Date(o.createdAt);
+        const dt = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`;
+        return [
+          o.codigo,
+          dt,
+          o.cliente,
+          o.tipo === 'mesa' ? `Mesa ${o.numeroMesa || ''}` : o.tipo === 'domicilio' ? 'Domicilio' : 'Retiro',
+          o.metodoPago || 'Efectivo',
+          formatMoney(o.subtotal || 0),
+          formatMoney(o.propina || 0),
+          formatMoney(o.total || 0),
+        ];
+      }),
+      foot: [[
+        'TOTALES',
+        `${orders.length} órd.`,
+        '',
+        '',
+        '',
+        formatMoney(totalSubtotal),
+        formatMoney(metrics.totalPropinas),
+        formatMoney(metrics.totalVentas),
+      ]],
+      theme: 'striped',
+      headStyles: {
+        fillColor: [30, 30, 30],
+        textColor: [255, 255, 255],
+        fontSize: 7.5,
+        fontStyle: 'bold',
+      },
+      footStyles: {
+        fillColor: [234, 179, 8],
+        textColor: [0, 0, 0],
+        fontSize: 7.5,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 7.5,
+        textColor: [40, 40, 40],
+      },
+      margin: { left: 14, right: 14 },
+      didDrawPage: (pageHookData) => {
+        const pageCount = (doc.internal as any).getNumberOfPages();
+        doc.setFontSize(7.5);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `${restaurantName} - Informe de Ventas y Propinas | Página ${pageHookData.pageNumber} de ${pageCount}`,
+          14,
+          290
+        );
+        doc.text(
+          `Generado el ${dateFormatted} ${timeFormatted}`,
+          196,
+          290,
+          { align: 'right' }
+        );
+      },
+    });
+  }
 
   // Save the PDF
   const cleanStartDate = filters.desde || 'inicio';
   const cleanEndDate = filters.hasta || 'fin';
-  const fileName = `Reporte_Ventas_PuntoG_${cleanStartDate}_al_${cleanEndDate}.pdf`;
+  const cleanRest = restaurantName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const fileName = `Reporte_${reportType}_${cleanRest}_${cleanStartDate}_al_${cleanEndDate}.pdf`;
   doc.save(fileName);
+};
+
+/**
+ * Opens a clean printable HTML window with Sales + Propinas breakdown according to selected reportType and dates
+ */
+export const printSalesReport = ({
+  orders,
+  filters,
+  metrics,
+  productSalesSummary,
+  userName = 'Administrador',
+  restaurantName = 'Restaurante',
+  reportType = 'completo',
+}: ExportReportData) => {
+  if (typeof window === 'undefined') return;
+  const today = new Date();
+  const dateFormatted = today.toLocaleDateString('es-CO');
+  const timeFormatted = today.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  const totalSubtotal = orders.reduce((sum, o) => sum + Number(o.subtotal || 0), 0);
+  const totalEnvios = orders.reduce((sum, o) => sum + Number(o.costoEnvio || 0), 0);
+  const ventasNetas = Math.max(0, (metrics.totalVentas || 0) - (metrics.totalPropinas || 0));
+
+  const paymentBreakdown: Record<string, { count: number; total: number; propina: number }> = {};
+  orders.forEach((o) => {
+    const method = o.metodoPago || 'Efectivo';
+    if (!paymentBreakdown[method]) paymentBreakdown[method] = { count: 0, total: 0, propina: 0 };
+    paymentBreakdown[method].count += 1;
+    paymentBreakdown[method].total += Number(o.total || 0);
+    paymentBreakdown[method].propina += Number(o.propina || 0);
+  });
+
+  const esc = (s: any) =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>${esc(restaurantName)} - ${esc(REPORT_TYPE_LABELS[reportType])}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 20px; font-size: 12px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #eab308; padding-bottom: 12px; margin-bottom: 14px; }
+    .brand h1 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .brand p { margin: 4px 0 0; font-size: 11px; color: #555; font-weight: bold; }
+    .meta { text-align: right; font-size: 11px; color: #333; line-height: 1.5; }
+    .filters { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; font-size: 11px; }
+    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
+    .kpi { border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; background: #fafafa; }
+    .kpi-label { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #6b7280; }
+    .kpi-val { font-size: 15px; font-weight: 900; margin-top: 4px; color: #111; }
+    .kpi-tip .kpi-val { color: #d97706; }
+    h2 { font-size: 13px; text-transform: uppercase; margin: 16px 0 6px; border-left: 4px solid #eab308; padding-left: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+    th { background: #1e293b; color: #fff; font-size: 10px; text-transform: uppercase; }
+    tfoot td { background: #fef3c7; font-weight: 900; border-top: 2px solid #000; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .footer { margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 8px; font-size: 10px; color: #6b7280; display: flex; justify-content: space-between; }
+    @media print {
+      body { margin: 10mm; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <h1>${esc(restaurantName)}</h1>
+      <p>${esc(REPORT_TYPE_LABELS[reportType])}</p>
+    </div>
+    <div class="meta">
+      <div><strong>Período:</strong> ${esc(formatDate(filters.desde))} al ${esc(formatDate(filters.hasta))}</div>
+      <div><strong>Emisión:</strong> ${esc(dateFormatted)} ${esc(timeFormatted)}</div>
+      <div><strong>Generado por:</strong> ${esc(userName)}</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <strong>Filtros aplicados:</strong> Estado: ${esc(filters.estado || 'Todos')} • Modalidad: ${esc(filters.tipo || 'Todas')} • Método de Pago: ${esc(filters.metodoPago || 'Todos')} • Mesa: ${esc(filters.mesa || 'Todas')}
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Ventas Totales (c/ Propinas)</div><div class="kpi-val">${esc(formatMoney(metrics.totalVentas))}</div></div>
+    <div class="kpi kpi-tip"><div class="kpi-label">Propinas Recaudadas</div><div class="kpi-val">${esc(formatMoney(metrics.totalPropinas))}</div></div>
+    <div class="kpi"><div class="kpi-label">Ventas Netas (Sin Prop.)</div><div class="kpi-val">${esc(formatMoney(ventasNetas))}</div></div>
+    <div class="kpi"><div class="kpi-label">N° Pedidos</div><div class="kpi-val">${orders.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Ticket Promedio</div><div class="kpi-val">${esc(formatMoney(metrics.ticketPromedio))}</div></div>
+  </div>
+
+  ${
+    reportType === 'completo' || reportType === 'pagos' || reportType === 'propinas'
+      ? `
+    <h2>Resumen por Método de Pago y Propinas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Método de Pago</th>
+          <th class="center">N° Pedidos</th>
+          <th class="right">Propinas Recaudadas</th>
+          <th class="right">Total Facturado</th>
+          <th class="center">% Participación</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${Object.entries(paymentBreakdown)
+          .map(([method, d]) => {
+            const pct = metrics.totalVentas > 0 ? ((d.total / metrics.totalVentas) * 100).toFixed(1) + '%' : '0%';
+            return `<tr>
+              <td><strong>${esc(method)}</strong></td>
+              <td class="center">${d.count}</td>
+              <td class="right">${esc(formatMoney(d.propina))}</td>
+              <td class="right"><strong>${esc(formatMoney(d.total))}</strong></td>
+              <td class="center">${pct}</td>
+            </tr>`;
+          })
+          .join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>TOTAL GENERAL</td>
+          <td class="center">${orders.length}</td>
+          <td class="right">${esc(formatMoney(metrics.totalPropinas))}</td>
+          <td class="right">${esc(formatMoney(metrics.totalVentas))}</td>
+          <td class="center">100%</td>
+        </tr>
+      </tfoot>
+    </table>
+  `
+      : ''
+  }
+
+  ${
+    (reportType === 'completo' || reportType === 'productos') && productSalesSummary.length > 0
+      ? `
+    <h2>Top Productos / Platos Vendidos</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="center">#</th>
+          <th>Producto / Plato</th>
+          <th class="center">Unidades</th>
+          <th class="right">Total Facturado</th>
+          <th class="right">Precio Promedio</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${(reportType === 'productos' ? productSalesSummary : productSalesSummary.slice(0, 15))
+          .map((p, idx) => {
+            const avg = p.cantidad > 0 ? Math.round(p.total / p.cantidad) : 0;
+            return `<tr>
+              <td class="center">${idx + 1}</td>
+              <td><strong>${esc(p.nombre)}</strong></td>
+              <td class="center">${p.cantidad}</td>
+              <td class="right">${esc(formatMoney(p.total))}</td>
+              <td class="right">${esc(formatMoney(avg))}</td>
+            </tr>`;
+          })
+          .join('')}
+      </tbody>
+    </table>
+  `
+      : ''
+  }
+
+  ${
+    reportType === 'completo' || reportType === 'pedidos' || reportType === 'propinas'
+      ? `
+    <h2>Detalle de Órdenes e Inclusión de Propinas (${orders.length})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Fecha / Hora</th>
+          <th>Cliente</th>
+          <th>Servicio</th>
+          <th>Pago</th>
+          <th class="right">Subtotal</th>
+          <th class="right">Propina</th>
+          <th class="right">Envío</th>
+          <th class="right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${orders
+          .map((o) => {
+            const d = new Date(o.createdAt);
+            const dt = `${d.toLocaleDateString('es-CO')} ${d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`;
+            const srv = o.tipo === 'mesa' ? `Mesa ${o.numeroMesa || ''}` : o.tipo === 'domicilio' ? 'Domicilio' : 'Retiro';
+            return `<tr>
+              <td><strong>${esc(o.codigo)}</strong></td>
+              <td>${esc(dt)}</td>
+              <td>${esc(o.cliente)}</td>
+              <td>${esc(srv)}</td>
+              <td>${esc(o.metodoPago || 'Efectivo')}</td>
+              <td class="right">${esc(formatMoney(o.subtotal || 0))}</td>
+              <td class="right"><strong>${esc(formatMoney(o.propina || 0))}</strong></td>
+              <td class="right">${esc(formatMoney(o.costoEnvio || 0))}</td>
+              <td class="right"><strong>${esc(formatMoney(o.total || 0))}</strong></td>
+            </tr>`;
+          })
+          .join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5">TOTALES DEL PERÍODO</td>
+          <td class="right">${esc(formatMoney(totalSubtotal))}</td>
+          <td class="right">${esc(formatMoney(metrics.totalPropinas))}</td>
+          <td class="right">${esc(formatMoney(totalEnvios))}</td>
+          <td class="right">${esc(formatMoney(metrics.totalVentas))}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `
+      : ''
+  }
+
+  <div class="footer">
+    <span>${esc(restaurantName)} • Reporte generado con GastroNegocios</span>
+    <span>Impreso el ${esc(dateFormatted)} ${esc(timeFormatted)}</span>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>
+  `;
+
+  const printWindow = window.open('', '_blank', 'width=960,height=800');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
 };

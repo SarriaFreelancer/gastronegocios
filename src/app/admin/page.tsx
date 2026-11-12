@@ -20,7 +20,9 @@ import { AdminSidebar, AdminTabItem } from '@/components/admin/AdminSidebar';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 import { MesasQrGeneratorModal } from '@/components/admin/MesasQrGeneratorModal';
 import { DatabaseResetPanel } from '@/components/admin/DatabaseResetPanel';
-import { Boxes, BookOpenCheck, Truck } from 'lucide-react';
+import { CouponsTab } from '@/components/admin/CouponsTab';
+import type { CouponItem } from '@/lib/coupons';
+import { Boxes, BookOpenCheck, Truck, Tag } from 'lucide-react';
 import { 
   ShoppingBag, 
   Layers, 
@@ -94,7 +96,7 @@ import {
 import { usePwa } from '@/components/pwa/PwaProvider';
 import { ThermalReceiptModal } from '@/components/pos/ThermalReceiptModal';
 import { ProductAddon } from '@/types';
-import { exportSalesReportToExcel, exportSalesReportToPDF } from '@/lib/reports';
+import { exportSalesReportToExcel, exportSalesReportToPDF, printSalesReport, type SalesReportType } from '@/lib/reports';
 import { exportShiftClosureToPdf, exportShiftClosureToExcel, exportShiftHistoryToExcel } from '@/lib/reports-export';
 import { showConfirm, showAlert, showSuccess, showError, showWarning } from '@/lib/swal';
 
@@ -250,8 +252,12 @@ export default function AdminPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    'pedidos' | 'facturas' | 'reportes' | 'caja' | 'toppings' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo' | 'dashboard_ejecutivo' | 'inventario' | 'recetas' | 'compras' | 'clientes' | 'modulos' | 'roles' | 'importacion'
+    'pedidos' | 'facturas' | 'reportes' | 'caja' | 'toppings' | 'cupones' | 'mesas' | 'categorias' | 'subcategorias' | 'productos' | 'resenas' | 'usuarios' | 'sedes' | 'configuracion' | 'personalizacion' | 'seo' | 'dashboard_ejecutivo' | 'inventario' | 'recetas' | 'compras' | 'clientes' | 'modulos' | 'roles' | 'importacion'
   >('pedidos');
+
+  const [couponsList, setCouponsList] = useState<CouponItem[]>([]);
+  const [reportType, setReportType] = useState<SalesReportType>('completo');
+  const [staffRoleFilter, setStaffRoleFilter] = useState<string>('Todos');
 
   // Loading States
   const [isLoading, setIsLoading] = useState(false);
@@ -748,6 +754,7 @@ export default function AdminPage() {
       fetchCurrentShift(),
       fetchShiftHistory(),
       fetchAddons(targetRestId),
+      fetchCoupons(targetRestId),
     ]);
     setIsLoading(false);
   };
@@ -823,6 +830,26 @@ export default function AdminPage() {
       if (res.ok) {
         const data = await res.json();
         setAddonsList(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchCoupons = async (restId?: number | null) => {
+    try {
+      const rId = restId ?? activeRestaurant?.id ?? currentUser?.restaurantId ?? null;
+      const slug = activeRestaurant?.slug || routeSlug || null;
+      let url = '/api/coupons';
+      if (rId) {
+        url += `?restaurantId=${rId}`;
+      } else if (slug) {
+        url += `?restaurantSlug=${encodeURIComponent(slug)}`;
+      }
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setCouponsList(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error(e);
@@ -1088,6 +1115,7 @@ export default function AdminPage() {
       metrics: orderMetrics,
       productSalesSummary,
       userName: currentUser?.nombre || 'Superadmin',
+      reportType,
     });
   };
 
@@ -1107,6 +1135,27 @@ export default function AdminPage() {
       metrics: orderMetrics,
       productSalesSummary,
       userName: currentUser?.nombre || 'Superadmin',
+      reportType,
+    });
+  };
+
+  const handlePrintReport = () => {
+    printSalesReport({
+      orders,
+      restaurantName: activeRestaurant?.nombre || 'Restaurante',
+      filters: {
+        desde: filterDesde,
+        hasta: filterHasta,
+        tipo: filterTipo !== 'todos' ? filterTipo : 'Todas',
+        estado: filterEstado !== 'todos' ? filterEstado : 'Todos',
+        metodoPago: filterMetodoPago !== 'todos' ? filterMetodoPago : 'Todos',
+        mesa: filterMesa !== 'todas' ? filterMesa : 'Todas',
+        search: searchOrder || undefined,
+      },
+      metrics: orderMetrics,
+      productSalesSummary,
+      userName: currentUser?.nombre || 'Superadmin',
+      reportType,
     });
   };
 
@@ -2372,13 +2421,14 @@ export default function AdminPage() {
               { id: 'facturas', label: 'Facturación', icon: Receipt, badge: 'POS', category: 'operacion' },
               { id: 'reportes', label: 'Reportes de Ventas', icon: BarChart3, badge: 'Excel / PDF', category: 'metricas' },
               { id: 'caja', label: 'Caja & Turnos', icon: DollarSign, badge: activeShift?.estado === 'Abierto' ? '🟢' : '🔴', category: 'operacion' },
+              { id: 'cupones', label: 'Cupones & Descuentos', icon: Tag, count: couponsList.length, badge: 'Carrito', category: 'menu' },
               { id: 'toppings', label: 'Toppings & Adicionales', icon: Sparkles, count: addonsList.length, category: 'menu' },
               { id: 'mesas', label: 'Mesas / Comandas (QR)', icon: UtensilsCrossed, count: tables.length, category: 'operacion' },
               { id: 'categorias', label: 'Categorías Principales', icon: Layers, count: categoryList.filter(c => !c.parentId).length, category: 'menu' },
               { id: 'subcategorias', label: 'Subcategorías', icon: FolderTree, count: categoryList.filter(c => !!c.parentId).length, category: 'menu' },
               { id: 'productos', label: 'Menú & Platos', icon: TrendingUp, count: productList.length, category: 'menu' },
               { id: 'resenas', label: 'Calificaciones QR', icon: Star, count: reviews.length, category: 'menu' },
-              { id: 'usuarios', label: 'Usuarios / Staff', icon: Users, count: userList.length, category: 'configuracion' },
+              { id: 'usuarios', label: 'Colaboradores / Staff', icon: Users, count: userList.length, category: 'configuracion' },
               { id: 'sedes', label: 'Sedes / Sucursales', icon: Building2, count: branches.length, category: 'configuracion' },
               { id: 'personalizacion', label: 'Personalización & Plantillas', icon: Palette, badge: 'White-Label', category: 'configuracion' },
               { id: 'seo', label: 'SEO & Google', icon: Globe, badge: 'Indexación', category: 'configuracion' },
@@ -3605,13 +3655,22 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              {/* Download Buttons */}
+              {/* Download & Print Buttons */}
               <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handlePrintReport}
+                  disabled={orders.length === 0}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-brand-yellow hover:bg-brand-yellowHover text-black shadow-glow hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir Reporte</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleExportExcel}
                   disabled={orders.length === 0}
-                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-emerald-600 hover:bg-emerald-500 text-black shadow-lg shadow-emerald-900/30 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-emerald-600 hover:bg-emerald-500 text-black shadow-lg shadow-emerald-900/30 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>Descargar Excel (.xlsx)</span>
@@ -3620,12 +3679,35 @@ export default function AdminPage() {
                   type="button"
                   onClick={handleExportPDF}
                   disabled={orders.length === 0}
-                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/30 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/30 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   <span>Descargar PDF (.pdf)</span>
                 </button>
               </div>
+            </div>
+
+            {/* Selector de Tipo de Reporte a Imprimir / Exportar */}
+            <div className="bg-[#121212] border border-[#242424] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-black uppercase text-brand-yellow tracking-wider block">
+                  Tipo de Reporte a Imprimir o Exportar (Incluye Propinas)
+                </span>
+                <p className="text-[11px] text-gray-400">
+                  Escoge el informe que deseas generar en el rango de fechas seleccionado ({filterDesde || 'Inicio'} al {filterHasta || 'Hoy'}).
+                </p>
+              </div>
+              <select
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value as SalesReportType)}
+                className="bg-[#181818] border border-brand-yellow/40 rounded-xl px-4 py-2.5 text-xs font-black text-white focus:outline-none focus:border-brand-yellow min-w-[280px]"
+              >
+                <option value="completo">📊 General de Ventas + Propinas + Top Productos</option>
+                <option value="propinas">💛 Reporte Detallado de Propinas & Ventas Netas</option>
+                <option value="pagos">💳 Resumen por Método de Pago y Propinas</option>
+                <option value="productos">🍔 Top Productos / Platos Más Vendidos</option>
+                <option value="pedidos">🧾 Listado Detallado de Órdenes (c/ Propinas)</option>
+              </select>
             </div>
 
             {/* Filter Card for Reports */}
@@ -5899,27 +5981,92 @@ export default function AdminPage() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 6: USUARIOS / STAFF                                  */}
+        {/* TAB: CUPONES DE DESCUENTO & VIGENCIAS                    */}
+        {/* ======================================================== */}
+        {activeTab === 'cupones' && (
+          <CouponsTab
+            coupons={couponsList}
+            restaurantId={activeRestaurant?.id || currentUser?.restaurantId || 1}
+            restaurantSlug={activeRestaurant?.slug || routeSlug || undefined}
+            onRefresh={() => fetchCoupons(activeRestaurant?.id || currentUser?.restaurantId || 1)}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB 6: COLABORADORES / PERSONAL & ROLES                  */}
         {/* ======================================================== */}
         {activeTab === 'usuarios' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black uppercase text-white font-display">
-                  GESTIÓN DE USUARIOS Y ROLES ({userList.length})
+                  COLABORADORES & PERSONAL DEL RESTAURANTE ({userList.length})
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Controla accesos para administradores, cajeros, cocina y meseros en MySQL.
+                  Agrega y administra personal de cocina, meseros, guardia de seguridad, cajeros, domiciliarios y administradores.
                 </p>
               </div>
 
               <button
                 onClick={handleOpenNewUser}
-                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all"
+                className="px-4 py-2.5 bg-brand-yellow hover:bg-brand-yellowHover text-black rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-glow transition-all cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Crear Nuevo Usuario</span>
+                <span>+ Agregar Colaborador</span>
               </button>
+            </div>
+
+            {/* Accesos Rápidos por Cargo + Filtros */}
+            <div className="bg-[#121212] border border-[#222] rounded-2xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                {['Todos', 'Cocinero', 'Auxiliar de Cocina', 'Mesero', 'Guardia', 'Cajero', 'Bartender', 'Domiciliario', 'Administrador'].map((roleChip) => {
+                  const countForRole =
+                    roleChip === 'Todos'
+                      ? userList.length
+                      : userList.filter((u) => (u.rol || '').toLowerCase().includes(roleChip.toLowerCase())).length;
+                  const active = staffRoleFilter === roleChip;
+                  return (
+                    <button
+                      key={roleChip}
+                      type="button"
+                      onClick={() => setStaffRoleFilter(roleChip)}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer border ${
+                        active
+                          ? 'bg-brand-yellow text-black border-brand-yellow shadow-glow'
+                          : 'bg-[#181818] text-gray-300 border-[#2b2b2b] hover:border-brand-yellow/40'
+                      }`}
+                    >
+                      {roleChip} ({countForRole})
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="text-gray-400 font-bold mr-1">Crear rápido:</span>
+                {['Cocinero', 'Mesero', 'Guardia', 'Cajero', 'Domiciliario'].map((quickRole) => (
+                  <button
+                    key={quickRole}
+                    type="button"
+                    onClick={() => {
+                      setEditingUser(null);
+                      setUserFormData({
+                        nombre: '',
+                        email: '',
+                        password: '',
+                        rol: quickRole,
+                        estado: 'Activo',
+                        branchId: selectedBranchId !== 'all' ? Number(selectedBranchId) : null,
+                      });
+                      setShowUserModalPassword(false);
+                      setIsUserModalOpen(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[#1d1d1d] hover:bg-[#2a2a2a] text-brand-yellow font-bold border border-brand-yellow/30 transition cursor-pointer"
+                  >
+                    + {quickRole}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden">
@@ -5930,14 +6077,20 @@ export default function AdminPage() {
                       <th className="p-4">Nombre</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Contraseña</th>
-                      <th className="p-4">Rol</th>
+                      <th className="p-4">Cargo / Rol</th>
                       <th className="p-4">Sede Asignada</th>
                       <th className="p-4">Estado</th>
                       <th className="p-4 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1e1e1e]">
-                    {userList.map((u) => {
+                    {userList
+                      .filter((u) =>
+                        staffRoleFilter === 'Todos'
+                          ? true
+                          : (u.rol || '').toLowerCase().includes(staffRoleFilter.toLowerCase())
+                      )
+                      .map((u) => {
                       const isPwdVisible = !!visiblePasswords[u.id];
                       return (
                         <tr key={u.id} className="hover:bg-[#161616] transition-colors">
@@ -7552,7 +7705,7 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-300 font-bold uppercase mb-1">Rol</label>
+                  <label className="block text-gray-300 font-bold uppercase mb-1">Cargo / Rol del Colaborador</label>
                   <select
                     value={userFormData.rol}
                     onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value })}
@@ -7562,10 +7715,30 @@ export default function AdminPage() {
                       <option value="Superadmin">Superadmin (Plataforma Global)</option>
                     )}
                     <option value="Administrador">Administrador</option>
+                    <option value="Supervisor">Supervisor / Gerente</option>
                     <option value="Cajero">Cajero</option>
-                    <option value="Cocinero">Cocinero</option>
+                    <option value="Cocinero">Personal de Cocina / Cocinero</option>
+                    <option value="Auxiliar de Cocina">Auxiliar de Cocina</option>
                     <option value="Mesero">Mesero</option>
-                    <option value="Supervisor">Supervisor</option>
+                    <option value="Guardia">Guardia / Seguridad</option>
+                    <option value="Bartender">Bartender / Barra</option>
+                    <option value="Domiciliario">Domiciliario / Repartidor</option>
+                    <option value="Recepcion">Host / Recepción</option>
+                    {![
+                      'Superadmin',
+                      'Administrador',
+                      'Supervisor',
+                      'Cajero',
+                      'Cocinero',
+                      'Auxiliar de Cocina',
+                      'Mesero',
+                      'Guardia',
+                      'Bartender',
+                      'Domiciliario',
+                      'Recepcion',
+                    ].includes(userFormData.rol) && (
+                      <option value={userFormData.rol}>{userFormData.rol}</option>
+                    )}
                   </select>
                 </div>
 

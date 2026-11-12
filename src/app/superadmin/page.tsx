@@ -2136,9 +2136,25 @@ export default function SuperadminPage() {
                                   className="bg-[#121212] border border-[#333] rounded-xl px-2 py-1 text-white font-bold text-[11px]"
                                 >
                                   <option value="Mesero">Mesero</option>
-                                  <option value="Cocina">Cocina</option>
+                                  <option value="Cocinero">Personal de Cocina / Cocinero</option>
+                                  <option value="Auxiliar de Cocina">Auxiliar de Cocina</option>
+                                  <option value="Guardia">Guardia / Seguridad</option>
                                   <option value="Cajero">Cajero</option>
+                                  <option value="Bartender">Bartender / Barra</option>
+                                  <option value="Domiciliario">Domiciliario</option>
+                                  <option value="Supervisor">Supervisor / Gerente</option>
                                   <option value="Administrador">Administrador</option>
+                                  {![
+                                    'Mesero',
+                                    'Cocinero',
+                                    'Auxiliar de Cocina',
+                                    'Guardia',
+                                    'Cajero',
+                                    'Bartender',
+                                    'Domiciliario',
+                                    'Supervisor',
+                                    'Administrador',
+                                  ].includes(user.rol) && <option value={user.rol}>{user.rol}</option>}
                                 </select>
 
                                 <button
@@ -2229,9 +2245,14 @@ export default function SuperadminPage() {
                         onChange={(e) => setNewStaff({ ...newStaff, rol: e.target.value })}
                         className="bg-[#121212] border border-[#333] rounded-xl px-2.5 py-1.5 text-white font-bold text-xs"
                       >
-                        <option value="Mesero">Rol: Mesero</option>
-                        <option value="Cocina">Rol: Cocina</option>
-                        <option value="Cajero">Rol: Cajero</option>
+                        <option value="Mesero">Cargo: Mesero</option>
+                        <option value="Cocinero">Cargo: Personal de Cocina</option>
+                        <option value="Auxiliar de Cocina">Cargo: Auxiliar de Cocina</option>
+                        <option value="Guardia">Cargo: Guardia / Seguridad</option>
+                        <option value="Cajero">Cargo: Cajero</option>
+                        <option value="Bartender">Cargo: Bartender / Barra</option>
+                        <option value="Domiciliario">Cargo: Domiciliario</option>
+                        <option value="Supervisor">Cargo: Supervisor / Gerente</option>
                       </select>
                       <select
                         value={newStaff.branchId}

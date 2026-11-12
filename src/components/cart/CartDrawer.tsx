@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { useTenant } from '@/context/TenantContext';
+import type { CouponItem } from '@/lib/coupons';
 import { 
   X, 
   Trash2, 
@@ -24,7 +25,8 @@ import {
   User,
   Sparkles,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Tag
 } from 'lucide-react';
 import { restaurantInfo } from '@/data/restaurant-info';
 import { CustomerPortalModal } from '@/components/cart/CustomerPortalModal';
@@ -39,6 +41,9 @@ export const CartDrawer: React.FC = () => {
     totalItems,
     subtotal,
     deliveryFee,
+    discountAmount,
+    appliedCoupon,
+    setAppliedCoupon,
     tip,
     tipPercentage,
     setTipPercentage,
@@ -81,51 +86,95 @@ export const CartDrawer: React.FC = () => {
   const [webOrderSuccess, setWebOrderSuccess] = useState<any | null>(null);
   const [isCustomerPortalOpen, setIsCustomerPortalOpen] = useState(false);
   const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    type: 'percent' | 'fixed' | 'shipping';
-    value: number;
-    label: string;
-  } | null>(null);
+  const [availableCoupons, setAvailableCoupons] = useState<CouponItem[]>([]);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponMsg, setCouponMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = couponCode.trim().toUpperCase();
-    if (!code) return;
+  // Cargar cupones vigentes del restaurante siempre que se abra el carrito
+  useEffect(() => {
+    if (!isCartOpen) return;
+    let cancelled = false;
+    const query = restaurant?.id
+      ? `restaurantId=${restaurant.id}&onlyCart=true&_t=${Date.now()}`
+      : `restaurantSlug=${encodeURIComponent(tenantSlug)}&onlyCart=true&_t=${Date.now()}`;
 
-    if (code === 'VIP10' || code === 'PUNTOG10') {
-      setAppliedCoupon({ code, type: 'percent', value: 10, label: '10% de Descuento VIP' });
-      setCouponMsg({ text: '¡Cupón VIP del 10% aplicado!', isError: false });
-    } else if (code === 'PROMO5' || code === 'BIENVENIDO') {
-      if (subtotal < 20000) {
-        setCouponMsg({ text: 'Este cupón aplica para pedidos mayores a $20.000', isError: true });
-        return;
+    fetch(`/api/coupons?${query}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) {
+          setAvailableCoupons(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCartOpen, restaurant?.id, tenantSlug]);
+
+  const validateAndApplyCode = async (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return;
+    setValidatingCoupon(true);
+    setCouponMsg(null);
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo: code,
+          subtotal,
+          deliveryType,
+          restaurantId: restaurant?.id,
+          restaurantSlug: tenantSlug,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.valid && data.coupon) {
+        const c: CouponItem = data.coupon;
+        const type: 'percent' | 'fixed' | 'shipping' =
+          c.tipoDescuento === 'fijo'
+            ? 'fixed'
+            : c.tipoDescuento === 'envio'
+            ? 'shipping'
+            : 'percent';
+        const label =
+          type === 'percent'
+            ? `${c.codigo} (${c.valor}% OFF)`
+            : type === 'shipping'
+            ? `${c.codigo} (Envío Gratis)`
+            : `${c.codigo} (-$${c.valor.toLocaleString('es-CO')})`;
+        setAppliedCoupon({
+          code: c.codigo,
+          type,
+          value: c.valor,
+          label,
+          minAmount: c.montoMinimo,
+        });
+        setCouponCode(c.codigo);
+        setCouponMsg({
+          text: `¡Cupón ${c.codigo} aplicado correctamente!`,
+          isError: false,
+        });
+      } else {
+        setCouponMsg({
+          text: data.error || 'Cupón no válido, vencido o no cumple las condiciones.',
+          isError: true,
+        });
       }
-      setAppliedCoupon({ code, type: 'fixed', value: 5000, label: '$5.000 de Descuento' });
-      setCouponMsg({ text: '¡Descuento de $5.000 aplicado!', isError: false });
-    } else if (code === 'ENVIOFREE') {
-      if (deliveryType !== 'domicilio') {
-        setCouponMsg({ text: 'Este cupón es válido para pedidos con Domicilio', isError: true });
-        return;
-      }
-      setAppliedCoupon({ code, type: 'shipping', value: deliveryFee, label: 'Envío Gratis' });
-      setCouponMsg({ text: '¡Costo de envío bonificado!', isError: false });
-    } else {
-      setCouponMsg({ text: 'Cupón no válido o expirado', isError: true });
+    } catch {
+      setCouponMsg({ text: 'No se pudo validar el cupón.', isError: true });
+    } finally {
+      setValidatingCoupon(false);
     }
   };
 
-  const discountAmount = appliedCoupon
-    ? appliedCoupon.type === 'percent'
-      ? Math.round((subtotal * appliedCoupon.value) / 100)
-      : appliedCoupon.type === 'fixed'
-      ? appliedCoupon.value
-      : 0
-    : 0;
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await validateAndApplyCode(couponCode);
+  };
 
-  const effectiveDeliveryFee = appliedCoupon?.type === 'shipping' ? 0 : deliveryFee;
-  const finalPayableTotal = Math.max(0, subtotal - discountAmount + effectiveDeliveryFee + tip);
+  const finalPayableTotal = totalPrice;
 
   if (!isCartOpen) return null;
 
@@ -751,11 +800,70 @@ export const CartDrawer: React.FC = () => {
           {/* Footer Summary & Checkout */}
           {!webOrderSuccess && items.length > 0 && (
             <div className="p-4 sm:p-5 border-t border-[#222] bg-[#141414] space-y-3">
-              {/* Cupón Promocional */}
+              {/* Cupones vigentes visibles en el carrito */}
+              {availableCoupons.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-gray-400">
+                    <span className="flex items-center gap-1 text-brand-yellow">
+                      <Tag className="w-3 h-3" />
+                      <span>Cupones vigentes para ti ({availableCoupons.length})</span>
+                    </span>
+                    <span>Clic para aplicar</span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {availableCoupons.map((c) => {
+                      const isActiveCoupon = appliedCoupon?.code === c.codigo;
+                      const benefit =
+                        c.tipoDescuento === 'porcentaje'
+                          ? `${c.valor}% OFF`
+                          : c.tipoDescuento === 'envio'
+                          ? 'ENVÍO GRATIS'
+                          : `-$${c.valor.toLocaleString('es-CO')}`;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            if (isActiveCoupon) {
+                              setAppliedCoupon(null);
+                              setCouponCode('');
+                              setCouponMsg(null);
+                            } else {
+                              validateAndApplyCode(c.codigo);
+                            }
+                          }}
+                          className={`shrink-0 text-left px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                            isActiveCoupon
+                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                              : 'bg-[#1b1b1e] hover:bg-[#242429] border-brand-yellow/35 text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-[11px] text-brand-yellow">
+                              {c.codigo}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-black">
+                              {benefit}
+                            </span>
+                          </div>
+                          <div className="text-[9px] text-gray-400 mt-0.5">
+                            {c.fechaFin
+                              ? `Vigente hasta ${new Date(c.fechaFin).toLocaleDateString('es-CO')}`
+                              : 'Vigente hoy'}
+                            {c.montoMinimo > 0 ? ` • Mín $${c.montoMinimo.toLocaleString('es-CO')}` : ''}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Cupón Promocional Manual */}
               <form onSubmit={handleApplyCoupon} className="flex gap-1.5">
                 <input
                   type="text"
-                  placeholder="Cupón (ej: VIP10, PROMO5)"
+                  placeholder="Código de cupón descuento"
                   value={couponCode}
                   onChange={(e) => {
                     setCouponCode(e.target.value);
@@ -765,9 +873,10 @@ export const CartDrawer: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  className="px-3.5 py-1.5 bg-[#252528] hover:bg-[#303036] text-gray-200 text-xs font-bold rounded-xl transition border border-[#38383e]"
+                  disabled={validatingCoupon}
+                  className="px-3.5 py-1.5 bg-[#252528] hover:bg-[#303036] text-gray-200 text-xs font-bold rounded-xl transition border border-[#38383e] cursor-pointer disabled:opacity-50"
                 >
-                  Aplicar
+                  {validatingCoupon ? '...' : 'Aplicar'}
                 </button>
               </form>
 

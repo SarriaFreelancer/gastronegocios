@@ -303,6 +303,18 @@ export async function POST(req: Request) {
       });
     }
 
+    // Increment coupon usage counter if a valid coupon code was applied
+    if (body.cuponCodigo && finalRestaurantId) {
+      const cleanCoupon = String(body.cuponCodigo).toUpperCase().trim();
+      await prisma
+        .$executeRawUnsafe(
+          'UPDATE `coupons` SET `usosActuales` = `usosActuales` + 1, `updatedAt` = NOW() WHERE `restaurantId` = ? AND UPPER(`codigo`) = ?;',
+          finalRestaurantId,
+          cleanCoupon
+        )
+        .catch(() => {});
+    }
+
     // ERP: Registrar o actualizar Cliente del Restaurante de forma consistente
     try {
       if (cliente && telefono && finalRestaurantId) {

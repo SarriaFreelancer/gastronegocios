@@ -27,6 +27,14 @@ export interface BranchOption {
   ciudad?: string;
 }
 
+export interface AppliedCartCoupon {
+  code: string;
+  type: 'percent' | 'fixed' | 'shipping';
+  value: number;
+  label: string;
+  minAmount?: number;
+}
+
 interface CartContextType {
   items: CartItem[];
   addToCart: (product: Product, quantity?: number, notes?: string, selectedAddons?: ProductAddon[]) => void;
@@ -36,6 +44,10 @@ interface CartContextType {
   totalItems: number;
   subtotal: number;
   deliveryFee: number;
+  effectiveDeliveryFee: number;
+  discountAmount: number;
+  appliedCoupon: AppliedCartCoupon | null;
+  setAppliedCoupon: (coupon: AppliedCartCoupon | null) => void;
   tip: number;
   tipPercentage: number;
   setTipPercentage: (pct: number) => void;
@@ -101,6 +113,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [tipPercentage, setTipPercentageState] = useState<number>(10); // 10% suggested tip
   const [customTip, setCustomTip] = useState<number | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCartCoupon | null>(null);
   const [lastAddedProduct, setLastAddedProduct] = useState<Product | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
@@ -383,6 +396,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => {
     setItems([]);
+    setAppliedCoupon(null);
   };
 
   const clearToast = () => {
@@ -406,9 +420,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, 0);
   const deliveryFee = deliveryType === 'domicilio' && subtotal > 0 ? 5000 : 0;
 
+  // Discount calculation from applied coupon
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.type === 'percent'
+      ? Math.round((subtotal * appliedCoupon.value) / 100)
+      : appliedCoupon.type === 'fixed'
+      ? Math.min(subtotal, appliedCoupon.value)
+      : 0
+    : 0;
+  const effectiveDeliveryFee = appliedCoupon?.type === 'shipping' ? 0 : deliveryFee;
+
   // Calculate tip amount
   const tip = customTip !== null ? customTip : tipPercentage > 0 ? Math.round((subtotal * tipPercentage) / 100) : 0;
-  const totalPrice = subtotal + deliveryFee + tip;
+  const totalPrice = Math.max(0, subtotal - discountAmount + effectiveDeliveryFee + tip);
 
   const formatCurrency = (val: number) => {
     return '$' + val.toLocaleString('es-CO');
@@ -432,11 +456,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         numeroMesa: deliveryType === 'mesa' ? tableNumber : null,
         direccion: deliveryType === 'domicilio' ? customerAddress : null,
         subtotal,
+        descuento: discountAmount,
+        cuponCodigo: appliedCoupon?.code || null,
         propina: tip,
-        costoEnvio: deliveryFee,
+        costoEnvio: effectiveDeliveryFee,
         total: totalPrice,
         metodoPago: paymentMethod,
-        notasCliente: customerNotes.trim(),
+        notasCliente: [
+          customerNotes.trim(),
+          appliedCoupon ? `[Cupón ${appliedCoupon.code}: -${formatCurrency(discountAmount)}]` : '',
+        ]
+          .filter(Boolean)
+          .join(' | '),
         branchId: selectedBranchId,
         sedeNombre: selectedBranchName,
         restaurantSlug: slugParam,
@@ -516,11 +547,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           numeroMesa: deliveryType === 'mesa' ? tableNumber : null,
           direccion: deliveryType === 'domicilio' ? customerAddress : null,
           subtotal,
+          descuento: discountAmount,
+          cuponCodigo: appliedCoupon?.code || null,
           propina: tip,
-          costoEnvio: deliveryFee,
+          costoEnvio: effectiveDeliveryFee,
           total: totalPrice,
           metodoPago: paymentMethod,
-          notasCliente: customerNotes.trim(),
+          notasCliente: [
+            customerNotes.trim(),
+            appliedCoupon ? `[Cupón ${appliedCoupon.code}: -${formatCurrency(discountAmount)}]` : '',
+          ]
+            .filter(Boolean)
+            .join(' | '),
           branchId: selectedBranchId,
           sedeNombre: selectedBranchName,
           restaurantSlug: slugParam,
@@ -636,8 +674,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     message += `\n----------------------------\n`;
     message += `💵 *Subtotal:* ${formatCurrency(subtotal)} COP\n`;
+    if (discountAmount > 0 && appliedCoupon) {
+      message += `🏷️ *Descuento (${appliedCoupon.code}):* -${formatCurrency(discountAmount)} COP\n`;
+    }
     if (deliveryType === 'domicilio') {
-      message += `🛵 *Costo Domicilio:* ${formatCurrency(deliveryFee)} COP\n`;
+      message += `🛵 *Costo Domicilio:* ${appliedCoupon?.type === 'shipping' ? 'GRATIS (Cupón)' : `${formatCurrency(effectiveDeliveryFee)} COP`}\n`;
     }
     if (tip > 0) {
       message += `💛 *Propina voluntaria (${tipPercentage > 0 ? `${tipPercentage}%` : 'Personalizada'}):* ${formatCurrency(tip)} COP\n`;
@@ -671,6 +712,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalItems,
         subtotal,
         deliveryFee,
+        effectiveDeliveryFee,
+        discountAmount,
+        appliedCoupon,
+        setAppliedCoupon,
         tip,
         tipPercentage,
         setTipPercentage,
