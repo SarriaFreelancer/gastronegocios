@@ -139,6 +139,18 @@ export async function PUT(
     if (body.propinaSugeridaPct !== undefined) {
       data.propinaSugeridaPct = Number(body.propinaSugeridaPct);
     }
+    if (body.limiteSedes !== undefined) {
+      data.limiteSedes = Math.max(1, Number(body.limiteSedes));
+    }
+    if (body.limiteProductos !== undefined) {
+      data.limiteProductos = Math.max(1, Number(body.limiteProductos));
+    }
+    if (body.limiteUsuarios !== undefined) {
+      data.limiteUsuarios = Math.max(1, Number(body.limiteUsuarios));
+    }
+    if (body.diasGracia !== undefined) {
+      data.diasGracia = Math.max(0, Number(body.diasGracia));
+    }
     if (body.fechaVencimiento !== undefined) {
       data.fechaVencimiento = body.fechaVencimiento ? new Date(body.fechaVencimiento) : null;
     }
@@ -174,10 +186,39 @@ export async function PUT(
       ).catch(() => {});
     }
 
-    if (data.fechaVencimiento !== undefined && data.fechaVencimiento) {
+    if (data.fechaVencimiento !== undefined) {
       await prisma.$executeRawUnsafe(
         "UPDATE `restaurants` SET `fechaVencimiento` = ? WHERE `id` = ?;",
         data.fechaVencimiento,
+        restaurantId
+      ).catch(() => {});
+    }
+
+    if (data.plan !== undefined) {
+      await prisma.$executeRawUnsafe(
+        "UPDATE `restaurants` SET `plan` = ? WHERE `id` = ?;",
+        data.plan,
+        restaurantId
+      ).catch(() => {});
+    }
+
+    if (
+      data.limiteSedes !== undefined ||
+      data.limiteProductos !== undefined ||
+      data.limiteUsuarios !== undefined ||
+      data.diasGracia !== undefined
+    ) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`restaurants\`
+         SET \`limiteSedes\` = COALESCE(?, \`limiteSedes\`),
+             \`limiteProductos\` = COALESCE(?, \`limiteProductos\`),
+             \`limiteUsuarios\` = COALESCE(?, \`limiteUsuarios\`),
+             \`diasGracia\` = COALESCE(?, \`diasGracia\`)
+         WHERE \`id\` = ?;`,
+        data.limiteSedes ?? null,
+        data.limiteProductos ?? null,
+        data.limiteUsuarios ?? null,
+        data.diasGracia ?? null,
         restaurantId
       ).catch(() => {});
     }

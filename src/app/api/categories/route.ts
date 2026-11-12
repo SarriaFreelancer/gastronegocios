@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveTenantScope } from '@/lib/tenant-security';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,15 +13,17 @@ export async function GET(req: Request) {
     const includeAll = searchParams.get('all') === 'true';
     const restaurantId = searchParams.get('restaurantId');
     const restaurantSlug = searchParams.get('restaurantSlug');
+    const allowAllTenants = searchParams.get('allTenants') === 'true';
 
     const where: any = {};
 
     if (restaurantId && restaurantId !== 'all') {
       where.restaurantId = Number(restaurantId);
     } else if (restaurantSlug) {
-      where.restaurant = { slug: restaurantSlug };
-    } else if (!includeAll) {
-      where.restaurantId = 1;
+      where.restaurant = { OR: [{ slug: restaurantSlug }, { subdominio: restaurantSlug }] };
+    } else if (!allowAllTenants) {
+      const scope = await resolveTenantScope(req);
+      where.restaurantId = scope.restaurantId;
     }
     if (soloPrincipales) {
       where.parentId = null;

@@ -670,3 +670,30 @@ model Customer {
   @@index([telefono])
   @@map("customers")
 }
+
+// ==========================================
+// PLANES Y LICENCIAS SAAS (LANDING & SUPERADMIN)
+// ==========================================
+model SaasPlan {
+  id                  Int      @id @default(autoincrement())
+  codigo              String   @unique // "Basico", "Pro", "Enterprise"
+  nombre              String
+  subtitulo           String   @default("")
+  emoji               String   @default("🚀")
+  precioMensual       Float    @default(29990)
+  precioAnual         Float    @default(299900)
+  moneda              String   @default("COP")
+  badgeTexto          String?
+  destacado           Boolean  @default(false)
+  caracteristicasJson String   @db.Text
+  limiteSedes         Int      @default(1)
+  limiteProductos     Int      @default(100)
+  limiteUsuarios      Int      @default(10)
+  ctaTexto            String   @default("Comenzar Ahora")
+  tipoAccion          String   @default("registro")
+  activo              Boolean  @default(true)
+  orden               Int      @default(1)
+  updatedAt           DateTime @updatedAt
+
+  @@map("saas_plans")
+}

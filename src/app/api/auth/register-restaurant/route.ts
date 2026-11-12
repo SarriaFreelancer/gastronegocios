@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant, serializeSafe } from '@/lib/db-autoheal';
+import { getPlanLimitsByCode } from '@/lib/saas-plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
           telefonoWhatsapp: telefonoWhatsapp ? String(telefonoWhatsapp).trim() : '3000000000',
           direccionCentral: direccionCentral ? String(direccionCentral).trim() : 'Sede Principal',
           ciudad: ciudad ? String(ciudad).trim() : 'Cali',
-          plan: plan || 'Pro',
+          ...(await getPlanLimitsByCode(plan || 'Pro')),
           estadoLicencia: 'PRUEBA',
           fechaVencimiento: trialEnds,
           mostrarEnLanding: true,

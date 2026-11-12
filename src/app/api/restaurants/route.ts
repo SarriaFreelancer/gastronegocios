@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ensureRestaurantBranchesAndSchema, getOrCreateBranchesForRestaurant, serializeSafe } from '@/lib/db-autoheal';
+import { getPlanLimitsByCode } from '@/lib/saas-plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -193,6 +194,10 @@ export async function GET(request: Request) {
         activo: isActivo,
         mostrarEnLanding: r.mostrarEnLanding !== undefined ? Boolean(r.mostrarEnLanding) : true,
         estadoLicencia: r.estadoLicencia || (isActivo ? 'ACTIVA' : 'SUSPENDIDA'),
+        limiteSedes: Number(r.limiteSedes ?? 3),
+        limiteProductos: Number(r.limiteProductos ?? 100),
+        limiteUsuarios: Number(r.limiteUsuarios ?? 10),
+        diasGracia: Number(r.diasGracia ?? 5),
         costoDomicilioBase: Number(r.costoDomicilioBase ?? 5000),
         propinaSugeridaPct: Number(r.propinaSugeridaPct ?? 10),
         branches: rBranches,
@@ -439,7 +444,7 @@ export async function POST(request: Request) {
           ciudad: ciudad || 'Cali',
           costoDomicilioBase: Number(costoDomicilioBase ?? 5000),
           propinaSugeridaPct: Number(propinaSugeridaPct ?? 10),
-          plan: plan || 'Pro',
+          ...(await getPlanLimitsByCode(plan || 'Pro')),
           activo: true,
         },
       });

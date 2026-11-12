@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveTenantScope } from '@/lib/tenant-security';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,22 +10,28 @@ export async function GET(req: Request) {
     const soloActivos = searchParams.get('activo') === 'true';
     const restaurantIdParam = searchParams.get('restaurantId');
     const restaurantSlugParam = searchParams.get('restaurantSlug');
+    const allowAll = searchParams.get('allTenants') === 'true';
 
     let targetRestaurantId: number | null = null;
 
     if (restaurantIdParam && restaurantIdParam !== 'all') {
       targetRestaurantId = Number(restaurantIdParam);
     } else if (restaurantSlugParam) {
-      const rest = await prisma.restaurant.findUnique({
-        where: { slug: restaurantSlugParam },
+      const rest = await prisma.restaurant.findFirst({
+        where: {
+          OR: [{ slug: restaurantSlugParam }, { subdominio: restaurantSlugParam }],
+        },
         select: { id: true },
       });
       if (rest) {
         targetRestaurantId = rest.id;
       }
+    } else if (!allowAll) {
+      const scope = await resolveTenantScope(req);
+      targetRestaurantId = scope.restaurantId;
     }
 
-    // Si se especifica un restaurante, retornamos estrictamente sus adicionales
+    // Si se especifica un restaurante (o viene resuelto por scope), retornamos estrictamente sus adicionales
     if (targetRestaurantId) {
       const addons = await prisma.productAddon.findMany({
         where: {
@@ -37,7 +44,7 @@ export async function GET(req: Request) {
       return NextResponse.json(addons);
     }
 
-    // Consulta general (sin filtrar restaurante o para superadmin)
+    // Consulta general solo cuando se solicita explícitamente allTenants=true
     const addons = await prisma.productAddon.findMany({
       where: soloActivos ? { activo: true } : {},
       orderBy: [{ categoria: 'asc' }, { precio: 'asc' }],

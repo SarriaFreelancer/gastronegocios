@@ -56,15 +56,12 @@ export async function resolveTenantScope(
   if (targetSlug && targetSlug !== 'all' && targetSlug !== 'todas') {
     const cleanSlug = targetSlug.toLowerCase().trim();
     const slugWithHyphen = cleanSlug === 'puntog' ? 'punto-g' : cleanSlug;
-    const slugAlias = cleanSlug === 'puntog' ? 'punto-g' : (cleanSlug === 'don-carbon-parrilla' || cleanSlug === 'doncarbon') ? 'bryan' : cleanSlug;
     const rest = await prisma.restaurant.findFirst({
       where: {
         OR: [
           { slug: cleanSlug },
           { subdominio: cleanSlug },
           { slug: slugWithHyphen },
-          { slug: slugAlias },
-          { subdominio: slugAlias },
         ],
       },
       select: { id: true, slug: true },

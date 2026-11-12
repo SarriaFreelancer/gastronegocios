@@ -26,6 +26,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { showSuccess, showError } from '@/lib/swal';
+import { DEFAULT_SAAS_PLANS, formatCopPrice, type SaasPlanItem } from '@/lib/saas-plans';
 
 const TEMPLATES = [
   {
@@ -51,40 +52,40 @@ const TEMPLATES = [
   },
 ];
 
-const PLANS = [
-  {
-    id: 'Basico',
-    name: 'Plan Básico',
-    price: '$29.990/mes',
-    icon: Rocket,
-    desc: '1 Sede Principal • Carta QR, POS y Cocina KDS',
-  },
-  {
-    id: 'Pro',
-    name: 'Plan Intermedio',
-    price: '$49.990/mes',
-    icon: Crown,
-    badge: 'Más Popular 🔥',
-    desc: 'Hasta 3 sedes • Inventario, Recetas y Reportes',
-  },
-  {
-    id: 'Enterprise',
-    name: 'Plan Enterprise',
-    price: '$89.990/mes',
-    icon: Gem,
-    desc: 'Sedes ilimitadas • Dominio propio y Soporte VIP',
-  },
-];
+const PLAN_ICON_MAP: Record<string, any> = {
+  Basico: Rocket,
+  Pro: Crown,
+  Enterprise: Gem,
+};
+
+function mapInitialPlanCode(raw: string | null): string {
+  const clean = (raw || '').toLowerCase().trim();
+  if (clean === 'basico') return 'Basico';
+  if (clean === 'enterprise') return 'Enterprise';
+  return 'Pro';
+}
 
 function RegistroFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPlan = searchParams.get('plan') || 'Pro';
+  const initialPlan = mapInitialPlanCode(searchParams.get('plan'));
 
+  const [plans, setPlans] = useState<SaasPlanItem[]>(DEFAULT_SAAS_PLANS);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/saas/plans?active=true&_t=${Date.now()}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.plans) && data.plans.length > 0) {
+          setPlans(data.plans);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -93,7 +94,7 @@ function RegistroFormContent() {
     ciudad: 'Cali',
     direccionCentral: '',
     telefonoWhatsapp: '',
-    plan: ['Basico', 'Pro', 'Enterprise'].includes(initialPlan) ? initialPlan : 'Pro',
+    plan: initialPlan,
     plantilla: 'urbana-gourmet',
     colorPrimario: '#F10F1A',
     colorSecundario: '#FA9B23',
@@ -569,31 +570,35 @@ function RegistroFormContent() {
                   2. Plan SaaS (14 días gratis sin tarjeta)
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {PLANS.map((p) => {
-                    const Icon = p.icon;
-                    const selected = formData.plan === p.id;
+                  {plans.map((p) => {
+                    const Icon = PLAN_ICON_MAP[p.codigo] || Rocket;
+                    const selected = formData.plan === p.codigo;
                     return (
                       <button
-                        key={p.id}
+                        key={p.codigo}
                         type="button"
-                        onClick={() => setFormData({ ...formData, plan: p.id })}
+                        onClick={() => setFormData({ ...formData, plan: p.codigo })}
                         className={`text-left p-4 rounded-2xl border transition-all relative cursor-pointer ${
                           selected
                             ? 'bg-gradient-to-b from-[#FA9B23]/20 to-black/60 border-[#FA9B23] shadow-lg'
                             : 'bg-black/40 border-white/10 hover:border-white/25'
                         }`}
                       >
-                        {p.badge && (
+                        {p.badgeTexto && (
                           <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FFE082] to-[#FA9B23] text-black text-[9px] font-black uppercase">
-                            {p.badge}
+                            {p.badgeTexto}
                           </span>
                         )}
                         <div className="flex items-center gap-2 mb-2">
                           <Icon className={`w-4 h-4 ${selected ? 'text-[#FA9B23]' : 'text-stone-400'}`} />
-                          <span className="font-bold text-white text-sm">{p.name}</span>
+                          <span className="font-bold text-white text-sm">Plan {p.nombre}</span>
                         </div>
-                        <div className="text-base font-black text-[#FA9B23] mb-1">{p.price}</div>
-                        <p className="text-[11px] text-stone-400">{p.desc}</p>
+                        <div className="text-base font-black text-[#FA9B23] mb-1">
+                          {formatCopPrice(p.precioMensual)}/mes
+                        </div>
+                        <p className="text-[11px] text-stone-400">
+                          {p.subtitulo} • {(p.caracteristicas || []).slice(0, 2).join(' • ')}
+                        </p>
                       </button>
                     );
                   })}

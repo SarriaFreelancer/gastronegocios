@@ -40,6 +40,9 @@ import {
 import { swalCustom, showSuccess, showError, showConfirm } from '@/lib/swal';
 import { FoodImagePresetSelector } from '@/components/admin/FoodImagePresetSelector';
 import { LogoPresetSelector } from '@/components/admin/LogoPresetSelector';
+import { DEFAULT_SAAS_PLANS, formatCopPrice, type SaasPlanItem } from '@/lib/saas-plans';
+import { SuperadminLicensesPanel } from '@/components/superadmin/SuperadminLicensesPanel';
+import { SuperadminPlansPanel } from '@/components/superadmin/SuperadminPlansPanel';
 
 interface RestaurantItem {
   id: number;
@@ -99,6 +102,8 @@ export default function SuperadminPage() {
   const [authChecked, setAuthChecked] = useState(false);
 
   const [restaurants, setRestaurants] = useState<RestaurantItem[]>([]);
+  const [saasPlans, setSaasPlans] = useState<SaasPlanItem[]>(DEFAULT_SAAS_PLANS);
+  const [activeSuperadminTab, setActiveSuperadminTab] = useState<'restaurantes' | 'licencias' | 'planes'>('restaurantes');
   const [metrics, setMetrics] = useState({
     totalRestaurantes: 0,
     activos: 0,
@@ -252,8 +257,23 @@ export default function SuperadminPage() {
     }
   };
 
+  const loadSaasPlans = async () => {
+    try {
+      const res = await fetch(`/api/saas/plans?_t=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.plans) && data.plans.length > 0) {
+          setSaasPlans(data.plans);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading SaaS plans:', e);
+    }
+  };
+
   useEffect(() => {
     loadRestaurants();
+    loadSaasPlans();
   }, []);
 
   // Crear nuevo restaurante cliente SaaS
@@ -882,13 +902,13 @@ export default function SuperadminPage() {
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-black uppercase text-white font-display tracking-wider flex items-center gap-2">
-              <span>PANEL SUPERADMIN</span>
+              <span>GASTRONEGOCIOS • SUPERADMIN</span>
               <span className="text-[10px] bg-brand-yellow text-black font-black px-2 py-0.5 rounded-md">
                 SAAS MULTI-RESTAURANTE
               </span>
             </h1>
             <p className="text-[11px] text-gray-400">
-              Administración centralizada de restaurantes, sedes, landing pages y bases de datos
+              Administración centralizada de restaurantes, licencias, precios en landing y bases de datos
             </p>
           </div>
         </div>
@@ -997,8 +1017,71 @@ export default function SuperadminPage() {
         </div>
 
         {/* ======================================================== */}
+        {/* PESTAÑAS DE GESTIÓN DEL SUPERADMIN */}
+        {/* ======================================================== */}
+        <div className="flex flex-wrap items-center gap-2 bg-[#111111] border border-[#242424] rounded-2xl p-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveSuperadminTab('restaurantes')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              activeSuperadminTab === 'restaurantes'
+                ? 'bg-brand-yellow text-black shadow-glow'
+                : 'text-gray-300 hover:text-white hover:bg-[#1a1a1a]'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Restaurantes ({restaurants.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSuperadminTab('licencias')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              activeSuperadminTab === 'licencias'
+                ? 'bg-brand-yellow text-black shadow-glow'
+                : 'text-gray-300 hover:text-white hover:bg-[#1a1a1a]'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Clientes y Licencias ({restaurants.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSuperadminTab('planes')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              activeSuperadminTab === 'planes'
+                ? 'bg-brand-yellow text-black shadow-glow'
+                : 'text-gray-300 hover:text-white hover:bg-[#1a1a1a]'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            <span>Precios y Planes (Landing)</span>
+          </button>
+        </div>
+
+        {activeSuperadminTab === 'licencias' && (
+          <SuperadminLicensesPanel
+            restaurants={restaurants}
+            plans={saasPlans}
+            onRefresh={loadRestaurants}
+            onExtendLicense={handleExtendLicense}
+            onToggleActive={handleToggleActive}
+          />
+        )}
+
+        {activeSuperadminTab === 'planes' && (
+          <SuperadminPlansPanel
+            plans={saasPlans}
+            onPlansUpdated={(updated) => setSaasPlans(updated)}
+            onSyncLimitsToRestaurants={loadRestaurants}
+          />
+        )}
+
+        {/* ======================================================== */}
         {/* LISTADO DE RESTAURANTES (TENANTS) */}
         {/* ======================================================== */}
+        {activeSuperadminTab === 'restaurantes' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
@@ -1396,6 +1479,7 @@ export default function SuperadminPage() {
             ))}
           </div>
         </div>
+        )}
       </main>
 
       {/* ======================================================== */}
@@ -1575,9 +1659,11 @@ export default function SuperadminPage() {
                     onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                     className="w-full bg-[#1c1c1c] border border-[#2d2d2d] rounded-xl px-3 py-2 text-white font-bold"
                   >
-                    <option value="Basico">Plan Básico</option>
-                    <option value="Pro">Plan Pro (Recomendado)</option>
-                    <option value="Enterprise">Plan Enterprise</option>
+                    {saasPlans.map((p) => (
+                      <option key={p.codigo} value={p.codigo}>
+                        Plan {p.nombre} ({formatCopPrice(p.precioMensual)}/mes)
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
